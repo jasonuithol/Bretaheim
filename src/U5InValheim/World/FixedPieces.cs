@@ -39,6 +39,17 @@ namespace U5InValheim.WorldGen
         {
             var zdo = __instance.GetComponent<ZNetView>()?.GetZDO();
             if (zdo == null || !zdo.GetBool(Settlements.FixedKey)) return;
+            Apply(__instance, zdo);
+        }
+
+        /// <summary>
+        /// Makes a loaded settlement piece permanent. Called from WearNTear.Awake for pieces loaded
+        /// from the world, and right after spawning for new ones — their Awake runs inside
+        /// Instantiate, before the spawner has written the "u5_fixed" key.
+        /// </summary>
+        public static void Apply(WearNTear __instance, ZDO zdo)
+        {
+            if (__instance.GetComponent<U5Fixed>() != null) return;
             __instance.gameObject.AddComponent<U5Fixed>();
             __instance.m_noSupportWear = false;
             __instance.m_noRoofWear = false;

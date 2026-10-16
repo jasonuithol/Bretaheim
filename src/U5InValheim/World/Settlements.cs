@@ -149,6 +149,8 @@ namespace U5InValheim.WorldGen
                         zdo.Set(ClimbKey, b.Origin + new Vector3(p.ClimbX, p.ClimbY, p.ClimbZ));
                         zdo.Set(ClimbVerbKey, p.ClimbVerb);
                     }
+                    var wnt = go.GetComponent<WearNTear>();
+                    if (wnt != null) FixedPieces.Apply(wnt, zdo);
                 }
                 if (mode == ZoneSystem.SpawnMode.Ghost)
                 {

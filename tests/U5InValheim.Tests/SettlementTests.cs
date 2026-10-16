@@ -56,6 +56,20 @@ namespace U5InValheim.Tests
             Assert.True(p.Pieces.Count(x => x.Climb) >= 2, "ladders between floors");
         }
 
+        [U5Theory]
+        [InlineData(13, "dwelling", 650, 30)]
+        [InlineData(2, "towne", 2600, 350)]
+        [InlineData(17, "castle", 6200, 900)]
+        public void PieceBudget(int location, string kind, int maxPieces, int maxSmall)
+        {
+            // walls run corner to corner in 2 m pieces and floors take whole 2 m pieces per room;
+            // 1 m pieces only fill odd ends (next to doors and windows)
+            var p = Plan(location, kind);
+            Assert.InRange(p.Pieces.Count, 1, maxPieces);
+            int small = p.Pieces.Count(x => x.Prefab == "wood_wall_quarter" || x.Prefab == "wood_floor_1x1" || x.Prefab == "stone_wall_1x1");
+            Assert.InRange(small, 0, maxSmall);
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {

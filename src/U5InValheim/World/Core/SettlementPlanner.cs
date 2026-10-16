@@ -361,31 +361,88 @@ namespace U5InValheim.WorldGen.Core
 
         /// <summary>
         /// Upper floors. A U5 wall fills its whole tile but ours runs along the tile's centre line,
-        /// so the room-side half of every wall tile gets 1 m floor pieces too (otherwise a 1 m gap
-        /// runs along every wall). A quarter of a wall tile is on the room side when the tile next
-        /// to it in that direction — beside, above/below or diagonal — is a room.
+        /// so each room's floor also covers the room-side half of its wall tiles (a quarter of a
+        /// wall tile is on the room side when the tile beside it, above/below it or diagonal to it
+        /// in that direction is a room). That floor is laid out on a 1 m grid per room and tiled
+        /// with 2 m pieces on whichever of the four half-tile offsets fits the most of them —
+        /// between parallel walls the room then takes whole 2 m pieces instead of 1-2-…-2-1 —
+        /// and 1 m pieces fill what is left.
         /// </summary>
         void Floors(Ctx ctx, Level lv, TownStyle house)
         {
             if (lv.Z == 0) return;
             var p = ctx.Plan;
             float y = p.Storey * lv.Z;
-            bool In(int x, int yy) => x >= 0 && yy >= 0 && x < N && yy < N && lv.Interior[yy * N + x];
+            const int H = N * 2; // half-tile grid
+            var room = new int[H * H];
+            for (int i = 0; i < room.Length; i++) room[i] = -1;
+
+            // rooms: connected room tiles (battlement walks count as rooms of their own)
+            var label = new int[N * N];
+            for (int i = 0; i < label.Length; i++) label[i] = -1;
+            bool Floored(int c) => lv.Interior[c] || (lv.Rule[c].Kind == TileKind.Battlement && lv.Built[c]);
+            int rooms = 0;
+            for (int s0 = 0; s0 < N * N; s0++)
+            {
+                if (!Floored(s0) || label[s0] >= 0) continue;
+                var q = new Queue<int>();
+                q.Enqueue(s0); label[s0] = rooms;
+                while (q.Count > 0)
+                {
+                    int c = q.Dequeue();
+                    foreach (int n in Neighbours4(c))
+                        if (Floored(n) && label[n] < 0 && lv.Interior[n] == lv.Interior[c]) { label[n] = rooms; q.Enqueue(n); }
+                }
+                rooms++;
+            }
+            int L(int x, int yy) => x >= 0 && yy >= 0 && x < N && yy < N && lv.Interior[yy * N + x] ? label[yy * N + x] : -1;
             for (int c = 0; c < N * N; c++)
             {
-                if (lv.Interior[c] || (lv.Rule[c].Kind == TileKind.Battlement && lv.Built[c]))
-                {
-                    ctx.Top(house.Floor, CellX(p, c), y, CellZ(p, c), 0);
-                    continue;
-                }
-                if (!(lv.Built[c] || lv.Doorway[c]) || !ctx.Known(house.FloorSmall)) continue;
                 int x = c % N, cy = c / N;
-                for (int sy = -1; sy <= 1; sy += 2)
-                for (int sx = -1; sx <= 1; sx += 2)
-                    if (In(x + sx, cy) || In(x, cy + sy) || In(x + sx, cy + sy))
-                        ctx.Top(house.FloorSmall, CellX(p, c) + sx * 0.5f, y, CellZ(p, c) - sy * 0.5f, 0);
+                for (int qy = 0; qy < 2; qy++)
+                for (int qx = 0; qx < 2; qx++)
+                {
+                    int r = -1;
+                    if (Floored(c)) r = label[c];
+                    else if ((lv.Built[c] || lv.Doorway[c]) && ctx.Known(house.FloorSmall))
+                    {
+                        int sx = qx == 0 ? -1 : 1, sy = qy == 0 ? -1 : 1;
+                        r = L(x + sx, cy);
+                        if (r < 0) r = L(x, cy + sy);
+                        if (r < 0) r = L(x + sx, cy + sy);
+                    }
+                    if (r >= 0) room[(2 * cy + qy) * H + 2 * x + qx] = r;
+                }
+            }
+
+            for (int r = 0; r < rooms; r++)
+            {
+                int bestPx = 0, bestPz = 0, best = -1;
+                for (int pz = 0; pz < 2; pz++)
+                for (int px = 0; px < 2; px++)
+                {
+                    int n = 0;
+                    for (int hz = pz; hz + 1 < H; hz += 2)
+                    for (int hx = px; hx + 1 < H; hx += 2)
+                        if (Block(room, H, hx, hz, r)) n++;
+                    if (n > best) { best = n; bestPx = px; bestPz = pz; }
+                }
+                var used = new bool[H * H];
+                for (int hz = bestPz; hz + 1 < H; hz += 2)
+                for (int hx = bestPx; hx + 1 < H; hx += 2)
+                {
+                    if (!Block(room, H, hx, hz, r)) continue;
+                    used[hz * H + hx] = used[hz * H + hx + 1] = used[(hz + 1) * H + hx] = used[(hz + 1) * H + hx + 1] = true;
+                    ctx.Top(house.Floor, hx + 1 - N, y, N - 1 - hz, 0);
+                }
+                for (int h = 0; h < H * H; h++)
+                    if (room[h] == r && !used[h])
+                        ctx.Top(house.FloorSmall ?? house.Floor, (h % H) + 0.5f - N, y, N - 0.5f - h / H, 0);
             }
         }
+
+        static bool Block(int[] room, int H, int hx, int hz, int r)
+            => room[hz * H + hx] == r && room[hz * H + hx + 1] == r && room[(hz + 1) * H + hx] == r && room[(hz + 1) * H + hx + 1] == r;
 
         // ── walls ─────────────────────────────────────────────────────────────────────────────
 
@@ -394,43 +451,86 @@ namespace U5InValheim.WorldGen.Core
             var p = ctx.Plan;
             float y0 = p.Storey * lv.Z, y1 = y0 + p.Storey;
             var arch = new TileRule { Kind = TileKind.Door, Open = true };
+            // 1 m wall segments on the tile centre lines: half a wall tile from its centre toward
+            // each connected neighbour. hseg[y][hx]: the segment from x = hx to hx + 1 m on row y.
+            var hseg = new TownStyle[N, N * 2];
+            var vseg = new TownStyle[N * 2, N];
             for (int c = 0; c < N * N; c++)
             {
+                int x = c % N, y = c / N;
+                float cx = CellX(p, c), cz = CellZ(p, c);
                 if (lv.Doorway[c])
                 {
-                    Opening(ctx, house, arch, CellX(p, c), CellZ(p, c), EW(lv, c) ? 0 : 90, y0, y1);
+                    Opening(ctx, house, arch, cx, cz, EW(lv, c) ? 0 : 90, y0, y1);
                     continue;
                 }
                 if (!lv.Built[c] || lv.Rule[c].Kind == TileKind.Battlement) continue;
                 var style = lv.Building[c] ? house : outer;
-                int x = c % N, y = c / N;
                 bool B(int nx, int ny) => nx >= 0 && ny >= 0 && nx < N && ny < N
                                           && ((lv.Built[ny * N + nx] && lv.Rule[ny * N + nx].Kind != TileKind.Battlement) || lv.Doorway[ny * N + nx]);
                 bool e = B(x + 1, y), w = B(x - 1, y), n = B(x, y - 1), s = B(x, y + 1);
-                float cx = CellX(p, c), cz = CellZ(p, c);
                 var rule = lv.Rule[c];
-
                 if (rule.IsOpening)
                 {
                     // the opening lies in its wall run; a free-standing one spans across its open sides
                     bool alongX = e || w || (!n && !s && y > 0 && y < N - 1 && !lv.Barrier[c - N] && !lv.Barrier[c + N]);
-                    float yaw = alongX ? 0 : 90;
-                    Opening(ctx, style, rule, cx, cz, yaw, y0, y1);
+                    Opening(ctx, style, rule, cx, cz, alongX ? 0 : 90, y0, y1);
                     continue;
                 }
-
-                if (e && w && !n && !s) { ctx.WallColumn(style, true, cx, cz, 0, y0, y1); continue; }
-                if (n && s && !e && !w) { ctx.WallColumn(style, true, cx, cz, 90, y0, y1); continue; }
-                bool any = false;
-                if (e) { ctx.WallColumn(style, false, cx + 0.5f, cz, 0, y0, y1); any = true; }
-                if (w) { ctx.WallColumn(style, false, cx - 0.5f, cz, 0, y0, y1); any = true; }
-                if (n) { ctx.WallColumn(style, false, cx, cz + 0.5f, 90, y0, y1); any = true; }
-                if (s) { ctx.WallColumn(style, false, cx, cz - 0.5f, 90, y0, y1); any = true; }
-                if (!any)
+                if (w) hseg[y, 2 * x] = style;
+                if (e) hseg[y, 2 * x + 1] = style;
+                if (n) vseg[2 * y, x] = style;
+                if (s) vseg[2 * y + 1, x] = style;
+                if (!(e || w || n || s))
                 {
                     float h = ctx.Height(style.Pole);
                     for (float yy = y0; yy + h <= y1 + 0.01f; yy += h) ctx.Centre(style.Pole, cx, yy + h / 2, cz, 0);
                 }
+            }
+            // Merge the segments of each row/column into runs and fill a run of L metres with
+            // L div 2 full pieces and at most one 1 m piece: between two corners the run is a
+            // whole number of tiles, so corners need no stubs.
+            for (int y = 0; y < N; y++)
+                Runs(N * 2, i => hseg[y, i], (from, len, st) => FillRun(ctx, st, from - N, p.LocalZ(y), true, len, y0, y1));
+            for (int x = 0; x < N; x++)
+                Runs(N * 2, i => vseg[i, x], (from, len, st) => FillRun(ctx, st, N - from, p.LocalX(x), false, len, y0, y1));
+        }
+
+        /// <summary>Calls <paramref name="run"/>(start, length, style) for each maximal run of equal non-null entries.</summary>
+        static void Runs(int count, Func<int, TownStyle> at, Action<int, int, TownStyle> run)
+        {
+            int i = 0;
+            while (i < count)
+            {
+                var st = at(i);
+                if (st == null) { i++; continue; }
+                int j = i;
+                while (j < count && at(j) == st) j++;
+                run(i, j - i, st);
+                i = j;
+            }
+        }
+
+        /// <summary>
+        /// A straight wall run starting at <paramref name="start"/> metres (x for rows, z for
+        /// columns, local) and running east (rows) or south (columns) for <paramref name="len"/> m.
+        /// </summary>
+        static void FillRun(Ctx ctx, TownStyle style, float start, float fixedCoord, bool alongX, int len, float y0, float y1)
+        {
+            float pos = 0;
+            float Centre(float offset) => alongX ? start + offset : start - offset;
+            int full = len / 2;
+            for (int k = 0; k < full; k++, pos += 2)
+            {
+                float m = Centre(pos + 1);
+                if (alongX) ctx.WallColumn(style, true, m, fixedCoord, 0, y0, y1);
+                else ctx.WallColumn(style, true, fixedCoord, m, 90, y0, y1);
+            }
+            if (len % 2 == 1)
+            {
+                float m = Centre(pos + 0.5f);
+                if (alongX) ctx.WallColumn(style, false, m, fixedCoord, 0, y0, y1);
+                else ctx.WallColumn(style, false, fixedCoord, m, 90, y0, y1);
             }
         }
 
