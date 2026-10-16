@@ -1,0 +1,177 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using HarmonyLib;
+using U5InValheim.WorldGen.Core;
+using UnityEngine;
+
+namespace U5InValheim.WorldGen
+{
+    /// <summary>
+    /// Phase 2: the settlements built from their maps (SettlementPlanner). When a Britannia world
+    /// activates, the configured settlements are planned, their squares flattened and painted
+    /// (BritanniaShape sites) and their pieces bucketed by zone. When a zone is generated
+    /// (ZoneSystem.PlaceLocations, Full on the owner or Ghost ahead of players) its pieces are
+    /// spawned, so they are saved with the world exactly once.
+    /// </summary>
+    public static class Settlements
+    {
+        public class Built
+        {
+            public Data.Location Location;
+            public SettlementPlan Plan;
+            public SettlementSite Site;
+            /// <summary>World position of the settlement's local origin (centre, ground level).</summary>
+            public Vector3 Origin;
+        }
+
+        public const string FixedKey = "u5_fixed";
+        public const string ClimbKey = "u5_climb";
+        public const string ClimbVerbKey = "u5_climb_verb";
+
+        public static List<Built> All { get; private set; } = new List<Built>();
+        static Dictionary<Vector2s, List<(Built settlement, Placement piece)>> byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
+        static Type clearAreaType;
+        static TownTiles tiles;
+        static PieceGeometry geo;
+
+        public static void Install(Harmony harmony)
+        {
+            clearAreaType = AccessTools.Inner(typeof(ZoneSystem), "ClearArea");
+            var place = AccessTools.Method(typeof(ZoneSystem), "PlaceLocations");
+            if (place == null || clearAreaType == null)
+            {
+                Plugin.Log.LogError("Settlements not installed: ZoneSystem.PlaceLocations/ClearArea not found");
+                return;
+            }
+            harmony.Patch(place, postfix: new HarmonyMethod(typeof(Settlements), nameof(PlaceLocations_Postfix)));
+        }
+
+        /// <summary>Plans the settlements of the world being activated and gives the shape their sites.</summary>
+        public static void Prepare(BritanniaShape shape, List<Poi> pois)
+        {
+            All = new List<Built>();
+            byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
+            var wanted = new HashSet<int>(Plugin.BuildSettlements.Value.Split(',')
+                .Select(t => t.Trim()).Where(t => t.Length > 0).Select(int.Parse));
+            if (wanted.Count == 0) { shape.SetSites(new SettlementSite[0]); return; }
+
+            string dir = Path.Combine(Plugin.PluginDirectory, "mappings");
+            tiles = tiles ?? TownTiles.Parse(File.ReadAllText(Path.Combine(dir, "town_tiles.json")));
+            geo = geo ?? PieceGeometry.Parse(File.ReadAllText(Path.Combine(dir, "piece_geometry.json")));
+            var planner = new SettlementPlanner(Plugin.U5, tiles, geo);
+            var sites = new List<SettlementSite>();
+            foreach (var poi in pois.Where(p => p.Location > 0 && !p.Underworld && wanted.Contains(p.Location)))
+            {
+                var loc = Plugin.U5.Location(poi.Location);
+                if (!loc.IsSettlement) continue;
+                shape.TileCentre(loc.X, loc.Y, out float cx, out float cz);
+                var plan = planner.Plan(loc, poi.Kind, shape.Biome(cx, cz));
+                var site = new SettlementSite
+                {
+                    Location = loc.Number, CentreX = cx, CentreZ = cz, Half = plan.HalfSize, Tile = plan.Tile,
+                    Base = SiteBase(shape, cx, cz, plan), Paint = plan.GroundPaint, Water = plan.Water,
+                };
+                sites.Add(site);
+                var built = new Built { Location = loc, Plan = plan, Site = site, Origin = new Vector3(cx, Britannia.SeaLevel + site.Base, cz) };
+                All.Add(built);
+                foreach (var piece in plan.Pieces)
+                {
+                    var zone = ZoneSystem.GetZone(built.Origin + new Vector3(piece.X, 0, piece.Z));
+                    if (!byZone.TryGetValue(zone, out var list)) byZone[zone] = list = new List<(Built, Placement)>();
+                    list.Add((built, piece));
+                }
+                Plugin.Log.LogInfo($"Planned {loc.Name}: {plan.Pieces.Count} pieces on ground {site.Base:0.0} m");
+            }
+            shape.SetSites(sites);
+        }
+
+        /// <summary>Settlement ground: the average natural height of its square; low enough for its water tiles to hold water.</summary>
+        static float SiteBase(BritanniaShape shape, float cx, float cz, SettlementPlan plan)
+        {
+            double sum = 0;
+            int n = 0;
+            for (float dz = -plan.HalfSize; dz <= plan.HalfSize; dz += 8)
+            for (float dx = -plan.HalfSize; dx <= plan.HalfSize; dx += 8)
+            {
+                sum += shape.NaturalHeight(cx + dx, cz + dz);
+                n++;
+            }
+            float avg = (float)(sum / n);
+            return plan.HasWater ? 1.5f : Mathf.Clamp(avg, 1.5f, 60f);
+        }
+
+        public static bool IsBuilt(int location) => All.Any(b => b.Location.Number == location);
+
+        /// <summary>World spawn point inside Iolo's hut, if it is built.</summary>
+        public static bool TrySpawnPoint(out Vector3 pos)
+        {
+            var hut = All.FirstOrDefault(b => b.Plan.HasSpawn && b.Location.Number == 13);
+            if (hut == null) { pos = default; return false; }
+            pos = hut.Origin + new Vector3(hut.Plan.SpawnX, 0.3f, hut.Plan.SpawnZ);
+            return true;
+        }
+
+        // ── spawning ──────────────────────────────────────────────────────────────────────────
+
+        static void PlaceLocations_Postfix(Vector2s zoneID, IList clearAreas, ZoneSystem.SpawnMode mode, List<GameObject> spawnedObjects)
+        {
+            if (Britannia.Active == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
+
+            // keep the wild vegetation out of every built settlement touching this zone
+            var zonePos = ZoneSystem.GetZonePos(zoneID);
+            foreach (var b in All)
+            {
+                float reach = b.Site.Half + 32f;
+                if (Mathf.Abs(zonePos.x - b.Origin.x) < reach + 32f && Mathf.Abs(zonePos.z - b.Origin.z) < reach + 32f)
+                    clearAreas.Add(Activator.CreateInstance(clearAreaType, b.Origin, b.Site.Half * 1.45f));
+            }
+
+            if (!byZone.TryGetValue(zoneID, out var pieces)) return;
+            int spawned = 0, missing = 0;
+            foreach (var (b, p) in pieces)
+            {
+                var prefab = ZNetScene.instance.GetPrefab(p.Prefab);
+                if (prefab == null) { missing++; continue; }
+                var pos = b.Origin + new Vector3(p.X, p.Y, p.Z);
+                if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
+                var go = UnityEngine.Object.Instantiate(prefab, pos, Quaternion.Euler(0, p.Yaw, 0));
+                var zdo = go.GetComponent<ZNetView>()?.GetZDO();
+                if (zdo != null)
+                {
+                    zdo.Set(FixedKey, true);
+                    if (p.Text != null) zdo.Set(ZDOVars.s_text, p.Text);
+                    if (p.Items != null) zdo.Set(ZDOVars.s_items, ContainerBytes(p.Items));
+                    if (p.Climb)
+                    {
+                        zdo.Set(ClimbKey, b.Origin + new Vector3(p.ClimbX, p.ClimbY, p.ClimbZ));
+                        zdo.Set(ClimbVerbKey, p.ClimbVerb);
+                    }
+                }
+                if (mode == ZoneSystem.SpawnMode.Ghost)
+                {
+                    spawnedObjects.Add(go);
+                    ZNetView.FinishGhostInit();
+                }
+                spawned++;
+            }
+            Plugin.Log.LogInfo($"Zone {zoneID}: spawned {spawned} settlement pieces{(missing > 0 ? $", {missing} with unknown prefabs" : "")}");
+        }
+
+        /// <summary>A container's saved inventory holding one of each item.</summary>
+        static byte[] ContainerBytes(string[] items)
+        {
+            var inv = new Inventory("u5", null, 6, 4);
+            foreach (var name in items)
+            {
+                var item = ObjectDB.instance?.GetItemPrefab(name);
+                if (item != null) inv.AddItem(item, 1);
+            }
+            var pkg = new ZPackage();
+            inv.Save(pkg);
+            return pkg.GetArray();
+        }
+    }
+}

@@ -22,6 +22,8 @@ namespace U5InValheim.Tests
                 foreach (var p in e.EnumerateObject())
                 {
                     bool named = p.Name == "prefab" || p.Name == "extra" || p.Name == "outfit" || p.Name == "prefab_by_circle"
+                                 || p.Name == "wall" || p.Name == "wall_stub" || p.Name == "wall_half" || p.Name == "floor" || p.Name == "roof"
+                                 || p.Name == "roof_top" || p.Name == "gable" || p.Name == "door" || p.Name == "pole" || p.Name == "merlon"
                                  || (p.Name == "base" && p.Value.ValueKind == JsonValueKind.String);
                     if (named && p.Value.ValueKind == JsonValueKind.String) yield return p.Value.GetString();
                     else if (named && p.Value.ValueKind == JsonValueKind.Array)
@@ -40,6 +42,7 @@ namespace U5InValheim.Tests
         [InlineData("monsters.json")]
         [InlineData("items.json")]
         [InlineData("npcs.json")]
+        [InlineData("town_tiles.json")]
         public void EveryPrefabExists(string file)
         {
             var missing = PrefabNames(Load(file)).Where(n => n != null && !IsPlaceholder(n) && !Prefabs.Contains(n)).ToList();

@@ -54,6 +54,7 @@ namespace U5InValheim.WorldGen
                     Plugin.Log.LogInfo($"Britannia terrain for seed '{world.m_seedName}' built in {sw.ElapsedMilliseconds} ms");
                 }
                 Pois = Core.Pois.Build(Plugin.U5);
+                Settlements.Prepare(cached, Pois);
                 PlaceMarkers.Reset();
                 Active = cached;
                 Plugin.Log.LogInfo($"World '{world.m_name}' is Britannia ({Pois.Count} places).");
@@ -72,9 +73,10 @@ namespace U5InValheim.WorldGen
             return new Vector3(wx, SeaLevel + Active.Height(wx, wz), wz);
         }
 
-        /// <summary>Where new players appear: Iolo's hut (INIT.GAM starts the party there).</summary>
+        /// <summary>Where new players appear: inside Iolo's hut (INIT.GAM starts the party there).</summary>
         public static Vector3 SpawnPoint()
         {
+            if (Settlements.TrySpawnPoint(out var inHut)) return inHut;
             var g = Plugin.U5.InitialGame;
             var loc = Plugin.U5.Location(g.Location >= 1 && g.Location <= 40 ? g.Location : 13);
             return TileCentre(loc.X, loc.Y);

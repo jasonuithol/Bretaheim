@@ -11,6 +11,6 @@
     <Compile Include="../../src/U5InValheim/World/Core/**/*.cs" Link="World/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="../../assets/mappings/terrain.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../assets/mappings/*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

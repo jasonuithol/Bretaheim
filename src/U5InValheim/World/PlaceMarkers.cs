@@ -40,7 +40,7 @@ namespace U5InValheim.WorldGen
             byZone = new Dictionary<Vector2s, List<Poi>>();
             foreach (var p in Britannia.Pois)
             {
-                if (p.Underworld) continue;
+                if (p.Underworld || (p.Location > 0 && Settlements.IsBuilt(p.Location))) continue;
                 var zone = ZoneSystem.GetZone(Britannia.TileCentre(p.TileX, p.TileY));
                 if (!byZone.TryGetValue(zone, out var list)) byZone[zone] = list = new List<Poi>();
                 list.Add(p);

@@ -32,5 +32,23 @@ if (argv.Count > 0 && argv[0] == "preview")
     Console.WriteLine($"wrote {outPath}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "town")
+{
+    // town <location> <out.ppm>
+    string maps = AppContext.BaseDirectory;
+    var tiles = U5InValheim.WorldGen.Core.TownTiles.Parse(File.ReadAllText(Path.Combine(maps, "town_tiles.json")));
+    var geo = U5InValheim.WorldGen.Core.PieceGeometry.Parse(File.ReadAllText(Path.Combine(maps, "piece_geometry.json")));
+    var loc = data.FindLocation(argv[1]);
+    var pois = U5InValheim.WorldGen.Core.Pois.Build(data);
+    string kind = pois.First(p => p.Location == loc.Number).Kind;
+    var plan = new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Plan(loc, kind, U5InValheim.WorldGen.Core.VBiome.Meadows);
+    TownPreview.Render(plan, geo, argv.Count > 2 ? argv[2] : "town.ppm");
+    Console.WriteLine($"{loc.Name} ({kind}): {plan.Pieces.Count} pieces, spawn {(plan.HasSpawn ? $"({plan.SpawnX}, {plan.SpawnZ})" : "none")}");
+    foreach (var g in plan.Pieces.GroupBy(p => p.Prefab).OrderByDescending(g => g.Count())) Console.Write($"{g.Key}x{g.Count()} ");
+    Console.WriteLine();
+    var noGeometry = plan.Pieces.Select(p => p.Prefab).Distinct().Where(p => !geo.Has(p)).ToList();
+    if (noGeometry.Count > 0) Console.WriteLine("no geometry: " + string.Join(", ", noGeometry));
+    return 0;
+}
 Console.WriteLine(Dump.Run(data, argv.ToArray()));
 return 0;

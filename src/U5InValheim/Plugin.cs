@@ -29,6 +29,8 @@ namespace U5InValheim
         public static ConfigEntry<string> U5Directory { get; private set; }
         public static ConfigEntry<float> TileMetres { get; private set; }
         public static ConfigEntry<bool> NewWorldsAreBritannia { get; private set; }
+        public static ConfigEntry<string> DumpPieceGeometry { get; private set; }
+        public static ConfigEntry<string> BuildSettlements { get; private set; }
 
         Harmony harmony;
 
@@ -48,7 +50,16 @@ namespace U5InValheim
                 "New worlds get a seed starting with \"Britannia\", which makes them Britannia. A world is Britannia " +
                 "exactly when its seed starts with \"Britannia\"; worlds with other seeds stay vanilla.");
 
+            BuildSettlements = Config.Bind("World", "BuildSettlements", "2,13,17",
+                "Location numbers of the settlements built from their maps in new Britannia worlds " +
+                "(2 Britain, 13 Iolo's hut, 17 Lord British's castle; see 'u5 dump locations'). " +
+                "Must be the same on the server and every client.");
+            DumpPieceGeometry = Config.Bind("Development", "DumpPieceGeometry", "",
+                "Comma-separated prefab names (or *) whose snap points and bounds are written to " +
+                "BepInEx/u5_piece_geometry.json at start-up. Leave empty.");
+
             harmony = new Harmony(PluginGUID);
+            DevTools.PieceGeometryDump.Install(harmony);
             U5Command.Install(harmony); // also explains a missing UltimaVDirectory in-game
 
             if (!LoadU5Data())
@@ -63,6 +74,8 @@ namespace U5InValheim
             if (WorldGenPatches.Installed)
             {
                 PlaceMarkers.Install(harmony);
+                Settlements.Install(harmony);
+                FixedPieces.Install(harmony);
                 gameObject.AddComponent<WorldWrap>();
             }
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");

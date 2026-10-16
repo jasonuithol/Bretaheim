@@ -111,8 +111,48 @@ namespace U5InValheim.WorldGen.Core
 
         // ── sampling ────────────────────────────────────────────────────────────────────────
 
+        // ── settlements ─────────────────────────────────────────────────────────────────────
+
+        SettlementSite[] sites = new SettlementSite[0];
+
+        /// <summary>Flattens and paints the ground of built settlements (set before the shape is used).</summary>
+        public void SetSites(IEnumerable<SettlementSite> list) => sites = new List<SettlementSite>(list).ToArray();
+        public IReadOnlyList<SettlementSite> Sites => sites;
+
         /// <summary>Ground height in metres relative to sea level (Valheim's absolute y = 30 + this).</summary>
         public float Height(float wx, float wz)
+        {
+            float h = NaturalHeight(wx, wz);
+            foreach (var site in sites)
+            {
+                float d = Math.Max(Math.Abs(wx - site.CentreX), Math.Abs(wz - site.CentreZ)) - site.Half;
+                if (d >= site.Blend) continue;
+                if (d <= 0)
+                {
+                    int cell = site.Cell(wx, wz);
+                    return cell >= 0 && site.Water[cell] ? site.Base - 3.1f : site.Base;
+                }
+                h = (float)Lerp(site.Base, h, SmoothStep(d / site.Blend));
+            }
+            return h;
+        }
+
+        /// <summary>Terrain paint: a settlement's streets and fields, the overworld's roads.</summary>
+        public Paint PaintAt(float wx, float wz)
+        {
+            foreach (var site in sites)
+            {
+                int cell = site.Cell(wx, wz);
+                if (cell >= 0) return site.Paint[cell];
+            }
+            ToTile(wx, wz, out double u, out double v);
+            if (OutsideTiles(u, v) > 0) return Paint.None;
+            var c = Terrain[Map[(int)Math.Floor(u), (int)Math.Floor(v)]];
+            return c.Name == "road" || c.Name == "bridge" ? Paint.Dirt : Paint.None;
+        }
+
+        /// <summary>Ground height without settlements.</summary>
+        public float NaturalHeight(float wx, float wz)
         {
             ToTile(wx, wz, out double u, out double v);
             double outside = OutsideTiles(u, v);
@@ -321,5 +361,30 @@ namespace U5InValheim.WorldGen.Core
         static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
         static double Lerp(double a, double b, double t) => a + (b - a) * t;
         static double SmoothStep(double t) { t = Math.Max(0, Math.Min(1, t)); return t * t * (3 - 2 * t); }
+    }
+
+    /// <summary>The flattened, painted square of a built settlement (32×32 town tiles).</summary>
+    public class SettlementSite
+    {
+        public int Location;
+        public float CentreX, CentreZ;
+        /// <summary>Half the side of the square, metres.</summary>
+        public float Half;
+        public float Tile;
+        /// <summary>Ground height of the settlement, metres above sea.</summary>
+        public float Base;
+        /// <summary>Width of the slope back to natural ground around the square.</summary>
+        public float Blend = 14f;
+        public Paint[] Paint;
+        public bool[] Water;
+
+        /// <summary>Cell index (row-major, y south) of a world position inside the square, else −1.</summary>
+        public int Cell(float wx, float wz)
+        {
+            int x = (int)Math.Floor((wx - CentreX + Half) / Tile);
+            int y = (int)Math.Floor((CentreZ + Half - wz) / Tile);
+            int n = (int)Math.Round(2 * Half / Tile);
+            return x < 0 || y < 0 || x >= n || y >= n ? -1 : y * n + x;
+        }
     }
 }

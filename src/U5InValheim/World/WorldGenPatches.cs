@@ -79,9 +79,24 @@ namespace U5InValheim.WorldGen
         {
             var shape = Britannia.Active;
             if (shape == null) return true;
-            mask = Color.black;
+            mask = PaintColour(shape.PaintAt(wx, wy));
             __result = Britannia.SeaLevel + shape.Height(wx, wy);
             return false;
+        }
+
+        /// <summary>
+        /// The terrain builder uses this mask as the ground's paint (Heightmap m_paintMask): red dirt,
+        /// green cultivated, blue paved, black nothing.
+        /// </summary>
+        static Color PaintColour(Core.Paint paint)
+        {
+            switch (paint)
+            {
+                case Core.Paint.Dirt: return Heightmap.m_paintMaskDirt;
+                case Core.Paint.Cultivated: return Heightmap.m_paintMaskCultivated;
+                case Core.Paint.Paved: return Heightmap.m_paintMaskPaved;
+                default: return Color.black;
+            }
         }
 
         /// <summary>New worlds are Britannia unless the player types another seed.</summary>
@@ -112,9 +127,13 @@ namespace U5InValheim.WorldGen
             var existing = new List<ZoneSystem.LocationInstance>();
             if (__instance.FindLocations(location.m_prefab.Name, ref existing) && existing.Count > 0) return false;
             var pos = Britannia.SpawnPoint();
+            // With the hut built, the temple itself is never spawned (registered as placed): its
+            // registration only marks where players appear.
+            bool hutBuilt = Settlements.IsBuilt(13);
             registerLocation = registerLocation ?? AccessTools.Method(typeof(ZoneSystem), "RegisterLocation");
-            registerLocation.Invoke(__instance, new object[] { location, pos, false });
-            Plugin.Log.LogInfo($"Start location placed at Iolo's hut {pos}");
+            registerLocation.Invoke(__instance, new object[] { location, pos, hutBuilt });
+            Plugin.Log.LogInfo($"Start location placed at Iolo's hut {pos} (temple {(hutBuilt ? "not spawned" : "spawned")}, " +
+                               $"iconAlways {location.m_iconAlways}, iconPlaced {location.m_iconPlaced})");
             return false;
         }
 
