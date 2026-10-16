@@ -14,7 +14,7 @@ phases, and the decisions that must not drift. Everything here builds on five bo
 | `/media/jason/FABA03B0BA036889/Users/jason/Desktop/Projects/SCUM-Mods/Mods/Britannia/tools/` | `generate_terrain.py`: BRIT.DAT + DATA.OVL → heightmap, per-class weightmaps, POI list, preview; the tile-class → elevation/layer tables are reused as-is. (SCUM itself is no longer a target; `heightfield_patch.py` and the SCUM world size are irrelevant here.) |
 | `/media/jason/FABA03B0BA036889/Users/jason/Desktop/Projects/BritanniaUE/` | The UE build of Britain: `scripts/ue_town_layout.py`, `ue_britain_v5.py`, `ue_britain_roofs.py`, `ue_ground*.py`, `ue_path_taxi*.py`, `ue_pois.py`, `ue_scatter.py`, `ue_orchard_*.py`, `ue_inn*.py`: tile → building/wall/roof/path/vegetation placement rules that worked, plus `britannia_build/` (heightmap.png, layers, pois.json, meta.json) and `scum_assets/` (asset inventory). |
 | `~/Projects/U5InValheim/Ultima5 to Valheim asset mappings.txt` | The preferred U5 → Valheim *asset* mapping: humans, monsters, static assets, biomes, armour, shields, weapons, rings/amulets (Valheim trinkets), reagents, mixed spells, potions, scrolls, quest items, transport, character and party status effects. Treated as the default; deviations must be recorded in `docs/MAPPING_DECISIONS.md`. |
-| `~/Projects/U5InValheim/Restrictions and Etc.txt` | Food (barley rations, daily eating, karma for stealing crops, karma as a "skill"), the Valheim tools allowed only around Iolo's hut, and the banned Valheim actions. Summarised in §5.12; the file is the authority. |
+| `~/Projects/U5InValheim/Restrictions and Etc.txt` | Food (barley rations, daily eating, karma for stealing crops, karma as a "skill"), the Valheim tools allowed only around Iolo's hut, the banned Valheim actions, the new-world intro and character generation in Iolo's hut. Summarised in §5.12–5.13; the file is the authority. |
 | `~/Projects/U5InValheim/Action mappings.txt` | How each U5 *command* (Attack … Z-stats) is realised in Valheim: which existing mechanic is reused, which key/interaction triggers it, and the custom rules (camping, mixing, climbing, spyglass sky, yelling words of power). Summarised in §5.11; the file is the authority. |
 | `~/Projects/UltimatePyve/docs/` | Older notes: `SPAWN_RULES.md`, `ultima5_npc_porting_notes.md`, NPC/armour spreadsheets. |
 | `~/Projects/Jotunn`, `~/Projects/ValheimKillFeed`, `~/Projects/ClaudeHeim` | Our Valheim modding toolchain and precedents (BepInEx 5 + Harmony, Jötunn lib source, csproj reference layout, Thunderstore publishing rules in `~/.claude/CLAUDE.md`). |
@@ -85,8 +85,8 @@ A C# port of the readers is the first engineering task (§6, Phase 0). The Rust 
 - **Story:** Shadowlords roaming towns by the calendar, the three shards, Blackthorn's castle events,
   the Underworld (reduced), Lord British's rescue and the ending.
 
-Out of scope for v1: the original's combat grid and the Codex/intro slideshows (replaced by a
-short in-game prologue). The Underworld is in scope (Phase 7) as a second continent (§5.1).
+Out of scope for v1: the original's combat grid. The Underworld is in scope (Phase 7) as a second
+continent (§5.1); the original introduction is in scope as the new-world intro (§5.13).
 
 ## 4. Architecture
 
@@ -288,6 +288,7 @@ have none; castles get fixed ballistas you can fire.
   a random attack wakes everyone. Day sleeping is allowed, as in the original. Resting/healing and
   the U5 "hole up" camp encounters hang off this.
 - Karma, gold, MP, level, quest flags live in a mod save component on the player/world save.
+- Starting stats come from the virtue questionnaire in Iolo's hut (§5.13), not from a class pick.
 
 ### 5.10 Multiplayer
 Design for it from the start: builders and spawners run on the zone owner; NPC state via ZDO;
@@ -337,6 +338,23 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
 - Implementation: Harmony guards on the piece/plant/terrain-op and crafting entry points keyed by
   position and item, plus removing the recipes from the crafting UI so the options never appear.
 
+### 5.13 New world: intro and character generation (summary of `Restrictions and Etc.txt`)
+
+- **Intro (decided).** Where Valheim shows its text blurb before the valkyrie flight, a new world
+  instead plays a scrolling assembly of the original introduction screens — the STORY pictures and
+  their text, rendered at runtime from the player's own files with the port's readers (`STORYn.16`,
+  `TEXT.16`, `STORY.DAT`, the proportional font), skippable. When it ends or is skipped the player is
+  standing in **Iolo's hut** (the dwelling built from its map; also the only place with Valheim tools,
+  §5.12).
+- **Character generation (decided).** Phase one is Valheim's own character customiser (cosmetic
+  only). In the hut, **Hildir** stands beside the player and the door is locked; talking to her runs
+  the original virtue questionnaire (the Create-a-Character gypsy questions from `QUESTION.DAT`,
+  logic in `ovl_FONT.md` / `rust/src/ovl/font.rs`), whose answers set the starting STR/DEX/INT/MP and
+  class exactly as the original computes them. Until it is completed all of the player's stats are
+  zero. When every player present in the hut has finished, the door unlocks and Hildir vanishes; if a
+  new player spawns in without having answered, the door locks and Hildir reappears until they have.
+  Completion is stored per player in the mod save, so returning players are never asked again.
+
 ## 6. Phases and milestones
 
 **Phase 0 — Foundation (1–2 weeks)**
@@ -354,14 +372,17 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
 - Exit: a new world is Britannia; biomes/coasts match the U5 map; sailing off any edge arrives on
   the opposite side.
 
-**Phase 2 — Britain (2–3 weeks)**
+**Phase 2 — Britain and Iolo's hut (2–3 weeks)**
 - Town builder for Britain from TOWNE.DAT: walls/floors/doors/roofs/paths/furniture/signs/crops;
-  Castle Britannia (multi-floor) next to it.
-- Exit: Britain and the castle are walkable and look like the mapping says.
+  Castle Britannia (multi-floor) next to it; Iolo's hut from DWELLING.DAT as the spawn point with
+  its tool chest, crafting table and barley plot.
+- Exit: Britain, the castle and the hut are walkable and look like the mapping says; new players
+  spawn in the hut.
 
 **Phase 3 — People (3–4 weeks)**
 - NPC prefabs, schedules, pathing, sleep/work, guards; conversation panel + TLK interpreter;
-  shops (arms/reagents/healer/inn/tavern) in Britain; words-of-power chat listener; dedicated-server test.
+  shops (arms/reagents/healer/inn/tavern) in Britain; words-of-power chat listener; Hildir's
+  virtue questionnaire and the hut door lock (§5.13); dedicated-server test with two players.
 - Exit: talk to everyone in Britain, buy and sell, watch the town live through a day.
 
 **Phase 4 — All settlements (2 weeks)**
@@ -372,7 +393,8 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   ammunition + effects, U5 stats replacing skills in Tab, karma/gold/MP/level, INIT.GAM new-game
   import, mod save; H campfire + sleep rules; grapple climbing; use-item handlers (gem map,
   sextant, pocket watch, carpet placement); the spyglass night-sky skybox; barley rations and
-  daily eating; Iolo's-hut tool rules and the banned-action guards (§5.12).
+  daily eating; Iolo's-hut tool rules and the banned-action guards (§5.12); the new-world intro
+  slideshow (§5.13).
 
 **Phase 6 — Monsters, spawning, dungeons (3–4 weeks)**
 - Monster mapping + stats, overworld spawner, pirate ships; dungeon interiors + rooms; chests and

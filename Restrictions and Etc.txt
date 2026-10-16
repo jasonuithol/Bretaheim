@@ -36,3 +36,21 @@ Planting food (except Garlic, Ginseng - we're making it so you can cultivate jus
 Crafting axes, clubs, torches, hammers.
 
 Using any crafting table to craft anything.
+
+
+[Intro]
+
+When starting in a new world, Valheim offers a blurb before the scene shows the valkyrie carrying the player.
+
+instead, can we show a scrolling assembly of the ultima introduction screens.
+
+When that's done/skipped, the player will be in Iolo's hut.
+
+[Character Generation]
+
+First phase is obviously Vahleims character customiser, which is cosmetic only.
+
+Once the player is placed Iolo's Hut, Hildr will be standing next to him. To unlock the door, the player must talk to Hildir and finish the questionairre about virtues that determine the starting skills of the player.  Before this is completed, all player skills are zero.
+
+Once the conversation is over, and there are no players who have not performed this action, the door unlocks and Hildir will disappear.  If course, if another player spawns in and hasn't done the questionairre, the door will lock and hildir will appear again.
+
