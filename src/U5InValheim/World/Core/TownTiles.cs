@@ -31,7 +31,7 @@ namespace U5InValheim.WorldGen.Core
 
     public class TownStyle
     {
-        public string Wall, WallStub, WallHalf, Floor, Roof, RoofTop, Gable, Door, Pole, Merlon;
+        public string Wall, WallStub, WallHalf, Floor, FloorSmall, Roof, RoofTop, Gable, Door, Pole, Merlon;
         public bool Gabled;
     }
 
@@ -72,7 +72,7 @@ namespace U5InValheim.WorldGen.Core
                 t.Styles[kv.Key] = new TownStyle
                 {
                     Wall = Json.Str(o, "wall"), WallStub = Json.Str(o, "wall_stub"), WallHalf = Json.Str(o, "wall_half"),
-                    Floor = Json.Str(o, "floor"), Roof = Json.Str(o, "roof"), RoofTop = Json.Str(o, "roof_top"),
+                    Floor = Json.Str(o, "floor"), FloorSmall = Json.Str(o, "floor_small"), Roof = Json.Str(o, "roof"), RoofTop = Json.Str(o, "roof_top"),
                     Gable = Json.Str(o, "gable"), Door = Json.Str(o, "door"), Pole = Json.Str(o, "pole"),
                     Merlon = Json.Str(o, "merlon"), Gabled = Json.Str(o, "roof_kind") == "gable",
                 };

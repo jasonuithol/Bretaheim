@@ -62,9 +62,9 @@
     "f6": { "kind": "prop", "prefab": "piece_banner09" }, "f7": { "kind": "prop", "prefab": "piece_banner10" }, "f9": { "kind": "prop", "prefab": "piece_banner11" }
   },
   "styles": {
-    "wood":   { "wall": "woodwall", "wall_stub": "wood_wall_quarter", "wall_half": "wood_wall_half", "floor": "wood_floor", "roof": "wood_roof", "roof_top": "wood_roof_top", "gable": "woodwall", "door": "wood_door", "pole": "wood_pole2", "roof_kind": "gable" },
-    "stone":  { "wall": "stone_wall_2x1", "wall_stub": "stone_wall_1x1", "wall_half": "stone_wall_2x1", "floor": "stone_floor_2x2", "roof": "darkwood_roof", "roof_top": "darkwood_roof_top", "gable": "stone_wall_2x1", "door": "wood_door", "pole": "stone_pillar", "roof_kind": "flat", "merlon": "stone_wall_1x1" },
-    "marble": { "wall": "blackmarble_2x2x2", "wall_stub": "blackmarble_1x1", "wall_half": "blackmarble_2x1x1", "floor": "blackmarble_floor", "roof": "darkwood_roof", "roof_top": "darkwood_roof_top", "gable": "blackmarble_2x1x1", "door": "wood_door", "pole": "blackmarble_column_1", "roof_kind": "flat", "merlon": "blackmarble_1x1" }
+    "wood":   { "wall": "woodwall", "wall_stub": "wood_wall_quarter", "wall_half": "wood_wall_half", "floor": "wood_floor", "floor_small": "wood_floor_1x1", "roof": "wood_roof", "roof_top": "wood_roof_top", "gable": "woodwall", "door": "wood_door", "pole": "wood_pole2", "roof_kind": "gable" },
+    "stone":  { "wall": "stone_wall_2x1", "wall_stub": "stone_wall_1x1", "wall_half": "stone_wall_2x1", "floor": "stone_floor_2x2", "floor_small": "stone_wall_1x1", "roof": "darkwood_roof", "roof_top": "darkwood_roof_top", "gable": "stone_wall_2x1", "door": "wood_door", "pole": "stone_pillar", "roof_kind": "flat", "merlon": "stone_wall_1x1" },
+    "marble": { "wall": "blackmarble_2x2x2", "wall_stub": "blackmarble_1x1", "wall_half": "blackmarble_2x1x1", "floor": "blackmarble_floor", "floor_small": "blackmarble_tile_floor_1x1", "roof": "darkwood_roof", "roof_top": "darkwood_roof_top", "gable": "blackmarble_2x1x1", "door": "wood_door", "pole": "blackmarble_column_1", "roof_kind": "flat", "merlon": "blackmarble_1x1" }
   },
   "settlements": {
     "_doc": "Style per settlement: buildings inside a settlement use 'houses', the walls around it 'perimeter'.",

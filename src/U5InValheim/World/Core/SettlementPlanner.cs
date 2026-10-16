@@ -359,13 +359,32 @@ namespace U5InValheim.WorldGen.Core
             }
         }
 
+        /// <summary>
+        /// Upper floors. A U5 wall fills its whole tile but ours runs along the tile's centre line,
+        /// so the room-side half of every wall tile gets 1 m floor pieces too (otherwise a 1 m gap
+        /// runs along every wall). A quarter of a wall tile is on the room side when the tile next
+        /// to it in that direction — beside, above/below or diagonal — is a room.
+        /// </summary>
         void Floors(Ctx ctx, Level lv, TownStyle house)
         {
             if (lv.Z == 0) return;
-            float y = ctx.Plan.Storey * lv.Z;
+            var p = ctx.Plan;
+            float y = p.Storey * lv.Z;
+            bool In(int x, int yy) => x >= 0 && yy >= 0 && x < N && yy < N && lv.Interior[yy * N + x];
             for (int c = 0; c < N * N; c++)
+            {
                 if (lv.Interior[c] || (lv.Rule[c].Kind == TileKind.Battlement && lv.Built[c]))
-                    ctx.Top(house.Floor, CellX(ctx.Plan, c), y, CellZ(ctx.Plan, c), 0);
+                {
+                    ctx.Top(house.Floor, CellX(p, c), y, CellZ(p, c), 0);
+                    continue;
+                }
+                if (!(lv.Built[c] || lv.Doorway[c]) || !ctx.Known(house.FloorSmall)) continue;
+                int x = c % N, cy = c / N;
+                for (int sy = -1; sy <= 1; sy += 2)
+                for (int sx = -1; sx <= 1; sx += 2)
+                    if (In(x + sx, cy) || In(x, cy + sy) || In(x + sx, cy + sy))
+                        ctx.Top(house.FloorSmall, CellX(p, c) + sx * 0.5f, y, CellZ(p, c) - sy * 0.5f, 0);
+            }
         }
 
         // ── walls ─────────────────────────────────────────────────────────────────────────────
