@@ -1,0 +1,9 @@
+[package]
+name = "u5ref"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Golden-value generator: runs the decompilation's own readers (Ultima5Revolutions/rust/src)
+# over the player's files and prints lengths + FNV-1a hashes, which the C# tests compare against.
+[dependencies]

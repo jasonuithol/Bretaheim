@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline twin of the in-game "u5 dump" command: same Data/ sources, no Valheim needed. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/U5InValheim/Data/**/*.cs" Link="Data/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

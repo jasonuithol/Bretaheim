@@ -1,0 +1,21 @@
+{
+  "_doc": "People of the .NPC files by creature type ((type byte - 0x40) / 4) -> how they look. 'base' is the humanoid body (Player-style visual clone unless a prefab is named); 'outfit' items are equipped visually only. From the [humans] section of the mapping doc.",
+  "people": [
+    { "type": 0,  "u5": "Mage",         "base": "human", "outfit": ["ArmorMageChest", "ArmorMageLegs", "HelmetMage"], "status": "derived", "note": "user-approved proposal" },
+    { "type": 1,  "u5": "Bard",         "base": "human", "outfit": ["ArmorLeatherChest", "ArmorLeatherLegs", "BowHuntsman"], "status": "direct", "note": "leather, no helmet, hunter bow + ironhead arrows" },
+    { "type": 2,  "u5": "Fighter",      "base": "human", "outfit": ["ArmorIronChest", "ArmorIronLegs", "HelmetIron", "SwordIron"], "status": "derived", "note": "user-approved proposal" },
+    { "type": 3,  "u5": "Avatar",       "base": "player", "status": "direct", "note": "players are the Avatar" },
+    { "type": 4,  "u5": "Villager",     "base": "human", "outfit": ["hildir:work-clothes"], "status": "direct", "note": "wide selection of Hildir's work clothes" },
+    { "type": 5,  "u5": "Merchant",     "base": "human", "outfit": ["hildir:work-clothes"], "status": "direct" },
+    { "type": 6,  "u5": "Jester",       "base": "human", "outfit": ["HelmetCelebration", "hildir:beaded-tunic-red"], "status": "direct" },
+    { "type": 7,  "u5": "Bard",         "base": "human", "outfit": ["ArmorLeatherChest", "ArmorLeatherLegs", "BowHuntsman"], "status": "direct" },
+    { "type": 8,  "u5": "Pirate",       "base": "human", "outfit": ["ArmorLeatherChest", "ArmorLeatherLegs", "BowHuntsman"], "status": "direct", "note": "bard/pirate" },
+    { "type": 10, "u5": "Child",        "base": "Hildir", "scale": 0.7, "status": "direct", "alt": { "base": "Dverger" }, "note": "Hildir for now; possibly Mistlands dvergr" },
+    { "type": 11, "u5": "Beggar",       "base": "human", "outfit": ["ArmorRagsChest"], "status": "direct", "note": "rag tunic only" },
+    { "type": 12, "u5": "Guard",        "base": "human", "outfit": ["ArmorIronChest", "ArmorIronLegs", "HelmetIron", "SpearBronze"], "status": "direct" },
+    { "type": 13, "u5": "Wanderer",     "base": "human", "status": "unused", "note": "no settlement NPC uses this type" },
+    { "type": 14, "u5": "Blackthorn",   "base": "human", "outfit": ["ArmorMageChest_Ashlands", "ArmorIronLegs", "SwordBlackmetal"], "status": "derived", "note": "SpellSword: mage robe over fighter's legs and blade, dark" },
+    { "type": 15, "u5": "Lord British", "base": "human", "outfit": ["ArmorMageChest", "ArmorIronLegs", "SwordSilver", "HelmetDverger"], "tint": { "HelmetDverger": "#d4af37" }, "status": "derived", "note": "SpellSword: mage robe, fighter's legs and blade, gold circlet (his crown); his apparition is Odin, light blue and translucent", "apparition": { "base": "odin", "tint": "#a0d0ff", "alpha": 0.5 } }
+  ],
+  "hildir_questionnaire": { "base": "Hildir", "note": "stands beside the player in Iolo's hut until the virtue questions are answered (plan §5.13)" }
+}

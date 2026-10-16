@@ -1,0 +1,24 @@
+{
+  "_doc": "U5 character/party states and worn-item effects -> Valheim status effects (ObjectDB status-effect names; resolved at runtime by name hash, so a wrong name is reported at load instead of failing silently). Party effects reach every player within 'radius_tiles' of the wearer (1 tile = TileMetres).",
+  "character": [
+    { "u5": "Sleeping",  "se": "Resting" },
+    { "u5": "Poisoned",  "se": "Poison" },
+    { "u5": "Charmed",   "se": "Demister", "note": "Wisplight" },
+    { "u5": "Dead",      "se": "SoftDeath", "note": "No skill drain" }
+  ],
+  "worn": [
+    { "item": 42, "u5": "Ring of Invisibility", "se": "Cold" },
+    { "item": 43, "u5": "Ring of Protection",   "se": "Sheltered" },
+    { "item": 44, "u5": "Ring of Regeneration", "se": "Staff_shield", "tint": "#c02020", "note": "red Magic barrier" },
+    { "item": 45, "u5": "Amulet of Turning",    "se": "CorpseRun" },
+    { "item": 47, "u5": "Ankh",                 "se": "Rested", "tint": "#f4f0d0", "note": "white and gold" },
+    { "item": 46, "u5": "Spiked Collar",        "se": null, "note": "n/a" }
+  ],
+  "party": {
+    "radius_tiles": 1,
+    "effects": [
+      { "u5": "Crown of Lord British",  "se": "Staff_shield", "tint": "#3070e0", "blocks": "magic", "note": "bubble that blocks magic attacks only" },
+      { "u5": "Amulet of Lord British", "se": "Rested", "tint": "#c8c8d0", "armour": 50, "note": "silver Rested, +50 armour while equipped" }
+    ]
+  }
+}

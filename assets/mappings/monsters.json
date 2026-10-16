@@ -1,0 +1,44 @@
+{
+  "_doc": "U5 creature type (DATA.OVL g_monster_stats index 0..47) -> Valheim prefab. Stats come from DATA.OVL at runtime; 'tint' and 'scale' are visual overrides; 'status' = direct (one Valheim creature), reshade (recolour/rescale), custom (needs a built composite), open (no decision yet; see docs/MAPPING_DECISIONS.md). People (types 0..15) are dressed humans, see npcs.json. Prefab names verified against the Valheim prefab inventory (tools/data/valheim_prefabs.txt).",
+  "creatures": [
+    { "type": 16, "u5": "Sea Horse",    "prefab": "Fish12",          "status": "reshade", "scale": 4.0,  "note": "giant pufferfish" },
+    { "type": 17, "u5": "Squid",        "prefab": "BonemawSerpent",  "status": "direct",  "note": "the Ashlands serpent (Bonemaw)" },
+    { "type": 18, "u5": "Sea Serpent",  "prefab": "Serpent",         "status": "direct" },
+    { "type": 19, "u5": "Shark",        "prefab": "Fish9",           "status": "reshade", "scale": 6.0,  "note": "'a big fish of some kind'; needs an attack" },
+    { "type": 20, "u5": "Giant Rat",    "prefab": "Boar",            "status": "direct",  "alt": { "prefab": "Bjorn", "scale": 0.5 } },
+    { "type": 21, "u5": "Bat",          "prefab": "Bat",             "status": "direct" },
+    { "type": 22, "u5": "Giant Spider", "prefab": "Morgen",          "status": "direct" },
+    { "type": 23, "u5": "Ghost",        "prefab": "Ghost",           "status": "direct" },
+    { "type": 24, "u5": "Slime",        "prefab": "Blob",            "status": "direct",  "alt": { "prefab": "BlobElite" } },
+    { "type": 25, "u5": "Gremlin",      "prefab": "Greyling",        "status": "direct" },
+    { "type": 26, "u5": "Mimic",        "prefab": "TreasureChest_meadows", "status": "custom", "note": "a wild (non-craftable) chest that bites" },
+    { "type": 27, "u5": "Reaper",       "prefab": "gd_king",         "status": "custom", "note": "The Elder, immobilised" },
+    { "type": 28, "u5": "Gazer",        "prefab": "Gjall",           "status": "reshade", "tint": ["#e070c0", "#8040b0"], "note": "pink and purple" },
+    { "type": 29, "u5": "Crawler",      "prefab": "Seeker",          "status": "direct",  "alt": { "prefab": "Tick" } },
+    { "type": 30, "u5": "Gargoyle",     "prefab": "StoneGolem",      "status": "direct" },
+    { "type": 31, "u5": "Insect Swarm", "prefab": "Deathsquito",     "status": "reshade", "scale": 0.4, "group": 6, "note": "many tiny mosquitos" },
+    { "type": 32, "u5": "Orc",          "prefab": "Goblin",          "status": "direct" },
+    { "type": 33, "u5": "Skeleton",     "prefab": "Skeleton",        "status": "direct" },
+    { "type": 34, "u5": "Python",       "prefab": "Leech",           "status": "direct",  "note": "U5 'snake'" },
+    { "type": 35, "u5": "Ettin",        "prefab": "Troll",           "status": "custom",  "note": "two heads side by side if achievable" },
+    { "type": 36, "u5": "Headless",     "prefab": "GoblinShaman",    "status": "custom",  "note": "remove the head if we can" },
+    { "type": 37, "u5": "Wisp",         "prefab": "Wraith",          "status": "reshade", "tint": "#40f0ff", "alpha": 0.45, "emission": 3.0, "note": "very glowy, translucent, bright cyan" },
+    { "type": 38, "u5": "Daemon",       "prefab": "Skeleton_Hildir", "status": "direct",  "alt": { "prefab": "Surtling" }, "note": "Brenna" },
+    { "type": 39, "u5": "Dragon",       "prefab": "Dragon",          "status": "reshade", "variants": [
+        { "tint": "#b02020", "attack": "fire" }, { "tint": "#2f8f2f", "attack": "poison" },
+        { "tint": "#3060c0", "attack": "frost" }, { "tint": "#202020", "attack": "tar" },
+        { "tint": "#f0f0f0", "attack": "lightning" } ] },
+    { "type": 40, "u5": "Sand Trap",    "prefab": "TentaRoot",       "status": "custom",  "tint": "#d8c050", "note": "cluster of yellow Roots around a yellow Lox head" },
+    { "type": 41, "u5": "Troll",        "prefab": "GoblinBrute",     "status": "direct" },
+    { "type": 44, "u5": "Mongbat",      "prefab": "Hatchling",       "status": "reshade", "tint": "#6b4a2b", "note": "brown Drake" },
+    { "type": 45, "u5": "Corpser",      "prefab": "TentaRoot",       "status": "reshade", "tint": "#704060", "note": "Root in a different colour" },
+    { "type": 46, "u5": "Rot Worm",     "prefab": "TentaRoot",       "status": "direct" },
+    { "type": 47, "u5": "Shadow Lord",  "prefab": "Wraith",          "status": "direct" }
+  ],
+  "vehicles": [
+    { "u5": "Pirate Ship", "prefab": "VikingShip", "status": "custom", "note": "a longboat full of pirates; the crew is picked per ship",
+      "crews": [
+        { "weight": 1, "npc": "pirate", "note": "humans: leather + hunter bow (npcs.json)" },
+        { "weight": 1, "prefab": "Goblin", "weapon": "GoblinSpear", "attack": "throw", "note": "Fulings throwing spears" } ] }
+  ]
+}

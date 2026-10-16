@@ -1,0 +1,11 @@
+{
+    "namespace": "tarbaby",
+    "name": "U5InValheim",
+    "version_number": "0.1.0",
+    "website_url": "https://github.com/jasonuithol/U5InValheim",
+    "description": "Ultima V: Warriors of Destiny rebuilt inside Valheim, read at runtime from your own copy of Ultima V.",
+    "dependencies": [
+        "denikson-BepInExPack_Valheim-5.4.2350",
+        "ValheimModding-Jotunn-2.29.0"
+    ]
+}

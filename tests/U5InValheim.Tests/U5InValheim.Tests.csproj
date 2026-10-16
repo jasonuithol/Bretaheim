@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tests run the plugin's Data/ sources against the player's own Ultima V files ($U5_DIR, default
+       ~/Projects/Ultima 5) and compare with golden values from the Rust port (tools/rustref) and the
+       terrain generator (tools/pyref.py). Without the files the data tests are skipped. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageReference Include="xunit" Version="2.4.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../src/U5InValheim/Data/**/*.cs" Link="Data/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="golden/*.tsv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

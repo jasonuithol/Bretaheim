@@ -1,2 +1,16 @@
 .*.kate-swp
 *~
+bin/
+obj/
+release/
+staging/
+tools/rustref/target/
+# Never commit Ultima V files or anything extracted from them.
+*.DAT
+*.OVL
+*.TLK
+*.NPC
+*.GAM
+*.CBT
+*.16
+*.4
