@@ -286,12 +286,18 @@ namespace U5InValheim.WorldGen.Core
                 Add(prefab, x - ox, y - (b.MinY + b.MaxY) / 2, z - oz, yaw);
             }
 
-            /// <summary>Places a piece standing on y with its footprint centred on (x, z).</summary>
+            /// <summary>
+            /// Places a piece standing on y with its footprint centred on (x, z). Furniture stands on
+            /// its pivot, as Valheim's own placement does (colliders often reach below the visible
+            /// base: the iron fire pit's by 0.73 m); poles and pillars, whose pivot is their middle,
+            /// stand on the bottom of their bounds.
+            /// </summary>
             public void Stand(string prefab, float x, float y, float z, float yaw)
             {
                 if (!geo.TryGet(prefab, out var b)) { Add(prefab, x, y, z, yaw); return; }
                 Rotate((b.MinX + b.MaxX) / 2, (b.MinZ + b.MaxZ) / 2, yaw, out float ox, out float oz);
-                Add(prefab, x - ox, y - b.MinY, z - oz, yaw);
+                bool centredPivot = prefab.Contains("pole") || prefab.Contains("pillar") || prefab == "wood_stack";
+                Add(prefab, x - ox, centredPivot ? y - b.MinY : y, z - oz, yaw);
             }
 
             /// <summary>Places a piece so that the top of its bounds is at y (floors).</summary>
