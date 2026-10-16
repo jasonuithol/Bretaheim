@@ -255,6 +255,29 @@ namespace U5InValheim.WorldGen.Core
             public float Width(string prefab) => geo[prefab].SizeX;
             public bool Known(string prefab) => prefab != null && geo.Has(prefab);
 
+            /// <summary>
+            /// Ground-floor cells covered by the footprint of a placed object other than the
+            /// building shell (walls, floors, roofs): big props spill onto neighbouring tiles.
+            /// </summary>
+            public HashSet<int> Occupied()
+            {
+                var r = new HashSet<int>();
+                foreach (var p in Plan.Pieces)
+                {
+                    if (p.Y > 1 || !geo.TryGet(p.Prefab, out var b)) continue;
+                    if (p.Prefab.Contains("wall") || p.Prefab.Contains("floor") || p.Prefab.Contains("roof") || p.Prefab.Contains("door")) continue;
+                    for (float lx = b.MinX + 0.2f; lx <= b.MaxX - 0.2f; lx += 0.25f)
+                    for (float lz = b.MinZ + 0.2f; lz <= b.MaxZ - 0.2f; lz += 0.25f)
+                    {
+                        Rotate(lx, lz, p.Yaw, out float wx, out float wz);
+                        int cx = (int)Math.Floor((p.X + wx + Plan.HalfSize) / Plan.Tile);
+                        int cy = (int)Math.Floor((Plan.HalfSize - (p.Z + wz)) / Plan.Tile);
+                        if (cx >= 0 && cy >= 0 && cx < N && cy < N) r.Add(cy * N + cx);
+                    }
+                }
+                return r;
+            }
+
             /// <summary>Places a piece so that the centre of its collider bounds is at (x, y, z).</summary>
             public void Centre(string prefab, float x, float y, float z, float yaw)
             {
@@ -740,7 +763,8 @@ namespace U5InValheim.WorldGen.Core
         {
             var p = ctx.Plan;
             var hut = LargestInterior(g);
-            bool Free(int c) => g.Rule[c].Kind == TileKind.Ground && g.Rule[c].Paint != Paint.Cultivated;
+            var taken = ctx.Occupied();
+            bool Free(int c) => g.Rule[c].Kind == TileKind.Ground && g.Rule[c].Paint != Paint.Cultivated && !taken.Contains(c);
             int spawnCell = hut.OrderBy(c => Math.Abs(CellX(p, c) - p.SpawnX) + Math.Abs(CellZ(p, c) - p.SpawnZ)).First();
             // tool chest: a free floor tile against a wall, not where players appear
             int chest = hut.Where(c => c != spawnCell && Free(c) && Neighbours4(c).Any(n => g.Barrier[n] && g.Rule[n].Kind == TileKind.Wall))

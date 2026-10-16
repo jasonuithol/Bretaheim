@@ -48,7 +48,7 @@
     "bd": { "kind": "prop", "prefab": "piece_groundtorch" },
     "be": { "kind": "prop", "prefab": "piece_groundtorch_wood" },
     "b3": { "kind": "prop", "prefab": "piece_cookingstation" },
-    "bc": { "kind": "prop", "prefab": "hearth" }, "bf": { "kind": "prop", "prefab": "hearth" },
+    "bc": { "kind": "prop", "prefab": "fire_pit_iron" }, "bf": { "kind": "prop", "prefab": "fire_pit_iron" },
     "58": { "kind": "prop", "prefab": "forge" }, "fc": { "kind": "prop", "prefab": "forge" },
     "46": { "kind": "prop", "prefab": "stone_pillar" },
     "43": { "kind": "fence_ew" },
