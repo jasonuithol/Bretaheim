@@ -1,0 +1,38 @@
+[Food]
+
+Food/Rations is represented by barley.  Many places around Britannia will be growing crops, this will always be barley.  Harvesting it from other peoples gardens will affect Karma.
+
+Karma will be listed as a "skill", like STR/DEX etc.
+
+Everyone will "eat" once a day from their inventory 1 barley.  If that is not present, then they lose 30% health.
+
+
+[Valheim Items Only Allow Near Iolo's Hut]
+
+The players can pick them up, but cannot leave the area until they have "put the tools away"
+There'll be a chest in iolos hut where all the tools go.
+
+- Hammer
+- Hoe
+- Cultivator
+
+There'll be one EXPOSED crafting table near Iolo's Hut that will allow the hut itself to be maintained/repaired.
+It'll also allow the cultivation of a small plot (Iolo's hut already has a small garden, which will be planted with barley)
+
+
+[Banned Valheim Actions] (even near Iolos Hut !)
+
+Tree chopping
+Raising ground level
+Digging into ground
+Breaking rocks
+
+Making Potions
+Making Food
+Making any crafting table
+
+Planting food (except Garlic, Ginseng - we're making it so you can cultivate just those two magic ingredient)
+
+Crafting axes, clubs, torches, hammers.
+
+Using any crafting table to craft anything.

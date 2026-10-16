@@ -1,0 +1,136 @@
+HOW DO WE IMPLEMENT VARIOUS ULTIMA5 ACTIONS ?
+
+[Attack]
+
+Valheim allows attacking characters AND the environment - should be safe here
+
+[Board]
+
+Valheim has in-game objects like ladders, rudders, seats and mast interaction points that allow "boarding" a ship.  One could also have a similar interaction point on a magic carpet.  The boarding of Lox logic can also be completely borrowed.
+
+[Cast (a spell)]
+
+Treat staffs like "bows" and premixed spells like "arrows".  Premixed spells are already going to be mapped to raw mead (an inventory item).  Let's build on that convenience - right click the mead/spell in the inventory to make it active, like you would a stack of arrows.  that's now the active spell.  Do we even need staffs ?  If it's cleaner, just add staffs to the game and sell them wherever reagents are sold.
+
+[Enter]
+
+Valheim also has "Enter" mechanics.
+
+[Fire (a cannon)]
+
+just use the default interaction prompt.  the bigger challenge there is finding cannons in valheim.  Boats will not have cannons.  sad.  castles will have balistas.  You can fire those, I guess.  They cannot be moved.
+
+[Get]
+
+Default interaction is fine, used to pick up objects in valheim already
+
+[Hole up and camp]
+
+Valheim has sleep mechanics, it has campfires, and resting mechanics.  Obviously we don't want our players building beds in the wilderness, so the rules for sleeping out in the wild must be custom built.  A camp fire should have an interaction prompt to sleep. Use it, and the player will lie down near the fire and try to sleep.  it will succeed when everyone else has tried to sleep.  There is no standing guard.  If a random attack happens at during sleep, everyone wakes up for it.
+
+How to set up a campfire ? press H, instead of using a hammer.  You wont need a hammer in this version of valheim.
+
+NOTE: In ultima you can totally sleep during the day.  Let's bring that over to Valheim and allow day sleeping.
+
+[Ignite torch]
+
+Valheim already has a complete torch crafting and weilding system.  It's fine.
+
+[Jimmy lock]
+
+As sad as this makes me: there a no locked doors or chests in this particular game.
+
+[klimb up/down]
+
+valheim has stairs and ladders, it'll be fine.  For fences, Valheim has jumping !  For mountains, let's make a new mechanic where equipping a grapple (a pickaxe) will let you climb beyond 45 degree slopes, or some such.  without one, you can't go up any further.
+
+[Look]
+
+Again, Valheim already has "look" interaction points with things like the vegisir stones.  If it's a wishing well, then an interaction UI like the conversation ones can pop up.
+
+Bigger challenge is wells.  Just build it from rock walls or something idk.
+
+[Mix Spell]
+
+Valheim requires a mead kettle for this, Ultima doesnt.  The mead kettle is part of the progression system of valheim, something we are completely bypassing in the U5InValheim approach.
+
+Instead, just press M and you'll get a menu of recipes you can mix.  I'm going to add a random rule - you need to be within range of a campfire.
+
+M? But what about the map ?  You need gems for maps !!! So yes, use M
+
+[New Order]
+
+Not relevant.  Big reveal: Everyone will control ONE character, and to have a party, you need to join a multiplayer server and have real people in your party.
+
+[Open door or chest]
+
+Valheim can already do that
+
+[Push/Pull]
+
+In Valheim, you'd destroy and recraft the item.  But in ultima, you don't really craft anything in the world.  (spells are pretty much it - and they dont even exist in the 3D world.....).  Lets not add a new 3D mechanic for this.
+
+Instead, note that the few puzzles that require this mechanic will be fine with just allowing the player to destroy the pushed item instead.  so ensure that barrels are destroyable (as they already are in valheim) and 90% of these puzzles are good.  the rest will be solved with, again, "destroying" a wall i.e. attacking it.
+
+[Quit and Save]
+
+It was never Quit, and only ever Save.  valheim literally also has a Save option in the menu, just use that.
+
+[Ready]
+
+Valheim already let's you press TAB to manage the inventory and hence your equipment.
+
+[Search]
+
+valheim let's you "harvest" items from container objects.  e.g. berries from bushes, carrots from planted carrots. This will be our search mechanic. some destroy the container and some dont, evaluate on a case by case basis.
+
+[Talk]
+
+Valheim has an existing NPC interaction system.  Heres a proposal for extending it for Ultima's needs:
+
+Proposed flow
+1. Walk up, press E: the NPC turns, its greeting (from the .TLK) appears as a speech bubble, and a small conversation panel opens: a scrolling log of the exchange and one input line, with Name / Job / Bye buttons for the three built-ins.
+2. Type a keyword, Enter. The input line is the chat box in a captured "talking" mode, so it feels like chatting (T/Enter works too), but the text is routed to the NPC, not broadcast to the server. Matching is the original's first-four-letters rule, so "humb" still hits both "humble" and "humbug".
+3. The reply shows in the log and as a bubble, so other players nearby see the NPC speak. Questions ("Wilt thou join me?") take yes/no on the same line; gold/item transfers happen through the mod's inventory hooks; shops open their own panel from the same conversation (the original's shop dialogue is just a special-cased branch).
+4. Bye, walking away, or Escape ends it; the NPC resumes its schedule (the original also stops them while you talk).
+
+
+[Use Item]
+
+The action will use valheims "right click an inventory item" mechanic to trigger.  The result is varied and covers things like:
+
+Using a:
+
+    spyglass     => shows a map of the night sky with 8 stars representing the 8 towns of Britannia, and 3 comets representing the three shadowlords.  When "equipped" (in the same manner as meningjord, for example) it should make the 8 stars and 3 comets visible in the in-game skybox.
+                        THIS IMPLIES THAT WE NEED TO ALTER THE SKYBOX.  Probably remove that world-tree eh ?
+                        (usable at night only, on the surface only)
+
+    carpet       => Bring the magic carpet out of inventory (if the player has it) and places it in the world ready for boarding.  Valheim has a blue-print mechanism for placing items into the world, might as well use it.
+
+    sextant      => gives exact latitude/longitude (surface, night-time only).  This is required for a quest or two.  So we need to ensure that this is mapped faithfully from the original game.
+
+    pocket watch => gives the time of day.  Just pop up a message using the in-game messaging system
+
+    torch        => Already covered by "ignite torch", it seems ultima 5 has two ways to light a torch !
+
+    gem          => See "view gem" below
+
+    grapple      => equips the grapple.  See "Klimb" for more details.
+
+[View Gem]
+
+Niche mechanic for using a Gem (and thence showing a map).  Use Valheims method of right-clicking a Gem (a Ruby) in the inventory and display the Valheim Map like normal.
+
+
+[Yell]
+
+I think it'll be fun to make the players use the in-game chat to yell the power words for dungeons.  Workds as long as your in the 32m (1 ultima tile) range of the dungeon entrance.
+
+For putting sails up and down, there's already a vahleim mechanic for that on boats (the rudder), so no yelling for sails in this version.
+
+
+[Z-stats]
+
+This is just the same as pressing Tab in Valheim.
+
+Note that all the vahleim skill progression is accesable from that menu.  We should totally replace all those with Ultima skills (STR, DEX, INT, Magic etc)

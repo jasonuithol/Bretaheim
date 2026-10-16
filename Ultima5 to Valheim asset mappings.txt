@@ -1,0 +1,246 @@
+NOTE:
+
+- Asterisk (*) means there's one of said item in both games.
+- Triple Question (???) means I cannot think of an equivalent.
+- Arrow (=>) means the Ultima5 (lhs) item maps to the Valheim item (rhs)
+
+
+[humans]
+
+child               => hildir (for now).  possibly the dvergrs from the mistlands too.
+guard               => Iron Armour + bronze spear
+villager/merchant   => Wide selection of "work mode" clothes from Hildr
+beggar              => rag armor (tunic only ?)
+jester              => celebratory cap + beaded tunic (red) +
+bard/pirate         => leather armour (no helmet) + hunter bow + ironhead arrows
+
+
+[monsters]
+
+
+Slime           => Ooze/Blob
+Rotworm         => Root
+Giant Spider    => Morgen ?
+Insect Swarm    => Many tiny mosquitos
+
+Giant Rat       => Boar, or even a shrunken bear with lowered stats.
+Snake           => Leech ?
+Bat             *
+Ghost           *
+
+Gremlin         => Greyling
+Skeleton        *
+Orc             => Fuling
+Shark           => A big fish of some kind
+
+Gazer           => Skugg
+Headless        => Shaman (can we remove the head from the shaman ?)
+Corpser         => Root again (different color perhaps >)
+Troll           => Brute
+
+Ettin           => Troll.  If you can pull it off, give it two heads, side by side.
+Seahorse        => Replace with giant pufferfish
+Squid           =>
+Mongbat         => Drake, reshaded brown
+
+Wisp            *
+Mimic           => The chests that you find in the wild (not the craftable ones)
+Reaper          => Possibly an immobilised Elder
+Gargoyle        => Golem
+
+Sea Serpent     => Serpent
+Deamon          => Brenna / Surtling
+Sand Trap       => A cluster of Roots (yellow) and a Lox head (yellow) in the middle
+Dragon          => Moder.  Have different attack types, reshaded appropriately, just for fun.  Red -> fire, Green -> Poison, Blue -> Frost, Black -> tar spit, White -> Lightning
+
+Pirate Ship     => A longboat full of pirates.
+
+[lord british]
+
+apparition      => Odin, light blue and translucent
+blackthorn      =>
+
+[Static Assets]
+
+Castles/Keeps/Towers/Lighthouses  => build them with stone + iron
+Houses in Towns / Hut             => build with wood/oak/darkwood/ etc
+paths in towns                    => "rock empathen"
+paths in overworld                => "dirt empathen"
+Dungeon entrances                 => Any biome specific crypt/cave.
+Evil castles/towers               => build with black marble + crystal glass
+
+[Biomes]
+
+Grasslands                        => Plains
+Forest/Deep Forest                => Dark Forest
+Swamp                             => Swamp
+Grassy Hills                      => Meadow
+Foothills                         => Mountains
+Mountains                         => Mountains
+Mountain Peaks                    => Mistlands
+Desert                            => Ashlands
+Water (walkable)                  => Shallows
+Water (non-Ocean)                 => Calm Ocean
+Ocean                             => Rough Ocean
+River                             => River
+
+
+[Armour]
+
+cloth   => rag
+leather *
+ring    => bronze
+scale   => iron
+chain   => padded
+plate   => carapace armour
+mystic  => flametal armour
+
+spiked helmet => drake helmet
+
+[Shields]
+
+small shield    => iron buckler
+large shield    => iron tower shield
+spiked shield   => bone tower shield
+magic shield    => serpent scale shield
+
+[Weapons]
+
+spear           => bronze spear
+throwing axe    => iron axe
+magic axe       => Jotun Bane
+flaming oil     => bile bomb
+sling           => ??? (but use the greydwarf rock chucking attack)
+
+dagger          => silver dagger
+main gauche     => iron dagger
+short sword     => bronze sword
+long sword      => iron sword
+silver sword    *
+mystic sword    => Mistwalker
+glass sword     => Nidhogg
+jeweled sword   => black metal sword
+sword of chaos  => dyrnwyn
+mace            => iron mace
+morning star    => porcupine
+2H axe          => battleaxe
+halberd         => iron aetgir
+2H sword        => Krom
+2H hammer       => Iron Sledge
+
+bow             => finewood bow
+magic bow       => draugr fang
+crossbow        => arbalest
+
+arrows          => ironhead arrows
+bolts           => iron bolt
+
+
+[Rings]
+
+We're using Valheim Trinkets for these.  They are already equipable.
+
+invisible       => Nimble Anklet
+protection      => Wolf Sight
+regeneration    => Jormundling
+
+[Amulets]
+
+We're using Valheim Trinkets for these.  They are already equipable.
+
+ankh           => Crystal Heart
+spiked         => Resounding Shackle
+turning        => Bronze Pendant
+
+[Ingredients]
+
+Black pearl     => Bukeberries ?
+Blood moss      => Thistle, reshaded red
+Spider silk     => bones (it'll be our little secret)
+Sulphurus Ash   => coal, reshaded ashen white
+garlic          => turnip
+ginseng         => carrot
+Nightshade      => Magecap
+mandrake        => cooked wolf meat
+
+[Mixed Spells]
+
+Use the bowls of raw meads for the mixed spells.
+
+
+[Potions]
+
+Pick a basic potion (poison resistence mead) would be good, and reshade it for each of the potion colors.
+
+[Scrolls]
+
+every scroll will be a linen reel.  A shader that causes tiny glowing runes to slowly crawl all over the reel would be amazing, if time permits.
+
+[Items]
+
+Torch           *
+Gem             => Reshade a ruby to be purple
+Spyglass        => It'll look weird, but a horn of celebration might be the closes match !
+Sextant         => A Heart of the Forest trinket.
+Pocket Watch    => an Iron Brooch trinket.
+Grapple         => An iron pickaxe
+
+Key           => n/a — no locked doors in this version
+Skull Key     => n/a — no locked doors in this version
+Black Badge   => An Iron Brooch trinket, reshaded to be made of black metal.  Equip it to stop Blackthorn’s guards from attacking.
+
+Magic Sheet Music                         => A reel of linen in the same manner as a Scroll.
+Sandalwood Box                            => Pulled Bear.  It's square, don't judge me.
+HMS Cape Plans                            => A reel of linen in the same manner as a Scroll.
+Shards of Falsehood, Hatred and Cowardice => Use valheims ruby, and reshade to be made of Black Metal ?
+
+Lord British's Crown   => A Divergr Circlet, reshaded gold
+Lord British's Sceptre => A bronze mace, reshaded gold
+Lord British's Amulet  => A silver necklace, reshaded gold
+
+[Transport]
+
+Skiff   => Karve
+Ship    => Longboat
+Carpet  => Maybe a jute carpet ?
+Horse   => Eyktheir without horns ?
+
+[Character Status effects]
+
+Sleeping    => Resting
+Poisoned    *
+Charmed     => Wisplight
+Dead        => No Skill Drain
+
+The following status effects are from wearing rings/amulet
+
+Invisible    => Cold
+Protection   => Sheltered
+Regeneration => Magic barrier (red)
+
+Turning => Corpse run
+ankh    => Rested (white and gold)
+Spiked  => n/a
+
+
+[Party Status effects]
+
+When donning the crown, for example, the whole party will get status effects.  Since there's no such thing
+as a party in Valheim, just give each individual the mapped valheim status effect.
+
+Everyone must be within 1 ultima tile (32 metres was previously discussed as the scaling factor) to receive this benefit.
+
+To get the effect active, "equip" the item (like you would the wishbone, for example)
+
+Crown of lord british  => effect: Magic barrier (reshaded blue).
+
+                          NOTE: Will give everyone an in-game bubble around them (like valheims protection spell).  It ONLY BLOCKS MAGIC ATTACKS, not normal attacks.
+
+Amulet of lord british => effect: Rested (reshaded silver)
+
+                          NOTE: Apparently grants some form of protection but this is vague.  Have it add 50 armour points to everyone, whilst it's equipped.
+
+
+
+
+
