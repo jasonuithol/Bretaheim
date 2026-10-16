@@ -138,6 +138,12 @@ town populations when their zone loads.
   identical, only a zone-reload hitch is visible. Unflagged wandering monsters despawn at the edge.
   Coordinates stay the original 256×256 on both continents, so links between them are 1:1. The
   "over/under" of the two maps is purely a label; they are simply two wrapped squares side by side.
+  Normal wrapping must be invisible: the destination zones are pre-loaded while crossing the
+  margin and the ship moves only when they are ready (first in-game test, 2026-10-16: moving into
+  unloaded zones dropped the ship into a void, flipped and damaged it).
+- **Whirlpools (decided, user idea from that test).** U5's whirlpools drag a ship down into the
+  Underworld. We reuse the dramatic version of the transition on purpose: the ship sinks/falls
+  into the whirlpool, is moved to the Underworld continent, and springs back up there.
 - Implementation: Harmony patches on `WorldGenerator.GetBiome`, `GetBaseHeight`/`GetHeight`,
   river/lake generation, and `ZoneSystem` location placement, sampling our heightmap/biome maps
   (the same approach the BetterContinents mod uses — study it for the exact hook set). Height field
@@ -401,7 +407,7 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   loot; dungeon light.
 
 **Phase 7 — Story (3–4 weeks)**
-- Calendar/moons/moongates, Shadowlords, shards and shrines, Blackthorn's castle scenes, the
+- Calendar/moons/moongates, whirlpools to the Underworld (§5.1), Shadowlords, shards and shrines, Blackthorn's castle scenes, the
   Underworld continent (world-radius expansion, UNDER.DAT terrain, cave environment, the
   connections from dungeon bottoms/falls/Hythloth), Lord British's rescue, ending.
 
