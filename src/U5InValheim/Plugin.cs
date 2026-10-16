@@ -18,7 +18,7 @@ namespace U5InValheim
     {
         public const string PluginGUID = "tarbaby.u5invalheim";
         public const string PluginName = "U5InValheim";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
