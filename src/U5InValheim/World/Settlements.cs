@@ -33,6 +33,8 @@ namespace U5InValheim.WorldGen
 
         public static List<Built> All { get; private set; } = new List<Built>();
         static Dictionary<Vector2s, List<(Built settlement, Placement piece)>> byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
+        /// <summary>Shell pieces of settlements built as combined structures, by (location, zone).</summary>
+        static Dictionary<(int, Vector2s), List<Placement>> shells = new Dictionary<(int, Vector2s), List<Placement>>();
         static Type clearAreaType;
         static TownTiles tiles;
         static PieceGeometry geo;
@@ -54,6 +56,9 @@ namespace U5InValheim.WorldGen
         {
             All = new List<Built>();
             byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
+            shells = new Dictionary<(int, Vector2s), List<Placement>>();
+            var combined = new HashSet<int>(Plugin.CombinedShells.Value.Split(',')
+                .Select(t => t.Trim()).Where(t => t.Length > 0).Select(int.Parse));
             var wanted = new HashSet<int>(Plugin.BuildSettlements.Value.Split(',')
                 .Select(t => t.Trim()).Where(t => t.Length > 0).Select(int.Parse));
             if (wanted.Count == 0) { shape.SetSites(new SettlementSite[0]); return; }
@@ -80,6 +85,18 @@ namespace U5InValheim.WorldGen
                 foreach (var piece in plan.Pieces)
                 {
                     var zone = ZoneSystem.GetZone(built.Origin + new Vector3(piece.X, 0, piece.Z));
+                    if (combined.Contains(loc.Number) && Structures.IsShell(piece))
+                    {
+                        if (!shells.TryGetValue((loc.Number, zone), out var shell))
+                        {
+                            shells[(loc.Number, zone)] = shell = new List<Placement>();
+                            // the structure object itself is spawned with the zone's other pieces
+                            if (!byZone.TryGetValue(zone, out var l)) byZone[zone] = l = new List<(Built, Placement)>();
+                            l.Add((built, new Placement { Prefab = Structures.PrefabName, X = float.NaN }));
+                        }
+                        shell.Add(piece);
+                        continue;
+                    }
                     if (!byZone.TryGetValue(zone, out var list)) byZone[zone] = list = new List<(Built, Placement)>();
                     list.Add((built, piece));
                 }
@@ -104,6 +121,8 @@ namespace U5InValheim.WorldGen
         }
 
         public static bool IsBuilt(int location) => All.Any(b => b.Location.Number == location);
+        public static Built Get(int location) => All.FirstOrDefault(b => b.Location.Number == location);
+        public static bool ShellPieces(int location, Vector2s zone, out List<Placement> pieces) => shells.TryGetValue((location, zone), out pieces);
 
         /// <summary>World spawn point inside Iolo's hut, if it is built.</summary>
         public static bool TrySpawnPoint(out Vector3 pos)
@@ -135,11 +154,20 @@ namespace U5InValheim.WorldGen
             {
                 var prefab = ZNetScene.instance.GetPrefab(p.Prefab);
                 if (prefab == null) { missing++; continue; }
-                var pos = b.Origin + new Vector3(p.X, p.Y, p.Z);
+                bool structure = p.Prefab == Structures.PrefabName;
+                // a structure sits at its zone's centre (its ZDO must belong to the zone); its
+                // children are placed at their own world positions when it is rebuilt
+                var pos = structure ? new Vector3(zonePos.x, b.Origin.y, zonePos.z) : b.Origin + new Vector3(p.X, p.Y, p.Z);
                 if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
                 var go = UnityEngine.Object.Instantiate(prefab, pos, Quaternion.Euler(0, p.Yaw, 0));
                 var zdo = go.GetComponent<ZNetView>()?.GetZDO();
-                if (zdo != null)
+                if (zdo != null && structure)
+                {
+                    zdo.Set(Structures.LocationKey, b.Location.Number);
+                    zdo.Set(Structures.ZoneXKey, (int)zoneID.x);
+                    zdo.Set(Structures.ZoneYKey, (int)zoneID.y);
+                }
+                else if (zdo != null)
                 {
                     zdo.Set(FixedKey, true);
                     if (p.Text != null) zdo.Set(ZDOVars.s_text, p.Text);

@@ -24,6 +24,7 @@ namespace U5InValheim.DevTools
 
         static void Awake_Postfix(ZNetScene __instance)
         {
+            if (Plugin.SelfTest.Value) WorldGen.Structures.SelfTest("woodwall", "wood_roof", "wood_roof_ocorner", "wood_floor", "stone_wall_2x1", "wood_wall_quarter");
             var names = Plugin.DumpPieceGeometry.Value.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
             if (names.Count == 0) return;
             if (names.Count == 1 && names[0] == "*")
