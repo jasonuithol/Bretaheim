@@ -336,8 +336,8 @@ namespace U5InValheim.WorldGen.Core
             }
         }
 
-        float CellX(SettlementPlan p, int c) => p.LocalX(c % N);
-        float CellZ(SettlementPlan p, int c) => p.LocalZ(c / N);
+        static float CellX(SettlementPlan p, int c) => p.LocalX(c % N);
+        static float CellZ(SettlementPlan p, int c) => p.LocalZ(c / N);
 
         // ── ground, floors ────────────────────────────────────────────────────────────────────
 
@@ -456,103 +456,111 @@ namespace U5InValheim.WorldGen.Core
                 for (int c = 0; c < N * N; c++)
                     cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c]));
                 float baseY = ctx.Plan.Storey * (lv.Z + 1);
-                foreach (var (x0, y0, x1, y1) in Rectangles(cells))
-                {
-                    if (house.Gabled) Gable(ctx, house, x0, y0, x1, y1, baseY);
-                    else
-                        for (int y = y0; y <= y1; y++)
-                        for (int x = x0; x <= x1; x++)
-                            ctx.Top(house.Floor, ctx.Plan.LocalX(x), baseY, ctx.Plan.LocalZ(y), 0);
-                }
+                if (house.Gabled)
+                    foreach (var building in RoofFootprints(cells)) HipRoof(ctx, house, building, baseY);
+                else
+                    for (int c = 0; c < N * N; c++)
+                        if (cells[c]) ctx.Top(house.Floor, CellX(ctx.Plan, c), baseY, CellZ(ctx.Plan, c), 0);
             }
-        }
-
-        /// <summary>Greedy cover of a cell set by rectangles (top-left first, widest run, then down).</summary>
-        static List<(int x0, int y0, int x1, int y1)> Rectangles(bool[] cells)
-        {
-            var used = new bool[N * N];
-            var r = new List<(int, int, int, int)>();
-            for (int y = 0; y < N; y++)
-            for (int x = 0; x < N; x++)
-            {
-                if (!cells[y * N + x] || used[y * N + x]) continue;
-                int x1 = x;
-                while (x1 + 1 < N && cells[y * N + x1 + 1] && !used[y * N + x1 + 1]) x1++;
-                int y1 = y;
-                while (y1 + 1 < N && Enumerable.Range(x, x1 - x + 1).All(xx => cells[(y1 + 1) * N + xx] && !used[(y1 + 1) * N + xx])) y1++;
-                for (int yy = y; yy <= y1; yy++)
-                for (int xx = x; xx <= x1; xx++)
-                    used[yy * N + xx] = true;
-                r.Add((x, y, x1, y1));
-            }
-            return r;
         }
 
         /// <summary>
-        /// A gabled roof over cells x0..x1 × y0..y1 (wood_roof pieces rise 1 m over 2 m; the pivot
-        /// is the middle of the low edge and the piece rises toward its local −z). The ridge runs
-        /// along the longer side; eaves overhang the wall centre lines by 1 m.
+        /// One continuous hip roof over any footprint. Each roof cell gets a ring number: how many
+        /// cells it lies inside the footprint (Chebyshev distance to the outside). Ring k is 1 m
+        /// higher than ring k−1 — exactly the rise of Valheim's 26° roof pieces over a 2 m cell —
+        /// and each cell's piece follows from which neighbours are lower:
+        ///   one side lower → straight slope (wood_roof) facing it;
+        ///   two adjacent sides → outer corner (wood_roof_ocorner);
+        ///   only a diagonal → inner corner (wood_roof_icorner, L-shapes and stepped walls);
+        ///   opposite sides (a one-cell crest) or more → ridge cap (wood_roof_top) along the crest.
+        /// Piece conventions (from their snap points; pivot at the cell centre, y = low edge):
+        /// wood_roof is low along local +z; ocorner low along +x and +z; icorner low only at the
+        /// (+x, +z) corner; roof_top's ridge runs along local x. The roof sits 0.5 m low so the
+        /// slope meets the wall tops on the wall centre lines; the eaves overhang by 1 m.
         /// </summary>
-        static void Gable(Ctx ctx, TownStyle s, int x0, int y0, int x1, int y1, float b)
+        /// <summary>
+        /// The roof outline of each building (4-connected group of roof cells): its bounding
+        /// rectangle when the building nearly fills it — stepped diagonal walls like Iolo's octagonal
+        /// hut would otherwise give a sawtooth of corner pieces — else its own (rectilinear) shape.
+        /// </summary>
+        static IEnumerable<bool[]> RoofFootprints(bool[] cells)
         {
-            var p = ctx.Plan;
-            int w = x1 - x0 + 1, h = y1 - y0 + 1;
-            bool alongX = w >= h;
-            int n = alongX ? h : w, m = alongX ? w : h;
-            int r = n / 2;
-            bool odd = n % 2 == 1;
-            float north = p.LocalZ(y0) + 1, south = p.LocalZ(y1) - 1, west = p.LocalX(x0) - 1, east = p.LocalX(x1) + 1;
-
-            for (int i = 0; i < m; i++)
+            var seen = new bool[N * N];
+            for (int s0 = 0; s0 < N * N; s0++)
             {
-                for (int k = 0; k < r; k++)
+                if (!cells[s0] || seen[s0]) continue;
+                var group = new List<int>();
+                var q = new Queue<int>();
+                q.Enqueue(s0); seen[s0] = true;
+                while (q.Count > 0)
                 {
-                    float d = 2 * k + 1;
-                    if (alongX)
-                    {
-                        float x = p.LocalX(x0 + i);
-                        ctx.Pivot(s.Roof, x, b + k, north - d, 0);
-                        ctx.Pivot(s.Roof, x, b + k, south + d, 180);
-                    }
-                    else
-                    {
-                        float z = p.LocalZ(y0 + i);
-                        ctx.Pivot(s.Roof, west + d, b + k, z, 270);
-                        ctx.Pivot(s.Roof, east - d, b + k, z, 90);
-                    }
+                    int c = q.Dequeue();
+                    group.Add(c);
+                    foreach (int n in Neighbours4(c))
+                        if (cells[n] && !seen[n]) { seen[n] = true; q.Enqueue(n); }
                 }
-                if (ctx.Known(s.RoofTop))
-                {
-                    float capY = odd ? b + r : b + r - 0.5f;
-                    if (alongX) ctx.Pivot(s.RoofTop, p.LocalX(x0 + i), capY, north - 2 * r - (odd ? 1 : 0), 0);
-                    else ctx.Pivot(s.RoofTop, west + 2 * r + (odd ? 1 : 0), capY, p.LocalZ(y0 + i), 90);
-                }
-            }
-
-            // gable ends: wall up to the roof line under each band, a triangle on top
-            if (!ctx.Known("wood_wall_roof")) return;
-            for (int end = 0; end < 2; end++)
-            for (int j = 0; j < n; j++)
-            {
-                int fromEave = Math.Min(j, n - 1 - j);
-                bool firstHalf = j < n / 2.0 - 0.01;
-                if (odd && j == r) { if (fromEave > 0) ColumnTo(ctx, s, alongX, end == 0 ? x0 : x1, end == 0 ? y0 : y1, j, x0, y0, b, fromEave); continue; }
-                ColumnTo(ctx, s, alongX, end == 0 ? x0 : x1, end == 0 ? y0 : y1, j, x0, y0, b, fromEave);
-                float yawTri = alongX ? (firstHalf ? 90 : 270) : (firstHalf ? 180 : 0);
-                // wood_wall_roof rises toward its local +x; its pivot is the bottom of the low side
-                float cx = alongX ? p.LocalX(end == 0 ? x0 : x1) : p.LocalX(x0 + j);
-                float cz = alongX ? p.LocalZ(y0 + j) : p.LocalZ(end == 0 ? y0 : y1);
-                ctx.Pivot("wood_wall_roof", cx, b + fromEave, cz, yawTri);
+                int x0 = group.Min(c => c % N), x1 = group.Max(c => c % N), y0 = group.Min(c => c / N), y1 = group.Max(c => c / N);
+                var outline = new bool[N * N];
+                bool box = group.Count >= 0.8 * (x1 - x0 + 1) * (y1 - y0 + 1);
+                if (box)
+                    for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++)
+                        outline[y * N + x] = true;
+                else
+                    foreach (int c in group) outline[c] = true;
+                yield return outline;
             }
         }
 
-        static void ColumnTo(Ctx ctx, TownStyle s, bool alongX, int endX, int endY, int j, int x0, int y0, float b, int height)
+        static void HipRoof(Ctx ctx, TownStyle s, bool[] cells, float baseY)
         {
-            if (height <= 0) return;
             var p = ctx.Plan;
-            float cx = alongX ? p.LocalX(endX) : p.LocalX(x0 + j);
-            float cz = alongX ? p.LocalZ(y0 + j) : p.LocalZ(endY);
-            ctx.WallColumn(s, true, cx, cz, alongX ? 90 : 0, b, b + height);
+            var ring = new int[N * N];
+            var q = new Queue<int>();
+            for (int c = 0; c < N * N; c++)
+            {
+                ring[c] = -1;
+                if (!cells[c]) continue;
+                bool edge = false;
+                int x = c % N, y = c / N;
+                for (int dy = -1; dy <= 1 && !edge; dy++)
+                for (int dx = -1; dx <= 1 && !edge; dx++)
+                {
+                    int nx = x + dx, ny = y + dy;
+                    edge = nx < 0 || ny < 0 || nx >= N || ny >= N || !cells[ny * N + nx];
+                }
+                if (edge) { ring[c] = 0; q.Enqueue(c); }
+            }
+            while (q.Count > 0)
+            {
+                int c = q.Dequeue();
+                foreach (int n in Neighbours8(c))
+                    if (cells[n] && ring[n] < 0) { ring[n] = ring[c] + 1; q.Enqueue(n); }
+            }
+
+            string ocorner = s.Roof + "_ocorner", icorner = s.Roof + "_icorner";
+            for (int c = 0; c < N * N; c++)
+            {
+                if (!cells[c]) continue;
+                int k = ring[c], x = c % N, y = c / N;
+                int R(int nx, int ny) => nx < 0 || ny < 0 || nx >= N || ny >= N ? -1 : ring[ny * N + nx];
+                bool n = R(x, y - 1) < k, e = R(x + 1, y) < k, so = R(x, y + 1) < k, w = R(x - 1, y) < k;
+                int lower = (n ? 1 : 0) + (e ? 1 : 0) + (so ? 1 : 0) + (w ? 1 : 0);
+                float px = CellX(p, c), pz = CellZ(p, c), py = baseY + k - 0.5f;
+
+                if (lower == 0)
+                {
+                    // concave corner: the lower cell is diagonal
+                    float yaw = R(x + 1, y - 1) < k ? 0 : R(x + 1, y + 1) < k ? 90 : R(x - 1, y + 1) < k ? 180 : 270;
+                    ctx.Pivot(ctx.Known(icorner) ? icorner : s.Roof, px, py, pz, yaw);
+                }
+                else if (lower == 1)
+                    ctx.Pivot(s.Roof, px, py, pz, n ? 0 : e ? 90 : so ? 180 : 270);
+                else if (lower == 2 && !(n && so) && !(e && w))
+                    ctx.Pivot(ctx.Known(ocorner) ? ocorner : s.Roof, px, py, pz, n && e ? 0 : e && so ? 90 : so && w ? 180 : 270);
+                else if (ctx.Known(s.RoofTop))
+                    ctx.Pivot(s.RoofTop, px, py, pz, n && so ? 0 : 90); // ridge across the lower sides
+            }
         }
 
         // ── furniture, plants, fences, climbing ──────────────────────────────────────────────

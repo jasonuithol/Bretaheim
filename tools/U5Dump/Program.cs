@@ -42,7 +42,11 @@ if (argv.Count > 0 && argv[0] == "town")
     var pois = U5InValheim.WorldGen.Core.Pois.Build(data);
     string kind = pois.First(p => p.Location == loc.Number).Kind;
     var plan = new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Plan(loc, kind, U5InValheim.WorldGen.Core.VBiome.Meadows);
-    TownPreview.Render(plan, geo, argv.Count > 2 ? argv[2] : "town.ppm");
+    string outPath = argv.Count > 2 ? argv[2] : "town.ppm";
+    if (outPath.EndsWith(".json"))
+        File.WriteAllText(outPath, "[" + string.Join(",\n", plan.Pieces.Select(p =>
+            System.FormattableString.Invariant($"{{\"p\":\"{p.Prefab}\",\"x\":{p.X},\"y\":{p.Y},\"z\":{p.Z},\"yaw\":{p.Yaw}}}"))) + "]");
+    else TownPreview.Render(plan, geo, outPath);
     Console.WriteLine($"{loc.Name} ({kind}): {plan.Pieces.Count} pieces, spawn {(plan.HasSpawn ? $"({plan.SpawnX}, {plan.SpawnZ})" : "none")}");
     foreach (var g in plan.Pieces.GroupBy(p => p.Prefab).OrderByDescending(g => g.Count())) Console.Write($"{g.Key}x{g.Count()} ");
     Console.WriteLine();
