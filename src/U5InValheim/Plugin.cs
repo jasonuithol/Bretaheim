@@ -38,6 +38,7 @@ namespace U5InValheim
         {
             Instance = this;
             Log = Logger;
+            PluginDirectory = Path.GetDirectoryName(Info.Location) ?? "";
 
             U5Directory = Config.Bind("General", "UltimaVDirectory", "",
                 "Folder of your own copy of Ultima V (e.g. the GOG install) containing DATA.OVL, BRIT.DAT, " +
@@ -115,6 +116,7 @@ namespace U5InValheim
             }
         }
 
-        public static string PluginDirectory => Path.GetDirectoryName(typeof(Plugin).Assembly.Location) ?? "";
+        /// <summary>Folder of the plugin DLL, read once at start-up.</summary>
+        public static string PluginDirectory { get; private set; } = "";
     }
 }

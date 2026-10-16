@@ -31,6 +31,11 @@ Ultima V rebuilt inside Valheim (BepInEx + Jötunn). `MASTER_PLAN.md` is the bac
   for `U5InValheim v… loaded.` and `Read Ultima V from … ms`.
 
 ## Gotchas
+- Never overwrite the DLL of a running Valheim in place: Mono maps it and the loaded assembly gets
+  corrupted (garbled names, ExecutionEngineException on the next world load). `tools/deploy.sh`
+  writes a temp file and renames it; the game must be fully restarted to pick up a deploy.
+- A Britannia world that fails to build (Britannia.Failure) stops zone/location generation instead
+  of falling back to vanilla, which would be saved into the world.
 - `lib/Jotunn.dll` is 2.30.2 (the Valheim 1.0.7 update). 2.29 could not build this Valheim's
   `Terminal.ConsoleCommand`; console commands are registered the vanilla way anyway (postfix on
   `Terminal.InitTerminal`), which survives Jötunn lagging behind a Valheim release.

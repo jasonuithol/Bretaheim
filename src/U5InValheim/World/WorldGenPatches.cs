@@ -33,6 +33,7 @@ namespace U5InValheim.WorldGen
                     new[] { typeof(Heightmap.Biome), typeof(float), typeof(float), typeof(Color).MakeByRefType(), typeof(bool), typeof(bool) },
                     prefix: nameof(GetBiomeHeight_Prefix));
                 Patch(typeof(global::World), "GenerateSeed", Type.EmptyTypes, postfix: nameof(GenerateSeed_Postfix));
+                Patch(typeof(ZoneSystem), "Update", Type.EmptyTypes, prefix: nameof(ZoneUpdate_Prefix));
                 Patch(typeof(ZoneSystem), "GenerateLocationsTimeSliced",
                     new[] { typeof(ZoneSystem.ZoneLocation), typeof(Stopwatch), typeof(ZPackage) }, prefix: nameof(GenerateLocation_Prefix));
                 Installed = true;
@@ -117,11 +118,12 @@ namespace U5InValheim.WorldGen
         /// </summary>
         static bool GenerateLocation_Prefix(ZoneSystem __instance, ZoneSystem.ZoneLocation location, ZPackage iterationsPkg, ref IEnumerator __result)
         {
-            if (Britannia.Active == null) return true;
+            if (Britannia.Active == null && Britannia.Failure == null) return true;
             // The caller reads the number of placement attempts back from the package.
             iterationsPkg.Write(0);
             iterationsPkg.SetPos(0);
             __result = Empty();
+            if (Britannia.Active == null) return false;
             if (location == null || Game.instance == null || location.m_prefab.Name != Game.instance.m_StartLocation) return false;
 
             var existing = new List<ZoneSystem.LocationInstance>();
@@ -134,6 +136,20 @@ namespace U5InValheim.WorldGen
             registerLocation.Invoke(__instance, new object[] { location, pos, hutBuilt });
             Plugin.Log.LogInfo($"Start location placed at Iolo's hut {pos} (temple {(hutBuilt ? "not spawned" : "spawned")}, " +
                                $"iconAlways {location.m_iconAlways}, iconPlaced {location.m_iconPlaced})");
+            return false;
+        }
+
+        static float nextWarning;
+
+        /// <summary>A Britannia world that failed to build generates no zones (see Britannia.Failure).</summary>
+        static bool ZoneUpdate_Prefix()
+        {
+            if (Britannia.Failure == null) return true;
+            if (Time.time >= nextWarning && MessageHud.instance != null)
+            {
+                MessageHud.instance.ShowMessage(MessageHud.MessageType.Center, "U5InValheim: " + Britannia.Failure);
+                nextWarning = Time.time + 10f;
+            }
             return false;
         }
 

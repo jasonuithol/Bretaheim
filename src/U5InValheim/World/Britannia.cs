@@ -20,6 +20,13 @@ namespace U5InValheim.WorldGen
 
         /// <summary>The surface shape while a Britannia world is loaded, else null.</summary>
         public static BritanniaShape Active { get; private set; }
+
+        /// <summary>
+        /// The loaded world is Britannia but could not be built. Zone and location generation are
+        /// then stopped (<see cref="WorldGenPatches"/>): generating vanilla terrain would be saved
+        /// into the Britannia world.
+        /// </summary>
+        public static string Failure { get; private set; }
         public static List<Poi> Pois { get; private set; } = new List<Poi>();
 
         static BritanniaShape cached;
@@ -34,11 +41,12 @@ namespace U5InValheim.WorldGen
         public static void Activate(global::World world)
         {
             Active = null;
+            Failure = null;
             if (world == null || world.m_menu || !IsBritanniaSeed(world.m_seedName)) return;
             if (Plugin.U5 == null)
             {
-                Plugin.Log.LogError($"World '{world.m_name}' is a Britannia world but the Ultima V data is not loaded: " +
-                                    "its terrain will be wrong. Set UltimaVDirectory and restart.");
+                Fail($"World '{world.m_name}' is a Britannia world but the Ultima V data is not loaded " +
+                     "(set UltimaVDirectory and restart).");
                 return;
             }
             try
@@ -61,9 +69,16 @@ namespace U5InValheim.WorldGen
             }
             catch (Exception e)
             {
-                Plugin.Log.LogError($"Could not build Britannia for '{world.m_name}': {e}");
-                Active = null;
+                Plugin.Log.LogError(e.ToString());
+                Fail($"Could not build Britannia for '{world.m_name}': {e.Message}");
             }
+        }
+
+        static void Fail(string why)
+        {
+            Active = null;
+            Failure = why + " World generation is stopped so nothing vanilla is saved into it: quit Valheim completely and restart.";
+            Plugin.Log.LogError(Failure);
         }
 
         /// <summary>World position (y = ground) of the centre of overworld tile (tx, ty).</summary>
