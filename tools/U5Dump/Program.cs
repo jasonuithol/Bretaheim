@@ -17,5 +17,20 @@ if (missing.Count > 0)
     Console.Error.WriteLine($"Ultima V directory '{dir}' is missing: {string.Join(", ", missing)}");
     return 1;
 }
-Console.WriteLine(Dump.Run(U5Data.Load(dir), argv.ToArray()));
+var data = U5Data.Load(dir);
+if (argv.Count > 0 && argv[0] == "preview")
+{
+    // preview <out.ppm> [pixels=1024] [extraTiles=24] [under]
+    string outPath = argv.Count > 1 ? argv[1] : "preview.ppm";
+    int px = argv.Count > 2 ? int.Parse(argv[2]) : 1024;
+    int extra = argv.Count > 3 ? int.Parse(argv[3]) : 24;
+    bool under = argv.Contains("under");
+    string terrainJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json"));
+    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(under ? data.Underworld : data.Britannia,
+        U5InValheim.WorldGen.Core.TerrainTable.Parse(terrainJson), seed: 1234);
+    Preview.Render(shape, under ? new() : U5InValheim.WorldGen.Core.Pois.Build(data), outPath, px, extra);
+    Console.WriteLine($"wrote {outPath}");
+    return 0;
+}
+Console.WriteLine(Dump.Run(data, argv.ToArray()));
 return 0;

@@ -5,9 +5,9 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
-using Jotunn.Managers;
 using Jotunn.Utils;
 using U5InValheim.Data;
+using U5InValheim.WorldGen;
 
 namespace U5InValheim
 {
@@ -28,6 +28,7 @@ namespace U5InValheim
 
         public static ConfigEntry<string> U5Directory { get; private set; }
         public static ConfigEntry<float> TileMetres { get; private set; }
+        public static ConfigEntry<bool> NewWorldsAreBritannia { get; private set; }
 
         Harmony harmony;
 
@@ -41,9 +42,14 @@ namespace U5InValheim
                 "TOWNE.DAT, ... The mod reads the world, towns, people and conversations from it at start-up; " +
                 "no Ultima V data ships with the mod.");
             TileMetres = Config.Bind("World", "TileMetres", 32f,
-                "Size of one Ultima V tile in metres (32 = Britannia is an 8.2 km square).");
+                new ConfigDescription("Size of one Ultima V tile in metres (32 = Britannia is an 8.2 km square). " +
+                    "Must be the same on the server and every client.", new AcceptableValueRange<float>(8f, 36f)));
+            NewWorldsAreBritannia = Config.Bind("World", "NewWorldsAreBritannia", true,
+                "New worlds get a seed starting with \"Britannia\", which makes them Britannia. A world is Britannia " +
+                "exactly when its seed starts with \"Britannia\"; worlds with other seeds stay vanilla.");
 
-            CommandManager.Instance.AddConsoleCommand(new U5Command());
+            harmony = new Harmony(PluginGUID);
+            U5Command.Install(harmony); // also explains a missing UltimaVDirectory in-game
 
             if (!LoadU5Data())
             {
@@ -52,8 +58,13 @@ namespace U5InValheim
                 return;
             }
 
-            harmony = new Harmony(PluginGUID);
             harmony.PatchAll();
+            WorldGenPatches.Install(harmony);
+            if (WorldGenPatches.Installed)
+            {
+                PlaceMarkers.Install(harmony);
+                gameObject.AddComponent<WorldWrap>();
+            }
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         }
 

@@ -6,6 +6,6 @@
     "description": "Ultima V: Warriors of Destiny rebuilt inside Valheim, read at runtime from your own copy of Ultima V.",
     "dependencies": [
         "denikson-BepInExPack_Valheim-5.4.2350",
-        "ValheimModding-Jotunn-2.29.0"
+        "ValheimModding-Jotunn-2.30.2"
     ]
 }

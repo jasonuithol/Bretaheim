@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../src/U5InValheim/Data/**/*.cs" Link="Data/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../src/U5InValheim/World/Core/**/*.cs" Link="World/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="golden/*.tsv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

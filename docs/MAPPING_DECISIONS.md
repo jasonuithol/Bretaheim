@@ -50,4 +50,6 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
   keywords never match.
 - **Scripted NPCs** (Blackthorn, Stillwelt, Sutek, …) have an empty job: their description jumps
   straight to label 1.
+- **The Shrine of Spirituality** has coordinates (0,0): it is not on the map and is reached only
+  through a moongate (Phase 7 story work).
 - **Destard, Shame and Doom** have no ladder on level 0; you enter them in a room.

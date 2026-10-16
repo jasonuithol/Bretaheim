@@ -12,6 +12,12 @@ Ultima V rebuilt inside Valheim (BepInEx + Jötunn). `MASTER_PLAN.md` is the bac
   skipped otherwise. Golden files: `tools/rustref` (runs the Rust port's lzw.rs) and `tools/pyref.py`
   (runs generate_terrain.read_u5); only hashes/coordinates are stored.
 - `tools/U5Dump` offline twin of the in-game `u5 dump` command: `dotnet run --project tools/U5Dump -- npcs Britain`.
+- `src/U5InValheim/World/` (namespace `U5InValheim.WorldGen`; not `.World`, which would hide Valheim's
+  `World`): `Core/` is Unity-free (BritanniaShape = height/biome of the U5 map, periodic for the wrap;
+  TerrainTable; Pois) and linked into tests/U5Dump; the rest are Harmony patches.
+- A world is Britannia iff its seed name starts with "Britannia" (synced to clients by vanilla);
+  `NewWorldsAreBritannia` makes World.GenerateSeed return such seeds.
+- Offline terrain preview: `dotnet run --project tools/U5Dump -- preview out.ppm [px] [extraTiles]`.
 - `tools/data/valheim_prefabs.txt` prefab inventory (`tools/extract_prefabs.sh` after Valheim updates).
 
 ## Build / test / ship
@@ -25,6 +31,13 @@ Ultima V rebuilt inside Valheim (BepInEx + Jötunn). `MASTER_PLAN.md` is the bac
   for `U5InValheim v… loaded.` and `Read Ultima V from … ms`.
 
 ## Gotchas
+- `lib/Jotunn.dll` is 2.30.2 (the Valheim 1.0.7 update). 2.29 could not build this Valheim's
+  `Terminal.ConsoleCommand`; console commands are registered the vanilla way anyway (postfix on
+  `Terminal.InitTerminal`), which survives Jötunn lagging behind a Valheim release.
+- `ZoneSystem.GenerateLocationsTimeSliced(location, …, iterationsPkg)` must write an int to
+  `iterationsPkg` (the caller reads it back) even when skipped.
+- Throwaway server test: copy the server to scratch, delete line 70 of its `run_bepinex.sh`, run with
+  `-public 0 -savedir <scratch>`; dedicated servers generate no zones until a player joins.
 - The server's `run_bepinex.sh` APPENDS its own default args (`-name "My server" -port 2456 -world
   Dedicated -password secret`), overriding yours. Don't use it for throwaway tests without removing line 70.
 - No Ultima V data may be committed or packaged (.gitignore blocks the file types).
