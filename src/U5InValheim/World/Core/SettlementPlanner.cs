@@ -160,7 +160,8 @@ namespace U5InValheim.WorldGen.Core
                     var up = alone[i + 1];
                     hint = new bool[N * N];
                     for (int c = 0; c < N * N; c++)
-                        hint[c] = up.Interior[c] || tiles[raws[i + 1][c]].Kind == TileKind.Roof || (up.Barrier[c] && up.Building[c]);
+                        hint[c] = up.Interior[c] || (up.Walked != null && up.Walked[c]) || tiles[raws[i + 1][c]].Kind == TileKind.Roof
+                                  || (up.Barrier[c] && up.Building[c]);
                 }
                 // walk again on the final floor below, which knows the shop fronts under upper rooms
                 var walked = i == 0 ? null : Walk(raws[i], raws[i - 1], levels[i - 1]);
@@ -174,6 +175,13 @@ namespace U5InValheim.WorldGen.Core
         /// Text plan of each floor for checking (U5Dump town … floors): # built wall, + opening,
         /// o walked or inside, : covered, ' ' not on this floor.
         /// </summary>
+        public string Probe(Data.Location loc, int z, int x, int y)
+        {
+            var lv = Levels(loc).First(l => l.Z == z);
+            int c = y * N + x;
+            return $"raw {lv.Raw[c]:x2} kind {lv.Rule[c].Kind} barrier {lv.Barrier[c]} doorway {lv.Doorway[c]} exterior {lv.Exterior[c]} interior {lv.Interior[c]} built {lv.Built[c]} covered {lv.Covered[c]} building {Buildings(lv)[c]}";
+        }
+
         public string DescribeFloors(Data.Location loc)
         {
             var sb = new StringBuilder();
@@ -267,12 +275,13 @@ namespace U5InValheim.WorldGen.Core
             }
             if (reopened) Flood(lv);
 
+            var building = Buildings(lv);
             for (int i = 0; i < N * N; i++)
             {
-                // inside: enclosed and not open-air ground; plank floors are always a building
-                // (Iolo's barn is open on one side)
+                // inside: a building's floor; plank floors are always a building (Iolo's barn is
+                // open on one side), and so is anything under a room of the floor above
                 lv.Interior[i] = !lv.Barrier[i] && !lv.Doorway[i] && !lv.Rule[i].IsOutdoor && lv.Rule[i].Kind != TileKind.Roof
-                                 && (!lv.Exterior[i] || lv.Rule[i].Paint == Paint.Planks || (indoorAbove != null && indoorAbove[i]));
+                                 && (building[i] || lv.Rule[i].Paint == Paint.Planks || (indoorAbove != null && indoorAbove[i]));
                 // an upper floor only exists above something built on the floor below
                 if (below != null && lv.Interior[i] && !below.Covered[i] && !below.Built[i]) lv.Interior[i] = false;
                 if (walked != null && !walked[i]) lv.Interior[i] = false;
@@ -301,6 +310,48 @@ namespace U5InValheim.WorldGen.Core
                 lv.Covered[i] = lv.Interior[i] || lv.Building[i] || lv.Doorway[i];
             }
             return lv;
+        }
+
+        /// <summary>
+        /// The tiles of buildings: bounded walkable areas entered by a door, archway, doorway gap,
+        /// ladder or stairs. An area (4-connected tiles that are not walls or doorways) is a
+        /// building when it does not reach the map border, holds no open-air ground, plants or
+        /// water (a town inside its walls, a garden inside its fence, a gazebo by its pond are
+        /// not buildings), is not larger than a hall can be, and has a way in.
+        /// </summary>
+        static bool[] Buildings(Level lv)
+        {
+            const int MaxTiles = 160;
+            var r = new bool[N * N];
+            var seen = new bool[N * N];
+            bool Open(int c) => !lv.Barrier[c] && !lv.Doorway[c];
+            for (int s0 = 0; s0 < N * N; s0++)
+            {
+                if (seen[s0] || !Open(s0)) continue;
+                var area = new List<int>();
+                var q = new Queue<int>();
+                q.Enqueue(s0); seen[s0] = true;
+                bool border = false, outdoor = false, entrance = false;
+                while (q.Count > 0)
+                {
+                    int c = q.Dequeue();
+                    area.Add(c);
+                    int x = c % N, y = c / N;
+                    if (x == 0 || y == 0 || x == N - 1 || y == N - 1) border = true;
+                    var k = lv.Rule[c].Kind;
+                    if (lv.Rule[c].IsOutdoor && lv.Rule[c].Paint != Paint.Planks) outdoor = true;
+                    if (k == TileKind.LadderUp || k == TileKind.LadderDown || k == TileKind.Stairs) entrance = true;
+                    foreach (int n in Neighbours4(c))
+                    {
+                        var kn = lv.Rule[n].Kind;
+                        if (lv.Doorway[n] || kn == TileKind.Door || kn == TileKind.Arch || lv.Rule[n].Secret) entrance = true;
+                        if (Open(n) && !seen[n]) { seen[n] = true; q.Enqueue(n); }
+                    }
+                }
+                if (!border && !outdoor && entrance && area.Count <= MaxTiles)
+                    foreach (int c in area) r[c] = true;
+            }
+            return r;
         }
 
         static bool EW(Level lv, int i) { int x = i % N; return x > 0 && x < N - 1 && lv.Barrier[i - 1] && lv.Barrier[i + 1]; }

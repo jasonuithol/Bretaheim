@@ -43,6 +43,11 @@ if (argv.Count > 0 && argv[0] == "town")
     string kind = pois.First(p => p.Location == loc.Number).Kind;
     var plan = new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Plan(loc, kind, U5InValheim.WorldGen.Core.VBiome.Meadows);
     string outPath = argv.Count > 2 ? argv[2] : "town.ppm";
+    if (outPath == "probe")
+    {
+        Console.WriteLine(new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Probe(loc, int.Parse(argv[3]), int.Parse(argv[4]), int.Parse(argv[5])));
+        return 0;
+    }
     if (outPath == "floors")
     {
         Console.Write(new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).DescribeFloors(loc));
