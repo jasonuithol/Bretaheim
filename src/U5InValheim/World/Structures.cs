@@ -57,9 +57,11 @@ namespace U5InValheim.WorldGen
         /// <summary>Building shell pieces go into structures; doors, furniture, plants and climb points stay pieces.</summary>
         public static bool IsShell(Core.Placement p)
         {
-            if (p.Climb || p.Text != null || p.Items != null) return false;
+            if (p.Climb || p.Text != null || p.Items != null || p.Look != null) return false;
             string n = p.Prefab;
             if (n.Contains("door") || n.Contains("gate")) return false;
+            // lights keep their scripts (piece_walltorch, piece_brazierfloor01, the lantern pole would match below)
+            if (n.Contains("torch") || n.Contains("brazier") || n.Contains("lantern")) return false;
             return n.Contains("wall") || n.Contains("floor") || n.Contains("roof") || n.Contains("pole") || n.Contains("pillar")
                    || n.Contains("fence") || n.Contains("beam") || n.Contains("arch") || n.StartsWith("blackmarble_");
         }

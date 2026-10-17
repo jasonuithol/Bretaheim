@@ -1,5 +1,5 @@
 {
-  "_doc": "Settlement map tile (hex; Constructing world assets.txt numbers them in decimal) -> what the settlement builder makes of it. Kinds: ground (paint: grass|paved|dirt|cultivated|planks), wall (build: brick|cobble|shelf), window (narrow = arrow slit), door (viewport, lock key|magic, gate = iron gate), arch (walk-through archway), roof, battlement (merlons), tree, fruittree, crop, water, fence_ew, fence_ns, stairs, ladder_up, ladder_down, bed_head, bed_foot, table, chair (facing), prop (prefab | choices | parts). Parts are tile-local (x east, z north, y up from the floor); place: centre (default, the middle of the bounds) | stand (furniture, on y) | top (top at y). A wall-mounted prop names its wall side (wall: n/e/s/w). Unlisted tiles are ground/grass.",
+  "_doc": "Settlement map tile (hex; Constructing world assets.txt numbers them in decimal) -> what the settlement builder makes of it. Kinds: ground (paint: grass|paved|dirt|cultivated|planks), wall (build: brick|cobble|shelf), window (narrow = arrow slit), door (viewport, lock key|magic, gate = iron gate), arch (walk-through archway), roof, battlement (merlons), tree, fruittree, crop, water, fence_ew, fence_ns, stairs, ladder_up, ladder_down, bed_head, bed_foot, table, chair (facing), prop (prefab | choices | parts). Parts are tile-local (x east, z north, y up from the floor); place: centre (default, the middle of the bounds) | stand (furniture, on y) | top (top at y) | pivot (the prefab's own origin); look: white_marble | fountain (changed in game). A wall-mounted prop names its wall side (wall: n/e/s/w). Unlisted tiles are ground/grass.",
   "tiles": {
     "01": {"kind": "water"},
     "02": {"kind": "water"},
@@ -21,7 +21,7 @@
     "28": {"kind": "roof"},
     "29": {"kind": "prop", "prefab": "piece_table_round"},
     "2a": {"kind": "prop", "prefab": "piece_brazierfloor01"},
-    "2b": {"kind": "prop", "prefab": "SwampTree1"},
+    "2b": {"kind": "prop", "parts": [{"prefab": "SwampTree1", "scale": [0.25, 0.25, 0.25], "place": "pivot"}]},
     "2c": {"kind": "ground", "paint": "cultivated"},
     "2d": {"kind": "crop", "paint": "cultivated", "prefab": "Pickable_Barley"},
     "2e": {"kind": "fruittree"},
@@ -124,7 +124,7 @@
     "ba": {"kind": "door", "viewport": true},
     "bb": {"kind": "door", "viewport": true, "lock": "key"},
     "bc": {"kind": "prop", "parts": [{"prefab": "hearth", "scale": [0.5, 1, 0.66], "place": "stand"}]},
-    "bd": {"kind": "prop", "prefab": "piece_dvergr_lantern_pole"},
+    "bd": {"kind": "prop", "parts": [{"prefab": "piece_dvergr_lantern_pole", "yaw": 270, "place": "stand"}]},
     "be": {"kind": "prop", "prefab": "piece_groundtorch_wood"},
     "bf": {"kind": "prop", "parts": [{"prefab": "fire_pit", "place": "stand"}, {"prefab": "piece_cauldron", "y": 0.1, "place": "stand"}]},
     "c4": {"kind": "stairs"},
@@ -135,7 +135,10 @@
     "c9": {"kind": "ladder_down"},
     "ca": {"kind": "fence_ew"},
     "cb": {"kind": "fence_ns"},
-    "d8": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_2", "place": "stand"}]},
+    "d8": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_2", "y": 0.5, "look": "white_marble"}, {"prefab": "piece_bathtub", "y": 1, "scale": [0.62, 0.62, 0.62], "place": "pivot", "look": "fountain"}]},
+    "d9": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_2", "y": 0.5, "look": "white_marble"}, {"prefab": "piece_bathtub", "y": 1, "scale": [0.62, 0.62, 0.62], "place": "pivot", "look": "fountain"}]},
+    "da": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_2", "y": 0.5, "look": "white_marble"}, {"prefab": "piece_bathtub", "y": 1, "scale": [0.62, 0.62, 0.62], "place": "pivot", "look": "fountain"}]},
+    "db": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_2", "y": 0.5, "look": "white_marble"}, {"prefab": "piece_bathtub", "y": 1, "scale": [0.62, 0.62, 0.62], "place": "pivot", "look": "fountain"}]},
     "de": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_1", "place": "stand"}, {"prefab": "MountainKit_brazier_blue", "y": 1, "place": "stand"}]},
     "e0": {"kind": "prop", "paint": "paved", "parts": [{"prefab": "wood_pole2", "place": "stand"}, {"prefab": "wood_pole2", "y": 2, "place": "stand"}]},
     "e1": {"kind": "ground", "paint": "paved"},
@@ -162,7 +165,7 @@
     "fe": {"kind": "wall"}
   },
   "styles": {
-    "_doc": "Wall materials. Wall tiles are solid 2 m x 2 m x 3 m: three courses of 2x1x1 bricks, each course 1 m out of phase with the one below (1x1x1 at run ends). Inter-level floors are wood.",
+    "_doc": "Wall materials. Wall tiles are solid 2 m x 2 m x 4 m: four courses of 2x1x1 bricks, each course 1 m out of phase with the one below (1x1x1 at run ends). Inter-level floors are wood.",
     "stone": {"brick": "stone_wall_2x1", "brick_small": "stone_wall_1x1", "sill": "stone_floor_2x2", "arch": "stone_arch", "floor": "wood_floor", "door": "wood_door", "gate": "iron_grate", "merlon": "stone_wall_1x1"},
     "marble": {"brick": "blackmarble_2x1x1", "brick_small": "blackmarble_1x1", "sill": "blackmarble_floor", "arch": "stone_arch", "floor": "wood_floor", "door": "wood_door", "gate": "iron_grate", "merlon": "blackmarble_1x1"}
   },

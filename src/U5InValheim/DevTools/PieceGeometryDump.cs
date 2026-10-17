@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -22,11 +23,71 @@ namespace U5InValheim.DevTools
             if (awake != null) harmony.Patch(awake, postfix: new HarmonyMethod(typeof(PieceGeometryDump), nameof(Awake_Postfix)));
         }
 
+        /// <summary>Development self-test: a prefab's children, renderers and materials, and its fire settings.</summary>
+        static void LogHierarchy(GameObject prefab)
+        {
+            if (prefab == null) return;
+            var sb = new StringBuilder($"hierarchy {prefab.name}:");
+            foreach (Transform t in prefab.GetComponentsInChildren<Transform>(true))
+            {
+                var path = t == prefab.transform ? "." : t.name;
+                for (var up = t.parent; up != null && up != prefab.transform; up = up.parent) path = up.name + "/" + path;
+                var r = t.GetComponent<Renderer>();
+                sb.Append($"\n  {path} active={t.gameObject.activeSelf} pos={t.localPosition} scale={t.localScale}");
+                if (r != null) sb.Append($" renderer[{string.Join(",", r.sharedMaterials.Select(m => m == null ? "null" : $"{m.name}/{m.shader?.name}"))}]");
+                var mf = t.GetComponent<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null) sb.Append($" mesh {mf.sharedMesh.name} readable={mf.sharedMesh.isReadable} z=[{mf.sharedMesh.bounds.min.z:0.00},{mf.sharedMesh.bounds.max.z:0.00}]");
+                foreach (var c in t.GetComponents<Component>()) if (!(c is Transform) && !(c is Renderer) && !(c is MeshFilter)) sb.Append($" {c.GetType().Name}");
+            }
+            // readable meshes as OBJ (offline checks of mesh edits, e.g. the fountain's stove cut)
+            foreach (var mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null || !mf.sharedMesh.isReadable || mf.name != "high") continue;
+                var obj = new StringBuilder();
+                foreach (var v in mf.sharedMesh.vertices) obj.Append(FormattableString.Invariant($"v {v.x} {v.y} {v.z}\n"));
+                var tris = mf.sharedMesh.triangles;
+                for (int i = 0; i < tris.Length; i += 3) obj.Append($"f {tris[i] + 1} {tris[i + 1] + 1} {tris[i + 2] + 1}\n");
+                File.WriteAllText(Path.Combine(BepInEx.Paths.BepInExRootPath, $"{prefab.name}_{mf.transform.parent?.name}_{mf.name}.obj"), obj.ToString());
+            }
+            var fire = prefab.GetComponent<Fireplace>();
+            if (fire != null)
+                sb.Append($"\n  fire: enabled={fire.m_enabledObject?.name} disableCover={fire.m_disableCoverCheck} coverOffset={fire.m_coverCheckOffset} terrainOffset={fire.m_checkTerrainOffset} smoke={fire.m_smokeSpawner != null} secPerFuel={fire.m_secPerFuel}");
+            Plugin.Log.LogInfo(sb.ToString());
+        }
+
+        /// <summary>Development self-test: a settlement look applied to an offline copy of a prefab.</summary>
+        static void TestLook(GameObject prefab, string look)
+        {
+            if (prefab == null) return;
+            ZNetView.m_forceDisableInit = true;
+            var go = UnityEngine.Object.Instantiate(prefab);
+            ZNetView.m_forceDisableInit = false;
+            try
+            {
+                WorldGen.Looks.Apply(go, look);
+                var sb = new StringBuilder($"look {look} on {prefab.name}:");
+                foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true))
+                    if (mf.sharedMesh != null && mf.GetComponent<Renderer>()?.enabled == true && mf.gameObject.activeInHierarchy)
+                        sb.Append($" {mf.name}={mf.sharedMesh.triangles.Length / 3}tris z>={mf.sharedMesh.bounds.min.z:0.00} y<={mf.sharedMesh.bounds.max.y:0.00} mat={mf.GetComponent<Renderer>().sharedMaterial?.name}");
+                sb.Append($" smelter={go.GetComponent<Smelter>() != null} drink={go.GetComponent<WorldGen.FountainDrink>() != null}");
+                Plugin.Log.LogInfo(sb.ToString());
+            }
+            catch (Exception e) { Plugin.Log.LogError($"look {look} on {prefab.name}: {e}"); }
+            UnityEngine.Object.Destroy(go);
+        }
+
         static void Awake_Postfix(ZNetScene __instance)
         {
             if (Plugin.SelfTest.Value)
                 WorldGen.Structures.SelfTest("stone_wall_2x1", "stone_fence", "darkwood_roof", "piece_grausten_roof_45", "piece_grausten_roof_45_corner",
-                    "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6");
+                    "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_bathtub");
+            if (Plugin.SelfTest.Value)
+            {
+                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1" })
+                    LogHierarchy(__instance.GetPrefab(n));
+                TestLook(__instance.GetPrefab("piece_bathtub"), "fountain");
+                TestLook(__instance.GetPrefab("blackmarble_column_2"), "white_marble");
+            }
             var names = Plugin.DumpPieceGeometry.Value.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
             if (names.Count == 0) return;
             if (names.Count == 1 && names[0] == "*")

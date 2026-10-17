@@ -16,8 +16,8 @@ namespace U5InValheim.WorldGen.Core
     /// <summary>How a wall tile is built (Constructing world assets.txt).</summary>
     public enum WallBuild { Brick, Cobble, Shelf }
 
-    /// <summary>Where a part's (x, y, z) puts it: the middle of its bounds, standing on y, or its top at y.</summary>
-    public enum PartPlace { Centre, Stand, Top }
+    /// <summary>Where a part's (x, y, z) puts it: the middle of its bounds, standing on y, its top at y, or its pivot.</summary>
+    public enum PartPlace { Centre, Stand, Top, Pivot }
 
     /// <summary>One piece of a composite prop, in tile-local metres (x east, z north, y up from the floor).</summary>
     public struct Part
@@ -26,6 +26,8 @@ namespace U5InValheim.WorldGen.Core
         public float X, Y, Z, Yaw;
         public float SX, SY, SZ;
         public PartPlace Place;
+        /// <summary>A changed look applied in game ("white_marble", "fountain"), or null.</summary>
+        public string Look;
     }
 
     public class TileRule
@@ -168,7 +170,9 @@ namespace U5InValheim.WorldGen.Core
             {
                 Prefab = Json.Str(o, "prefab"), X = F("x"), Y = F("y"), Z = F("z"), Yaw = F("yaw"),
                 SX = 1, SY = 1, SZ = 1,
-                Place = Json.Str(o, "place") == "stand" ? PartPlace.Stand : Json.Str(o, "place") == "top" ? PartPlace.Top : PartPlace.Centre,
+                Place = Json.Str(o, "place") == "stand" ? PartPlace.Stand : Json.Str(o, "place") == "top" ? PartPlace.Top
+                        : Json.Str(o, "place") == "pivot" ? PartPlace.Pivot : PartPlace.Centre,
+                Look = Json.Str(o, "look"),
             };
             if (Json.Get(o, "scale") is List<object> s)
             {

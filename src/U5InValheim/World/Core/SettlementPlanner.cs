@@ -26,6 +26,8 @@ namespace U5InValheim.WorldGen.Core
         public bool Climb;
         public float ClimbX, ClimbY, ClimbZ;
         public string ClimbVerb;
+        /// <summary>A changed look applied when the piece loads ("white_marble", "fountain"), or null.</summary>
+        public string Look;
 
         public override string ToString() => $"{Prefab} ({X:0.##}, {Y:0.##}, {Z:0.##}) yaw {Yaw}";
     }
@@ -36,7 +38,7 @@ namespace U5InValheim.WorldGen.Core
         public const int Size = SettlementMaps.Size;
         public Data.Location Location;
         public string Kind;
-        public float Tile = 2f, Storey = 3f;
+        public float Tile = 2f, Storey = 4f;
         public readonly List<Placement> Pieces = new List<Placement>();
         /// <summary>Terrain paint of each ground cell (row-major, y south).</summary>
         public readonly Paint[] GroundPaint = new Paint[Size * Size];
@@ -194,7 +196,8 @@ namespace U5InValheim.WorldGen.Core
                     {
                         int c = y * N + x;
                         sb.Append(lv.Built[c] ? (lv.Rule[c].IsOpening ? '+' : '#')
-                                  : (lv.Walked != null ? lv.Walked[c] : lv.Interior[c]) ? 'o' : lv.Covered[c] ? ':' : lv.Walked == null ? '.' : ' ');
+                                  : (lv.Walked != null ? lv.Walked[c] : lv.Interior[c]) ? 'o' : lv.Covered[c] ? ':'
+                                  : lv.Rule[c].Kind == TileKind.Water ? '~' : lv.Walked == null ? '.' : ' ');
                     }
                     sb.Append('\n');
                 }
@@ -227,8 +230,10 @@ namespace U5InValheim.WorldGen.Core
                 // grass and dirt count (rooftop terraces draw their floor as grass); plants and water do not
                 if ((r.IsBarrier && r.Kind != TileKind.Door && r.Kind != TileKind.Arch && !r.Secret) || (r.IsOutdoor && r.Kind != TileKind.Ground) || r.Kind == TileKind.Roof) return false;
                 var rb = below.Rule[c];
+                // water inside a building (Britain's smithy has the river running through it) carries the floor too
                 return below.Built[c] || below.Covered[c] || (below.Walked != null && below.Walked[c])
-                       || (!rb.IsBarrier && !rb.IsOutdoor && rb.Kind != TileKind.Roof);
+                       || (!rb.IsBarrier && !rb.IsOutdoor && rb.Kind != TileKind.Roof)
+                       || (rb.Kind == TileKind.Water && !below.Exterior[c]);
             }
             var walked = new bool[N * N];
             var q = new Queue<int>();
@@ -498,8 +503,10 @@ namespace U5InValheim.WorldGen.Core
                     {
                         case PartPlace.Stand: Stand(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
                         case PartPlace.Top: Top(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
+                        case PartPlace.Pivot: Pivot(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
                         default: Centre(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
                     }
+                    if (part.Look != null) Last(pl => { pl.Look = part.Look; return pl; });
                 }
             }
 
@@ -575,13 +582,13 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>
-        /// Wall tiles are solid 2 m × 2 m × 3 m blocks (the wall zone). Stone walls are three courses
-        /// of 2×1×1 bricks laid along their run, each course 1 m out of phase with the one below;
-        /// 1×1×1 bricks fill the odd ends, so neighbouring tiles of a run share bricks. Cobblestone
-        /// walls are a wooden frame filled with stone fence; windows a sill and arches with the
-        /// opening between; arrow slits leave a cross-shaped gap in the middle course; doors stand
-        /// in the middle of their tile, 3 m tall, or 2 m with an open viewport above; archways and
-        /// doorways are open below a course of bricks.
+        /// Wall tiles are solid 2 m × 2 m × 4 m blocks (the wall zone, one storey). Stone walls are
+        /// four courses of 2×1×1 bricks laid along their run, each course 1 m out of phase with the
+        /// one below; 1×1×1 bricks fill the odd ends, so neighbouring tiles of a run share bricks.
+        /// Cobblestone walls are a wooden frame filled with stone fence; windows a sill and arches
+        /// with the opening between; arrow slits leave a cross-shaped gap in the second course; doors
+        /// stand in the middle of their tile, 3 m tall, or 2 m with an open viewport above; archways
+        /// and doorways are open 3 m high. Openings have a lintel course of bricks on top.
         /// </summary>
         void Walls(Ctx ctx, Level lv, TownStyle style, CobbleStyle cobble)
         {
@@ -592,17 +599,17 @@ namespace U5InValheim.WorldGen.Core
             for (int c = 0; c < N * N; c++) along[c] = AlongX(lv, c);
 
             // courses of bricks
-            for (int course = 0; course < 3; course++)
+            int courses = (int)Math.Round(p.Storey), lintel = courses - 1;
+            for (int course = 0; course < courses; course++)
             {
                 bool Brick(int c)
                 {
-                    if (lv.Doorway[c]) return course == 2;
+                    if (lv.Doorway[c]) return course == lintel;
                     if (!lv.Built[c]) return false;
                     var r = lv.Rule[c];
                     if (r.Kind == TileKind.Wall) return r.Build == WallBuild.Brick;
-                    if (r.Kind == TileKind.Arch) return course == 2;
                     if (r.Kind == TileKind.Window && r.Narrow) return course != 1;
-                    return false;
+                    return r.IsOpening && course == lintel;
                 }
                 var used = new bool[G * G];
                 bool Cell(int gx, int gy, bool alongX)
@@ -669,14 +676,15 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>
-        /// A cobblestone wall tile: two rows of stone fence, three high, in a frame of 3 m posts on
+        /// A cobblestone wall tile: two rows of stone fence, a storey high, in a frame of posts on
         /// the tile corners (shared along a run) with a beam along the top of each open face.
         /// </summary>
         static void CobbleWall(Ctx ctx, Level lv, CobbleStyle s, int c, bool alongX, float y0, HashSet<(int, int)> posts)
         {
             var p = ctx.Plan;
             float cx = CellX(p, c), cz = CellZ(p, c), yaw = alongX ? 0 : 90;
-            for (int course = 0; course < 3; course++)
+            float storey = p.Storey;
+            for (int course = 0; course < storey; course++)
                 for (int side = -1; side <= 1; side += 2)
                 {
                     Ctx.Rotate(0, side * 0.5f, yaw, out float ox, out float oz);
@@ -685,13 +693,15 @@ namespace U5InValheim.WorldGen.Core
             foreach (var (dx, dz) in new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) })
             {
                 if (!posts.Add(((int)Math.Round(cx + dx), (int)Math.Round(cz + dz)))) continue;
-                ctx.Stand(s.Post, cx + dx, y0, cz + dz, 0);
-                ctx.Stand(s.PostShort, cx + dx, y0 + 2, cz + dz, 0);
+                // 2 m posts, topped up with a 1 m one on an odd storey height
+                float py = y0;
+                for (; py + 2 <= y0 + storey; py += 2) ctx.Stand(s.Post, cx + dx, py, cz + dz, 0);
+                if (py < y0 + storey) ctx.Stand(s.PostShort, cx + dx, py, cz + dz, 0);
             }
             int x = c % N, y = c / N;
             foreach (var (nx, ny, dx, dz, byaw) in new[] { (x, y - 1, 0f, 1f, 0f), (x, y + 1, 0f, -1f, 0f), (x + 1, y, 1f, 0f, 90f), (x - 1, y, -1f, 0f, 90f) })
                 if (!WallLike(lv, nx, ny))
-                    ctx.Centre(s.Beam, cx + dx, y0 + 2.8f, cz + dz, byaw);
+                    ctx.Centre(s.Beam, cx + dx, y0 + storey - 0.2f, cz + dz, byaw);
         }
 
         /// <summary>
@@ -745,6 +755,7 @@ namespace U5InValheim.WorldGen.Core
         /// The roof zone starts on top of the last wall zone of each building: anything covered on
         /// one floor and not built on the floor above gets a hip roof whose eaves sit on the outer
         /// wall tops. Cobblestone cottages get thatch, other buildings their settlement's roof.
+        /// A building with parapets on its top is a flat roof (a wall-walk): it gets no roof.
         /// </summary>
         void Roofs(Ctx ctx, List<Level> levels, RoofSet roof, RoofSet cottage)
         {
@@ -752,12 +763,16 @@ namespace U5InValheim.WorldGen.Core
             {
                 var lv = levels[i];
                 var above = i + 1 < levels.Count ? levels[i + 1] : null;
+                bool Parapet(int c) => above != null && above.Built[c] && above.Rule[c].Kind == TileKind.Battlement;
                 var cells = new bool[N * N];
                 for (int c = 0; c < N * N; c++)
                     cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c] || (above.Walked != null && above.Walked[c])));
                 float baseY = ctx.Plan.Storey * (lv.Z + 1);
                 foreach (var building in RoofFootprints(cells))
+                {
+                    if (Enumerable.Range(0, N * N).Any(c => building[c] && (Parapet(c) || Neighbours8(c).Any(Parapet)))) continue;
                     HipRoof(ctx, IsCottage(lv, building) ? cottage : roof, building, baseY);
+                }
             }
         }
 

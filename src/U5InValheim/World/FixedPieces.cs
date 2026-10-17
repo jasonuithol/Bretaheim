@@ -43,6 +43,8 @@ namespace U5InValheim.WorldGen
             if (zdo == null) return;
             var scale = zdo.GetVec3(Settlements.ScaleKey, Vector3.zero);
             if (scale != Vector3.zero) __instance.transform.localScale = scale;
+            var look = zdo.GetString(Settlements.LookKey);
+            if (look.Length > 0) Looks.Apply(__instance.gameObject, look);
         }
 
         static void WearNTear_Awake(WearNTear __instance)

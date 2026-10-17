@@ -60,17 +60,20 @@ namespace U5InValheim.Tests
         [U5Fact]
         public void CastlesHaveGraustenRoofsAndParapets()
         {
-            var p = Plan(17, "castle");
-            Assert.True(p.Pieces.Count(x => x.Prefab == "piece_grausten_roof_45") > 50);
+            var hold = Plan(32, "castle");
+            Assert.True(hold.Pieces.Count(x => x.Prefab == "piece_grausten_roof_45") > 50);
             // hips are triangles turned upside down
-            Assert.Contains(p.Pieces, x => x.Prefab.StartsWith("piece_grausten_roof_45_corner") && x.SY < 0);
-            Assert.True(p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && Math.Abs((x.Y % 3 + 3) % 3 - 1.5f) < 0.01f) > 20, "merlons");
+            Assert.Contains(hold.Pieces, x => x.Prefab.StartsWith("piece_grausten_roof_45_corner") && x.SY < 0);
+            // Lord British's castle is flat-topped: buildings with parapets on top get no roof
+            var p = Plan(17, "castle");
+            Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("piece_grausten_roof")) < 20);
+            Assert.True(p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && Math.Abs((x.Y % 4 + 4) % 4 - 1.5f) < 0.01f) > 20, "merlons");
             Assert.Contains(p.Pieces, x => x.Prefab == "wood_door" && x.Lock != null);
         }
 
         [U5Theory]
-        [InlineData(13, "dwelling", 1150)]
-        [InlineData(2, "towne", 5000)]
+        [InlineData(13, "dwelling", 1300)]
+        [InlineData(2, "towne", 6000)]
         [InlineData(17, "castle", 8000)]
         public void PieceBudget(int location, string kind, int maxPieces)
         {
@@ -78,7 +81,7 @@ namespace U5InValheim.Tests
             Assert.InRange(p.Pieces.Count, 1, maxPieces);
             // runs are laid in 2 m bricks; 1 m bricks only at run ends and every other course's start
             int big = p.Pieces.Count(x => x.Prefab == "stone_wall_2x1"), small = p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && !x.Scaled);
-            Assert.InRange(small, 0, Math.Max(10, (big + small) * 3 / 10));
+            Assert.InRange(small, 0, Math.Max(20, (big + small) * 3 / 10)); // lintels over openings are often single bricks
         }
 
         [U5Theory]

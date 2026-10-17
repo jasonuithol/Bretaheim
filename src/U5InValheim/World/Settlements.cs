@@ -32,6 +32,7 @@ namespace U5InValheim.WorldGen
         public const string ClimbVerbKey = "u5_climb_verb";
         public const string ScaleKey = "u5_scale";
         public const string LockKey = "u5_lock";
+        public const string LookKey = "u5_look";
 
         public static List<Built> All { get; private set; } = new List<Built>();
         static Dictionary<Vector2s, List<(Built settlement, Placement piece)>> byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
@@ -177,6 +178,7 @@ namespace U5InValheim.WorldGen
                     zdo.Set(FixedKey, true);
                     if (p.Scaled) zdo.Set(ScaleKey, scale);
                     if (p.Lock != null) zdo.Set(LockKey, p.Lock);
+                    if (p.Look != null) { zdo.Set(LookKey, p.Look); Looks.Apply(go, p.Look); }
                     if (p.Text != null) zdo.Set(ZDOVars.s_text, p.Text);
                     if (p.Items != null) zdo.Set(ZDOVars.s_items, ContainerBytes(p.Items));
                     if (p.Climb)
