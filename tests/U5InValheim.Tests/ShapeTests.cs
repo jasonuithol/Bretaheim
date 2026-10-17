@@ -70,6 +70,59 @@ namespace U5InValheim.Tests
             }
         }
 
+        /// <summary>Slope angles (degrees) sampled every 4 m across the tiles of the named classes.</summary>
+        static float[] Slopes(params string[] classes)
+        {
+            var s = shape.Value; var m = Env.Data.Britannia; var t = terrain.Value;
+            var r = new System.Collections.Generic.List<float>();
+            for (int y = 0; y < 256; y++)
+            for (int x = 0; x < 256; x++)
+            {
+                if (!classes.Contains(t[m[x, y]].Name)) continue;
+                s.TileCentre(x, y, out float cx, out float cz);
+                for (float dz = -14; dz <= 14; dz += 4)
+                for (float dx = -14; dx <= 14; dx += 4)
+                {
+                    float h = s.NaturalHeight(cx + dx, cz + dz);
+                    float gx = s.NaturalHeight(cx + dx + 4, cz + dz) - h, gz = s.NaturalHeight(cx + dx, cz + dz + 4) - h;
+                    r.Add(MathF.Atan(MathF.Sqrt(gx * gx + gz * gz) / 4) * 180 / MathF.PI);
+                }
+            }
+            r.Sort();
+            return r.ToArray();
+        }
+
+        [U5Fact]
+        public void MountainsAreAManagedAscent()
+        {
+            var a = Slopes("mountains", "peaks", "foothills");
+            Assert.InRange(a[a.Length / 2], 0, 22);
+            Assert.InRange(a.Count(x => x > 45) / (double)a.Length, 0, 0.02);
+        }
+
+        [U5Fact]
+        public void RiverBanksAreGentleAndPlanted()
+        {
+            var a = Slopes("river");
+            Assert.InRange(a[a.Length * 9 / 10], 0, 25);
+            var s = shape.Value; var m = Env.Data.Britannia; var t = terrain.Value;
+            int rivers = 0, planted = 0;
+            for (int y = 0; y < 256; y++)
+            for (int x = 0; x < 256; x++)
+            {
+                var c = t[m[x, y]];
+                s.TileCentre(x, y, out float cx, out float cz);
+                if (c.Water == WaterKind.Sea && Uniform(m, t, x, y)) Assert.Equal(0f, s.RiverBank(cx, cz));
+                if (c.Water != WaterKind.River) continue;
+                rivers++;
+                bool bank = false;
+                for (float d = 8; d <= 48 && !bank; d += 4)
+                    bank = new[] { (d, 0f), (-d, 0f), (0f, d), (0f, -d) }.Any(o => s.RiverBank(cx + o.Item1, cz + o.Item2) > 0.5f);
+                if (bank) planted++;
+            }
+            Assert.True(planted > rivers * 0.8, $"{planted} of {rivers} river tiles have planted banks");
+        }
+
         [U5Fact]
         public void TheMarginRepeatsTheOppositeEdge()
         {

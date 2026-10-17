@@ -40,6 +40,12 @@ namespace U5InValheim.WorldGen
         /// <summary>Called as WorldGenerator.Initialize(world) begins, before any terrain is sampled.</summary>
         public static void Activate(global::World world)
         {
+            ActivateWorld(world);
+            RiverBanks.WorldChanged();
+        }
+
+        static void ActivateWorld(global::World world)
+        {
             Active = null;
             Failure = null;
             if (world == null || world.m_menu || !IsBritanniaSeed(world.m_seedName)) return;

@@ -32,6 +32,32 @@ if (argv.Count > 0 && argv[0] == "preview")
     Console.WriteLine($"wrote {outPath}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "slopes")
+{
+    // slopes [step=4]: slope angle percentiles per terrain class over the whole overworld
+    float step = argv.Count > 1 ? float.Parse(argv[1]) : 4f;
+    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    var byClass = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<float>>();
+    float half = shape.WrapMetres / 2;
+    for (float z = -half; z < half; z += step)
+    for (float x = -half; x < half; x += step)
+    {
+        float h = shape.NaturalHeight(x, z), hx = shape.NaturalHeight(x + step, z), hz = shape.NaturalHeight(x, z + step);
+        float g = MathF.Sqrt((hx - h) * (hx - h) + (hz - h) * (hz - h)) / step;
+        string name = table[shape.TileAt(x, z)].Name;
+        if (!byClass.TryGetValue(name, out var l)) byClass[name] = l = new();
+        l.Add(MathF.Atan(g) * 180 / MathF.PI);
+    }
+    Console.WriteLine("class               n      p50   p90   p99   max   >35°   >45°");
+    foreach (var (name, l) in byClass.OrderByDescending(kv => kv.Value.Count))
+    {
+        l.Sort();
+        float P(double q) => l[(int)Math.Min(l.Count - 1, q * l.Count)];
+        Console.WriteLine($"{name,-16} {l.Count,8} {P(.5),5:0.0} {P(.9),5:0.0} {P(.99),5:0.0} {l[^1],5:0.0} {l.Count(a => a > 35) * 100.0 / l.Count,5:0.0}% {l.Count(a => a > 45) * 100.0 / l.Count,5:0.0}%");
+    }
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "town")
 {
     // town <location> <out.ppm>

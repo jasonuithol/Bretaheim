@@ -27,6 +27,8 @@ namespace U5InValheim.WorldGen.Core
         public const int SamplesPerTile = 4;
         const int N = MapTiles * SamplesPerTile;
         public const float DeepOcean = -70f;
+        /// <summary>The forest factor over the sea (treeless): keeps the river lilies off the coasts.</summary>
+        public const float SeaForestFactor = 10f;
 
         public float TileMetres { get; }
         public int MarginTiles { get; }
@@ -40,9 +42,9 @@ namespace U5InValheim.WorldGen.Core
         readonly float[] amp = new float[N * N];
         readonly float[] sea = new float[N * N];
         readonly float[] river = new float[N * N];
-        /// <summary>River samples weighted by how close to the sea their river is (1 at the mouth).</summary>
-        readonly float[] riverMouth = new float[N * N];
         readonly float[] riverWide = new float[N * N];
+        /// <summary>Rivers blurred over about 40 m: how near the water a bank is.</summary>
+        readonly float[] riverBank = new float[N * N];
         readonly float[] forest = new float[N * N];
         readonly VBiome[] landBiome = new VBiome[MapTiles * MapTiles];
         readonly int seed;
@@ -80,15 +82,16 @@ namespace U5InValheim.WorldGen.Core
                 tMouth[i] = tRiver[i] * mouth[ty * MapTiles + tx];
                 tForest[i] = c.Forest;
             }
-            // two-scale base: local relief (σ ≈ ¼ tile) + long slopes toward the ranges (σ ≈ 1.1 tiles)
-            var fine = Blur(tBase, 1f);
-            var coarse = Blur(tBase, 4.4f);
-            for (int i = 0; i < baseH.Length; i++) baseH[i] = 0.55f * fine[i] + 0.45f * coarse[i];
+            // two-scale base: some local relief (σ ≈ ¾ tile) on long slopes toward the ranges (σ ≈ 2
+            // tiles), so a lone mountain tile is a hill and only whole ranges climb high
+            var fine = Blur(tBase, 3f);
+            var coarse = Blur(tBase, 8f);
+            for (int i = 0; i < baseH.Length; i++) baseH[i] = 0.2f * fine[i] + 0.8f * coarse[i];
             Array.Copy(Blur(tAmp, 1.6f), amp, amp.Length);
             Array.Copy(Blur(tSea, 0.8f), sea, sea.Length);
             Array.Copy(Blur(tRiver, 0.8f), river, river.Length);
-            Array.Copy(Blur(tMouth, 0.8f), riverMouth, riverMouth.Length);
             Array.Copy(Blur(tMouth, 2.4f), riverWide, riverWide.Length);
+            Array.Copy(Blur(tRiver, 3f), riverBank, riverBank.Length);
             Array.Copy(Blur(tForest, 2f), forest, forest.Length);
 
             ResolveLandBiomes();
@@ -179,8 +182,8 @@ namespace U5InValheim.WorldGen.Core
             float r = Sample(river, gx, gy);
 
             double mu = u / MapTiles, mv = v / MapTiles; // map units, noise periodic over 1.0
-            double n = PeriodicFbm(mu, mv, 12, 7, 0);
-            double ridged = 1 - Math.Abs(PeriodicFbm(mu, mv, 6, 5, 101));
+            double n = PeriodicFbm(mu, mv, 12, 6, 0);
+            double ridged = 1 - Math.Abs(PeriodicFbm(mu, mv, 6, 3, 101));
             double h = b + a * (0.6 * n + 0.6 * (ridged - 0.5));
 
             if (s >= 0.5f) h = Math.Min(h, -1.0 - (s - 0.5) * 2.0);
@@ -188,19 +191,20 @@ namespace U5InValheim.WorldGen.Core
             {
                 h = Math.Max(h, 0.8);
                 h += 0.6 * PeriodicFbm(mu, mv, 256, 2, 202);
-                // Rivers are wide with gentle banks near the sea and narrow with steep banks near
-                // their sources: the mouth closeness widens the channel (a wider blur of the river
-                // near its mouth) and stretches the bank band.
-                float wide = Sample(riverWide, gx, gy);
-                float m = Math.Max(r > 0.01f ? Math.Min(1f, Sample(riverMouth, gx, gy) / r) : 0f, Math.Min(1f, wide * 3));
-                r = Math.Max(r, wide * 1.6f);
-                double bankFrom = 0.45 - 0.3 * m;
-                if (r > bankFrom)
+                // Every river has gentle banks: within about 40 m the ground eases down to half a
+                // metre above the water, then the bed shelves into a channel at least 2.8 m deep
+                // (boats need ~2 m). Rivers widen toward the sea (a wider blur near the mouth).
+                r = Math.Max(r, Sample(riverWide, gx, gy) * 1.6f);
+                double rb = Sample(riverBank, gx, gy);
+                if (rb > 0.05)
                 {
-                    // banks slope into a channel at least 2.5 m deep (boats need ~2 m)
-                    double t = Math.Min(1, (r - bankFrom) / (0.5 - bankFrom));
-                    double channel = -2.5 - Math.Max(0, r - 0.5) * 2.0;
-                    h = r >= 0.5f ? Math.Min(h, channel) : Lerp(h, Math.Min(h, 0.6), t * t);
+                    double ceiling = 0.5 + 12 * Math.Max(0, (0.42 - rb) / 0.37);
+                    h = Lerp(h, Math.Min(h, ceiling), SmoothStep((rb - 0.05) / 0.2));
+                }
+                if (r > 0.3f)
+                {
+                    double bed = Lerp(0.5, -2.8 - Math.Max(0, r - 0.75) * 2.0, SmoothStep((r - 0.3) / 0.45));
+                    h = Math.Min(h, bed);
                 }
             }
 
@@ -212,6 +216,20 @@ namespace U5InValheim.WorldGen.Core
             return (float)h;
         }
 
+        /// <summary>
+        /// How much a position is river bank (0..1): dry ground within a few metres of the water's
+        /// edge and up to ~25 m back from it, where reeds and shrubs grow.
+        /// </summary>
+        public float RiverBank(float wx, float wz)
+        {
+            ToTile(wx, wz, out double u, out double v);
+            if (OutsideTiles(u, v) > 0) return 0;
+            double gx = u * SamplesPerTile - 0.5, gy = v * SamplesPerTile - 0.5;
+            if (Sample(sea, gx, gy) >= 0.3f) return 0;
+            double rb = Sample(riverBank, gx, gy);
+            return (float)(SmoothStep((rb - 0.12) / 0.15) * (1 - SmoothStep((rb - 0.42) / 0.06)));
+        }
+
         /// <summary>Valheim biome at a world position.</summary>
         public VBiome Biome(float wx, float wz)
         {
@@ -220,10 +238,11 @@ namespace U5InValheim.WorldGen.Core
             if (outside >= MarginTiles + FadeTiles * 0.5) return VBiome.Ocean;
             if (Sample(sea, u * SamplesPerTile - 0.5, v * SamplesPerTile - 0.5) >= 0.5f) return VBiome.Ocean;
 
-            // Warp the lookup a little so biome borders are not staircases of 32 m tiles.
+            // Warp the lookup so biome borders are not staircases of 32 m tiles: broad meanders
+            // (~10 tiles) plus finer wobble (~1-3 tiles) that turns lone tiles into irregular patches.
             double mu = u / MapTiles, mv = v / MapTiles;
-            double wu = u + 0.45 * PeriodicFbm(mu, mv, 96, 3, 303);
-            double wv = v + 0.45 * PeriodicFbm(mu, mv, 96, 3, 404);
+            double wu = u + 2.0 * PeriodicFbm(mu, mv, 24, 3, 303) + 1.3 * PeriodicFbm(mu, mv, 96, 2, 606);
+            double wv = v + 2.0 * PeriodicFbm(mu, mv, 24, 3, 404) + 1.3 * PeriodicFbm(mu, mv, 96, 2, 707);
             return landBiome[Wrap((int)Math.Floor(wv)) * MapTiles + Wrap((int)Math.Floor(wu))];
         }
 
@@ -234,6 +253,7 @@ namespace U5InValheim.WorldGen.Core
         public float ForestFactor(float wx, float wz)
         {
             ToTile(wx, wz, out double u, out double v);
+            if (OutsideTiles(u, v) > 0 || Sample(sea, u * SamplesPerTile - 0.5, v * SamplesPerTile - 0.5) >= 0.3f) return SeaForestFactor;
             float f = Sample(forest, u * SamplesPerTile - 0.5, v * SamplesPerTile - 0.5);
             double mu = u / MapTiles, mv = v / MapTiles;
             return (float)(f * (1 + 0.25 * PeriodicFbm(mu, mv, 512, 2, 505)));

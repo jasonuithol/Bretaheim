@@ -85,6 +85,8 @@ namespace U5InValheim
                 Settlements.Install(harmony);
                 Structures.Register();
                 FixedPieces.Install(harmony);
+                BiomeBlend.Install(harmony);
+                RiverBanks.Install(harmony);
                 gameObject.AddComponent<WorldWrap>();
             }
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
