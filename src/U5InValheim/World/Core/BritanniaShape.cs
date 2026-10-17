@@ -47,6 +47,12 @@ namespace U5InValheim.WorldGen.Core
         readonly float[] riverBank = new float[N * N];
         readonly float[] forest = new float[N * N];
         readonly VBiome[] landBiome = new VBiome[MapTiles * MapTiles];
+        /// <summary>Smoothed path lines in tile coordinates, and per tile the ones that pass near it.</summary>
+        readonly List<(double ax, double ay, double bx, double by)> pathSegments = new List<(double, double, double, double)>();
+        readonly List<int>[] pathBuckets = new List<int>[MapTiles * MapTiles];
+        /// <summary>Width of the overworld's dirt paths, metres.</summary>
+        public const float PathWidth = 4f;
+        static readonly int[] DirX = { 1, -1, 0, 0, 1, -1, 1, -1 }, DirY = { 0, 0, 1, -1, 1, 1, -1, -1 };
         readonly int seed;
 
         public BritanniaShape(WorldMap map, TerrainTable terrain, int seed, float tileMetres = 32f,
@@ -95,6 +101,7 @@ namespace U5InValheim.WorldGen.Core
             Array.Copy(Blur(tForest, 2f), forest, forest.Length);
 
             ResolveLandBiomes();
+            LinkPaths();
         }
 
         // ── coordinates ─────────────────────────────────────────────────────────────────────
@@ -164,8 +171,135 @@ namespace U5InValheim.WorldGen.Core
             }
             ToTile(wx, wz, out double u, out double v);
             if (OutsideTiles(u, v) > 0) return Paint.None;
-            var c = Terrain[Map[(int)Math.Floor(u), (int)Math.Floor(v)]];
-            return c.Name == "road" || c.Name == "bridge" ? Paint.Dirt : Paint.None;
+            return OnPath(u, v) ? Paint.Dirt : Paint.None;
+        }
+
+        /// <summary>
+        /// On a dirt path: within PathWidth/2 of the smoothed path lines (tile coordinates), which
+        /// wobble a little so they aren't ruled.
+        /// </summary>
+        bool OnPath(double u, double v)
+        {
+            double mu = u / MapTiles, mv = v / MapTiles;
+            double wobble = 2.0 / TileMetres;
+            u += wobble * PeriodicFbm(mu, mv, 64, 2, 808) * 2;
+            v += wobble * PeriodicFbm(mu, mv, 64, 2, 909) * 2;
+            int tx = (int)Math.Floor(u), ty = (int)Math.Floor(v);
+            var bucket = pathBuckets[Wrap(ty) * MapTiles + Wrap(tx)];
+            if (bucket == null) return false;
+            // segments are stored near their own copy of the map; bring the point next to them
+            double r = PathWidth / 2 / TileMetres;
+            foreach (int k in bucket)
+            {
+                var (ax, ay, bx, by) = pathSegments[k];
+                double pu = u - Math.Floor((u - ax) / MapTiles + 0.5) * MapTiles, pv = v - Math.Floor((v - ay) / MapTiles + 0.5) * MapTiles;
+                double ex = bx - ax, ey = by - ay, len2 = ex * ex + ey * ey;
+                double t = len2 > 0 ? Math.Max(0, Math.Min(1, ((pu - ax) * ex + (pv - ay) * ey) / len2)) : 0;
+                double dx = pu - (ax + ex * t), dy = pv - (ay + ey * t);
+                if (dx * dx + dy * dy < r * r) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The overworld's paths: road and bridge tiles join their path neighbours and the places
+        /// (towns, shrines …) they lead to (diagonally only where no straight step joins them). The
+        /// network is split into chains between ends and junctions, and each chain of tile centres is
+        /// smoothed (Chaikin) so U5's staircase diagonals become curves.
+        /// </summary>
+        void LinkPaths()
+        {
+            bool Path(int x, int y) { var n = Terrain[Map[Wrap(x), Wrap(y)]].Name; return n == "road" || n == "bridge"; }
+            bool Place(int x, int y) => Terrain[Map[Wrap(x), Wrap(y)]].Poi != null;
+            var links = new byte[MapTiles * MapTiles];
+            for (int y = 0; y < MapTiles; y++)
+            for (int x = 0; x < MapTiles; x++)
+            {
+                bool path = Path(x, y);
+                if (!path && !Place(x, y)) continue;
+                int l = 0;
+                for (int k = 0; k < 8; k++)
+                {
+                    int nx = x + DirX[k], ny = y + DirY[k];
+                    bool joins = path ? Path(nx, ny) || Place(nx, ny) : Path(nx, ny);
+                    if (!joins) continue;
+                    if (k >= 4 && (Path(x + DirX[k], y) || Path(x, y + DirY[k]) || (!path && (Place(x + DirX[k], y) || Place(x, y + DirY[k]))))) continue;
+                    l |= 1 << k;
+                }
+                links[y * MapTiles + x] = (byte)l;
+                if (path && l == 0) AddPath(new List<(double, double)> { (x + 0.5, y + 0.5) });
+            }
+            // keep links symmetric (a diagonal dropped on one side is dropped on the other)
+            for (int i = 0; i < links.Length; i++)
+                for (int k = 0; k < 8; k++)
+                {
+                    if ((links[i] & (1 << k)) == 0) continue;
+                    int j = Wrap(i / MapTiles + DirY[k]) * MapTiles + Wrap(i % MapTiles + DirX[k]);
+                    if ((links[j] & (1 << Opposite(k))) == 0) links[i] &= (byte)~(1 << k);
+                }
+            int Degree(int i) { int d = 0; for (int k = 0; k < 8; k++) if ((links[i] & (1 << k)) != 0) d++; return d; }
+            var used = new HashSet<(int, int)>();
+            void Walk(int from, int k0)
+            {
+                var pts = new List<(double, double)>();
+                int i = from, k = k0;
+                double px = i % MapTiles + 0.5, py = i / MapTiles + 0.5;
+                pts.Add((px, py));
+                while (true)
+                {
+                    used.Add((i, k));
+                    int j = Wrap(i / MapTiles + DirY[k]) * MapTiles + Wrap(i % MapTiles + DirX[k]);
+                    used.Add((j, Opposite(k)));
+                    px += DirX[k]; py += DirY[k]; // unwrapped, so a chain crossing the edge stays continuous
+                    pts.Add((px, py));
+                    if (Degree(j) != 2 || j == from) break;
+                    int next = -1;
+                    for (int n = 0; n < 8; n++)
+                        if ((links[j] & (1 << n)) != 0 && n != Opposite(k)) next = n;
+                    if (next < 0 || used.Contains((j, next))) break;
+                    i = j; k = next;
+                }
+                AddPath(pts);
+            }
+            for (int pass = 0; pass < 2; pass++) // ends and junctions first, then loops
+                for (int i = 0; i < links.Length; i++)
+                {
+                    if (links[i] == 0 || (pass == 0 && Degree(i) == 2)) continue;
+                    for (int k = 0; k < 8; k++)
+                        if ((links[i] & (1 << k)) != 0 && !used.Contains((i, k))) Walk(i, k);
+                }
+        }
+
+        static int Opposite(int k) => k < 4 ? k ^ 1 : 11 - k;
+
+        /// <summary>Smooths a chain of tile centres (ends kept) and files its segments by the tiles they come near.</summary>
+        void AddPath(List<(double x, double y)> pts)
+        {
+            for (int it = 0; it < 3 && pts.Count > 2; it++)
+            {
+                var sm = new List<(double, double)> { pts[0] };
+                for (int i = 0; i + 1 < pts.Count; i++)
+                {
+                    var (ax, ay) = pts[i]; var (bx, by) = pts[i + 1];
+                    if (i > 0) sm.Add((0.75 * ax + 0.25 * bx, 0.75 * ay + 0.25 * by));
+                    if (i + 2 < pts.Count) sm.Add((0.25 * ax + 0.75 * bx, 0.25 * ay + 0.75 * by));
+                }
+                sm.Add(pts[pts.Count - 1]);
+                pts = sm;
+            }
+            double pad = PathWidth / 2 / TileMetres + 2.0 / TileMetres * 1.5;
+            for (int i = 0; i < Math.Max(1, pts.Count - 1); i++)
+            {
+                var (ax, ay) = pts[i]; var (bx, by) = pts[Math.Min(i + 1, pts.Count - 1)];
+                int k = pathSegments.Count;
+                pathSegments.Add((ax, ay, bx, by));
+                for (int y = (int)Math.Floor(Math.Min(ay, by) - pad); y <= (int)Math.Floor(Math.Max(ay, by) + pad); y++)
+                for (int x = (int)Math.Floor(Math.Min(ax, bx) - pad); x <= (int)Math.Floor(Math.Max(ax, bx) + pad); x++)
+                {
+                    int c = Wrap(y) * MapTiles + Wrap(x);
+                    (pathBuckets[c] ?? (pathBuckets[c] = new List<int>())).Add(k);
+                }
+            }
         }
 
         /// <summary>Ground height without settlements.</summary>

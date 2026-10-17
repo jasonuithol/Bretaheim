@@ -49,6 +49,8 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>Windows: an arrow slit. Doors: an iron gate / has a viewport / lock ("key", "magic").</summary>
         public bool Narrow, Gate, Viewport;
         public string Lock;
+        /// <summary>Tables: candles (Prefab) stood on this tile of the table, or 0.</summary>
+        public int Candles;
         /// <summary>Battlements: with merlons (the "no vertical projections" parapets have none).</summary>
         public bool Merlons = true;
 
@@ -80,6 +82,17 @@ namespace U5InValheim.WorldGen.Core
         public string Fence, Post, PostShort, Beam;
     }
 
+    /// <summary>Randotron: decorations added where the maps leave a place for them, picked by a hash.</summary>
+    public class Randotron
+    {
+        /// <summary>Chance (0..1) that a dead end of a one-tile hallway gets something on its end wall.</summary>
+        public float HallwayEnd;
+        public string[] Banners = new string[0];
+        /// <summary>Animal heads, hung on TrophyStand.</summary>
+        public string[] Trophies = new string[0];
+        public string TrophyStand;
+    }
+
     /// <summary>assets/mappings/town_tiles.json: tile rules, materials, materials per settlement kind.</summary>
     public class TownTiles
     {
@@ -90,6 +103,7 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>Roof of a cobblestone cottage.</summary>
         public string CottageRoof = "thatch";
         public readonly Dictionary<string, (string walls, string roof)> Settlements = new Dictionary<string, (string, string)>();
+        public Randotron Randotron = new Randotron();
 
         public TileRule this[int tile] => rules[tile & 0xff];
 
@@ -112,6 +126,7 @@ namespace U5InValheim.WorldGen.Core
                     Lock = Json.Str(o, "lock"),
                     Merlons = !o.ContainsKey("merlons") || Json.Bool(o, "merlons"),
                     Secret = Json.Bool(o, "secret"),
+                    Candles = Json.Get(o, "candles") is double candles ? (int)candles : 0,
                 };
                 if (Json.Str(o, "wall") is string side) r.WallSide = FacingYaw(side);
                 if (Json.Get(o, "choices") is List<object> choices) r.Choices = choices.ConvertAll(c => (string)c).ToArray();
@@ -159,6 +174,16 @@ namespace U5InValheim.WorldGen.Core
                 if (kv.Key.StartsWith("_")) continue;
                 var o = Json.Obj(kv.Value);
                 t.Settlements[kv.Key] = (Json.Str(o, "walls"), Json.Str(o, "roof"));
+            }
+            if (root.TryGetValue("randotron", out var rnd) && Json.Get(Json.Obj(rnd), "hallway_end") is object he)
+            {
+                var o = Json.Obj(he);
+                string[] List(string k) => Json.Get(o, k) is List<object> l ? l.ConvertAll(x => (string)x).ToArray() : new string[0];
+                t.Randotron = new Randotron
+                {
+                    HallwayEnd = Json.Get(o, "chance") is double ch ? (float)ch : 0,
+                    Banners = List("banners"), Trophies = List("trophies"), TrophyStand = Json.Str(o, "trophy_stand"),
+                };
             }
             return t;
         }

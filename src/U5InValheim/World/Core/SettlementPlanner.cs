@@ -28,6 +28,8 @@ namespace U5InValheim.WorldGen.Core
         public string ClimbVerb;
         /// <summary>A changed look applied when the piece loads ("white_marble", "fountain"), or null.</summary>
         public string Look;
+        /// <summary>Item stands: the item (prefab name) shown on it, or null.</summary>
+        public string StandItem;
 
         public override string ToString() => $"{Prefab} ({X:0.##}, {Y:0.##}, {Z:0.##}) yaw {Yaw}";
     }
@@ -124,6 +126,7 @@ namespace U5InValheim.WorldGen.Core
                 Walls(ctx, lv, style, tiles.Cobble);
                 Battlements(ctx, lv, style);
                 Furniture(ctx, lv, levels, biome, Cottages(lv));
+                HallwayEnds(ctx, lv);
             }
             Roofs(ctx, levels, tiles.Roofs[materials.roof], tiles.Roofs[tiles.CottageRoof]);
             Signs(ctx, loc, levels);
@@ -981,9 +984,21 @@ namespace U5InValheim.WorldGen.Core
                         int len = x1 - tx + 1;
                         for (int i = tx; i <= x1; i++) done[ty * N + i] = true;
                         float mx = (p.LocalX(tx) + p.LocalX(x1)) / 2;
-                        if (len >= 3) ctx.Stand("piece_table_oak", mx, y, z, 0);
-                        else if (len == 2) ctx.Stand("piece_table", mx, y, z, 0);
-                        else ctx.Stand("piece_table_round", mx, y, z, 0);
+                        string table = len >= 3 ? "piece_table_oak" : len == 2 ? "piece_table" : "piece_table_round";
+                        ctx.Stand(table, mx, y, z, 0);
+                        // candelabra tiles (0xbe): a cluster of candles on the table top over the tile
+                        float top = y + (geo.TryGet(table, out var tb) ? tb.MaxY : 0.8f);
+                        for (int i = tx; i <= x1; i++)
+                        {
+                            var tr = lv.Rule[ty * N + i];
+                            if (tr.Candles <= 0 || tr.Prefab == null) continue;
+                            for (int k = 0; k < tr.Candles; k++)
+                            {
+                                double a = 2 * Math.PI * k / tr.Candles + Hash(i, ty, 11) % 60 * Math.PI / 180;
+                                float rad = tr.Candles == 1 ? 0 : 0.22f;
+                                ctx.Stand(tr.Prefab, p.LocalX(i) + rad * (float)Math.Cos(a), top, z + rad * (float)Math.Sin(a), Hash(i, ty, 12 + k) % 360);
+                            }
+                        }
                         break;
                     }
                     case TileKind.Crop:
@@ -1071,6 +1086,51 @@ namespace U5InValheim.WorldGen.Core
                 case VBiome.Mountain: return "FirTree";
                 case VBiome.Plains: return h % 2 == 0 ? "Oak1" : "Birch1";
                 default: return h % 3 == 0 ? "Oak1" : "Beech1";
+            }
+        }
+
+        /// <summary>
+        /// Randotron: the dead end of a one-tile-wide hallway may get a banner or a mounted animal
+        /// head on its end wall (picked per settlement, floor and tile).
+        /// </summary>
+        void HallwayEnds(Ctx ctx, Level lv)
+        {
+            var rt = tiles.Randotron;
+            if (rt.HallwayEnd <= 0 || rt.Banners.Length + rt.Trophies.Length == 0) return;
+            var p = ctx.Plan;
+            float y = p.Storey * lv.Z;
+            int salt = 1000 + p.Location.Number * 37 + lv.Z * 7;
+            // a one-tile hallway is all "doorway" tiles (gaps between two walls)
+            bool Floor(int c) => !lv.Barrier[c] && (lv.Walked != null ? lv.Walked[c] : lv.Interior[c] || lv.Doorway[c]);
+            for (int c = 0; c < N * N; c++)
+            {
+                int tx = c % N, ty = c / N;
+                if (tx == 0 || ty == 0 || tx == N - 1 || ty == N - 1) continue;
+                var k = lv.Rule[c].Kind;
+                // an empty floor tile, or the stairs or ladder a hallway so often ends in
+                if (!Floor(c) || (k != TileKind.Ground && k != TileKind.Stairs && k != TileKind.LadderUp && k != TileKind.LadderDown)) continue;
+                // walls on three sides, the hallway on the fourth
+                int open = -1, walls = 0;
+                foreach (int n in Neighbours4(c))
+                    if (Solid(lv, n)) walls++;
+                    else open = n;
+                if (walls != 3 || open < 0 || !Floor(open)) continue;
+                int sx = c % N - open % N, sy = c / N - open / N; // towards the end wall, in tiles (y south)
+                bool corridor = sx != 0 ? lv.Barrier[open - N] && lv.Barrier[open + N] : lv.Barrier[open - 1] && lv.Barrier[open + 1];
+                if (!corridor || Hash(tx, ty, salt) % 1000 >= rt.HallwayEnd * 1000) continue;
+                float side = sx > 0 ? 90 : sx < 0 ? 270 : sy > 0 ? 180 : 0; // yaw of the end wall's direction
+                float dx = sx, dz = -sy, x = CellX(p, c), z = CellZ(p, c);
+                int pick = Hash(tx, ty, salt + 1) % (rt.Banners.Length + rt.Trophies.Length);
+                if (pick < rt.Banners.Length)
+                    // the cloth hangs ~2.9 m under its rod, in the rod's local y–z plane
+                    ctx.Pivot(rt.Banners[pick], x + dx * 0.88f, y + p.Storey - 0.2f, z + dz * 0.88f, side + 90);
+                else if (rt.TrophyStand != null)
+                {
+                    // the stand's front (where the head goes) is its local +z
+                    ctx.Pivot(rt.TrophyStand, x + dx * 0.94f, y + 2.1f, z + dz * 0.94f, side + 180);
+                    string trophy = rt.Trophies[pick - rt.Banners.Length];
+                    ctx.Last(pl => { pl.StandItem = trophy; return pl; });
+                }
             }
         }
 

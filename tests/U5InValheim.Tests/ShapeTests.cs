@@ -124,6 +124,29 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void PathsAreANarrowDirtTrack()
+        {
+            var s = shape.Value; var m = Env.Data.Britannia; var t = terrain.Value;
+            int roads = 0, onCentre = 0, offSide = 0;
+            for (int y = 1; y < 255; y++)
+            for (int x = 1; x < 255; x++)
+            {
+                // straight road tiles between two more of them: east-west (33) or north-south (32)
+                bool ew = m[x, y] == 33 && m[x - 1, y] == 33 && m[x + 1, y] == 33;
+                bool ns = m[x, y] == 32 && m[x, y - 1] == 32 && m[x, y + 1] == 32;
+                if (!ew && !ns) continue;
+                roads++;
+                s.TileCentre(x, y, out float cx, out float cz);
+                float sx = ns ? 8 : 0, sz = ew ? 8 : 0;
+                if (s.PaintAt(cx, cz) == Paint.Dirt) onCentre++;
+                if (s.PaintAt(cx + sx, cz + sz) == Paint.Dirt || s.PaintAt(cx - sx, cz - sz) == Paint.Dirt) offSide++;
+            }
+            Assert.True(roads > 10, $"{roads} straight roads");
+            Assert.True(onCentre > roads * 0.9, $"{onCentre} of {roads} road centres are dirt");
+            Assert.True(offSide < roads * 0.1, $"{offSide} of {roads} roads are dirt 8 m to the side");
+        }
+
+        [U5Fact]
         public void TheMarginRepeatsTheOppositeEdge()
         {
             var s = shape.Value;

@@ -67,6 +67,9 @@ namespace U5InValheim.WorldGen
             __instance.m_noRoofWear = false;
             var piece = __instance.GetComponent<Piece>();
             if (piece != null) piece.m_canBeRemoved = false;
+            // the town's trophies stay on their walls
+            var stand = __instance.GetComponent<ItemStand>();
+            if (stand != null) stand.m_canBeRemoved = false;
             // town fires (torches, braziers, hearths, stoves) burn for ever, starting full
             var fire = __instance.GetComponent<Fireplace>();
             if (fire != null)

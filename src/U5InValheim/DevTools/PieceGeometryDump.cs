@@ -36,7 +36,7 @@ namespace U5InValheim.DevTools
                 sb.Append($"\n  {path} active={t.gameObject.activeSelf} pos={t.localPosition} scale={t.localScale}");
                 if (r != null) sb.Append($" renderer[{string.Join(",", r.sharedMaterials.Select(m => m == null ? "null" : $"{m.name}/{m.shader?.name}"))}]");
                 var mf = t.GetComponent<MeshFilter>();
-                if (mf != null && mf.sharedMesh != null) sb.Append($" mesh {mf.sharedMesh.name} readable={mf.sharedMesh.isReadable} z=[{mf.sharedMesh.bounds.min.z:0.00},{mf.sharedMesh.bounds.max.z:0.00}]");
+                if (mf != null && mf.sharedMesh != null) sb.Append($" mesh {mf.sharedMesh.name} readable={mf.sharedMesh.isReadable} bounds={mf.sharedMesh.bounds.min}..{mf.sharedMesh.bounds.max}");
                 foreach (var c in t.GetComponents<Component>()) if (!(c is Transform) && !(c is Renderer) && !(c is MeshFilter)) sb.Append($" {c.GetType().Name}");
             }
             // readable meshes as OBJ (offline checks of mesh edits, e.g. the fountain's stove cut)
@@ -83,7 +83,7 @@ namespace U5InValheim.DevTools
                     "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_bathtub");
             if (Plugin.SelfTest.Value)
             {
-                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1" })
+                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin" })
                     LogHierarchy(__instance.GetPrefab(n));
                 TestLook(__instance.GetPrefab("piece_bathtub"), "fountain");
                 TestLook(__instance.GetPrefab("blackmarble_column_2"), "white_marble");

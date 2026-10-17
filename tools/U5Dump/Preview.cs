@@ -13,19 +13,21 @@ static class Preview
         float step = 2 * half / px;
         var h = new float[px * px];
         var b = new VBiome[px * px];
+        var dirt = new bool[px * px];
         for (int y = 0; y < px; y++)
         for (int x = 0; x < px; x++)
         {
             float wx = -half + (x + 0.5f) * step, wz = half - (y + 0.5f) * step;
             h[y * px + x] = shape.Height(wx, wz);
             b[y * px + x] = shape.Biome(wx, wz);
+            dirt[y * px + x] = shape.PaintAt(wx, wz) == Paint.Dirt;
         }
         var img = new byte[px * px * 3];
         for (int y = 0; y < px; y++)
         for (int x = 0; x < px; x++)
         {
             int i = y * px + x;
-            var (r, g, bl) = Colour(b[i], h[i]);
+            var (r, g, bl) = dirt[i] && h[i] >= 0 ? (140f, 100f, 60f) : Colour(b[i], h[i]);
             float dx = h[y * px + Math.Min(px - 1, x + 1)] - h[i];
             float dy = h[Math.Min(px - 1, y + 1) * px + x] - h[i];
             float shade = h[i] < 0 ? 1f : Math.Clamp(1f + (-dx - dy) / step * 0.9f, 0.45f, 1.35f);
