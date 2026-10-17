@@ -96,7 +96,12 @@ namespace U5InValheim.WorldGen.Core
             public bool[] Covered = new bool[N * N];
             /// <summary>One-tile gaps in a wall line that lead into a building: built as open arches.</summary>
             public bool[] Doorway = new bool[N * N];
+            /// <summary>Upper floors: the tiles a player can walk to from the ladders and stairs (all floored), else null.</summary>
+            public bool[] Walked;
         }
+
+        /// <summary>A tile that is not on this floor: open air.</summary>
+        static readonly TileRule Nothing = new TileRule();
 
         public SettlementPlan Plan(Data.Location loc, string kind, VBiome biome)
         {
@@ -106,24 +111,7 @@ namespace U5InValheim.WorldGen.Core
             if (!tiles.Settlements.TryGetValue(styleKey, out var materials)) materials = ("stone", "shingle");
             var style = tiles.Styles[materials.walls];
 
-            // First read every floor on its own; then again from the ground up, where a tile with
-            // rooms, walls or a roof on the floor above is indoors (U5 draws buildings that way:
-            // shop fronts and taverns are often open to the street on their own floor).
-            int z0 = Math.Max(0, loc.MinZ);
-            var alone = new List<Level>();
-            for (int z = z0; z <= loc.MaxZ; z++) alone.Add(Analyse(data.Maps.Floor(loc, z), z, null, null));
-            var levels = new List<Level>();
-            for (int z = z0; z <= loc.MaxZ; z++)
-            {
-                var up = z + 1 - z0 < alone.Count ? alone[z + 1 - z0] : null;
-                bool[] hint = null;
-                if (up != null)
-                {
-                    hint = new bool[N * N];
-                    for (int i = 0; i < N * N; i++) hint[i] = up.Interior[i] || up.Rule[i].Kind == TileKind.Roof || (up.Barrier[i] && up.Building[i]);
-                }
-                levels.Add(Analyse(data.Maps.Floor(loc, z), z, levels.Count > 0 ? levels[levels.Count - 1] : null, hint));
-            }
+            var levels = Levels(loc);
 
             var ctx = new Ctx(plan, geo);
             Ground(ctx, levels[0]);
@@ -142,14 +130,120 @@ namespace U5InValheim.WorldGen.Core
             return plan;
         }
 
+        /// <summary>The analysed floors of a location, ground floor first.</summary>
+        List<Level> Levels(Data.Location loc)
+        {
+            // Upper maps repeat the ground below them (so a player looking out of an upper window
+            // saw something): only what can be walked to from the ladders and stairs, and the walls
+            // around that walk, is really on an upper floor. First read the ground on its own and
+            // each upper floor's walk on top of the floor below; then again from the ground up,
+            // where a tile with rooms, walls or a roof on the floor above is indoors (U5 draws
+            // buildings that way: shop fronts and taverns are often open to the street on their
+            // own floor).
+            int z0 = Math.Max(0, loc.MinZ);
+            var raws = new List<byte[]>();
+            for (int z = z0; z <= loc.MaxZ; z++) raws.Add(data.Maps.Floor(loc, z));
+            var alone = new List<Level>();
+            var walks = new List<bool[]>();
+            for (int i = 0; i < raws.Count; i++)
+            {
+                var walked = i == 0 ? null : Walk(raws[i], raws[i - 1], alone[i - 1]);
+                walks.Add(walked);
+                alone.Add(Analyse(raws[i], z0 + i, null, null, walked));
+            }
+            var levels = new List<Level>();
+            for (int i = 0; i < raws.Count; i++)
+            {
+                bool[] hint = null;
+                if (i + 1 < raws.Count)
+                {
+                    var up = alone[i + 1];
+                    hint = new bool[N * N];
+                    for (int c = 0; c < N * N; c++)
+                        hint[c] = up.Interior[c] || tiles[raws[i + 1][c]].Kind == TileKind.Roof || (up.Barrier[c] && up.Building[c]);
+                }
+                // walk again on the final floor below, which knows the shop fronts under upper rooms
+                var walked = i == 0 ? null : Walk(raws[i], raws[i - 1], levels[i - 1]);
+                levels.Add(Analyse(raws[i], z0 + i, i > 0 ? levels[i - 1] : null, hint, walked));
+            }
+
+            return levels;
+        }
+
+        /// <summary>
+        /// Text plan of each floor for checking (U5Dump town … floors): # built wall, + opening,
+        /// o walked or inside, : covered, ' ' not on this floor.
+        /// </summary>
+        public string DescribeFloors(Data.Location loc)
+        {
+            var sb = new StringBuilder();
+            foreach (var lv in Levels(loc))
+            {
+                sb.Append($"floor {lv.Z}{(lv.Z > 0 && lv.Walked == null ? " (no ladder or stairs arrive: whole map)" : "")}\n");
+                for (int y = 0; y < N; y++)
+                {
+                    for (int x = 0; x < N; x++)
+                    {
+                        int c = y * N + x;
+                        sb.Append(lv.Built[c] ? (lv.Rule[c].IsOpening ? '+' : '#')
+                                  : (lv.Walked != null ? lv.Walked[c] : lv.Interior[c]) ? 'o' : lv.Covered[c] ? ':' : lv.Walked == null ? '.' : ' ');
+                    }
+                    sb.Append('\n');
+                }
+            }
+            return sb.ToString();
+        }
+
         // ── analysis ────────────────────────────────────────────────────────────────────────
 
-        Level Analyse(byte[] raw, int z, Level below, bool[] indoorAbove)
+        /// <summary>
+        /// The tiles of an upper floor a player can walk to: from the ladders and stairs that arrive
+        /// from the floor below, through floor tiles, doors, secret doors and archways (not plants, water or
+        /// roofs), standing on a wall, a covered or a walked tile of the floor below (so the copies of the
+        /// streets are never walked onto). Returns null (everything is on the floor) when nothing
+        /// arrives from below.
+        /// </summary>
+        bool[] Walk(byte[] raw, byte[] belowRaw, Level below)
         {
-            var lv = new Level { Z = z, Raw = raw };
+            // a real ladder up or stairs on the floor below (not one of its own copies of the
+            // ground) arrives on this tile, unless a wall stands here
+            bool Arrives(int c)
+            {
+                var kb = tiles[belowRaw[c]].Kind;
+                bool real = below.Walked == null || below.Walked[c];
+                return real && (kb == TileKind.LadderUp || kb == TileKind.Stairs) && !tiles[raw[c]].IsBarrier;
+            }
+            bool Passable(int c)
+            {
+                var r = tiles[raw[c]];
+                // grass and dirt count (rooftop terraces draw their floor as grass); plants and water do not
+                if ((r.IsBarrier && r.Kind != TileKind.Door && r.Kind != TileKind.Arch && !r.Secret) || (r.IsOutdoor && r.Kind != TileKind.Ground) || r.Kind == TileKind.Roof) return false;
+                var rb = below.Rule[c];
+                return below.Built[c] || below.Covered[c] || (below.Walked != null && below.Walked[c])
+                       || (!rb.IsBarrier && !rb.IsOutdoor && rb.Kind != TileKind.Roof);
+            }
+            var walked = new bool[N * N];
+            var q = new Queue<int>();
+            for (int c = 0; c < N * N; c++)
+                if (Arrives(c)) { walked[c] = true; q.Enqueue(c); }
+            if (q.Count == 0) return null;
+            while (q.Count > 0)
+            {
+                int c = q.Dequeue();
+                foreach (int n in Neighbours4(c))
+                    if (!walked[n] && Passable(n)) { walked[n] = true; q.Enqueue(n); }
+            }
+            return walked;
+        }
+
+        Level Analyse(byte[] raw, int z, Level below, bool[] indoorAbove, bool[] walked = null)
+        {
+            var lv = new Level { Z = z, Raw = raw, Walked = walked };
             for (int i = 0; i < N * N; i++)
             {
-                lv.Rule[i] = tiles[raw[i]];
+                // on a walked floor only the walk and the walls bounding it are there
+                bool present = walked == null || walked[i] || (tiles[raw[i]].IsBarrier && Neighbours8(i).Any(n => walked[n]));
+                lv.Rule[i] = present ? tiles[raw[i]] : Nothing;
                 lv.Barrier[i] = lv.Rule[i].IsBarrier;
             }
 
@@ -181,6 +275,7 @@ namespace U5InValheim.WorldGen.Core
                                  && (!lv.Exterior[i] || lv.Rule[i].Paint == Paint.Planks || (indoorAbove != null && indoorAbove[i]));
                 // an upper floor only exists above something built on the floor below
                 if (below != null && lv.Interior[i] && !below.Covered[i] && !below.Built[i]) lv.Interior[i] = false;
+                if (walked != null && !walked[i]) lv.Interior[i] = false;
             }
             for (int i = 0; i < N * N; i++)
             {
@@ -192,9 +287,11 @@ namespace U5InValheim.WorldGen.Core
                     lv.Built[i] = below != null && (below.Built[i] || below.Covered[i]);
                     continue;
                 }
+                // ground walls all stand; upper ones bound the walk (or, without one, a room)
+                bool bounds = walked != null || nextToInside;
                 if (z == 0) lv.Built[i] = true;
-                else if (below == null) lv.Built[i] = nextToInside; // first pass: the floor on its own
-                else lv.Built[i] = nextToInside && (below.Built[i] || below.Covered[i]);
+                else if (below == null) lv.Built[i] = bounds; // first pass: the floor on its own
+                else lv.Built[i] = bounds && (below.Built[i] || below.Covered[i]);
                 lv.Building[i] = lv.Built[i] && nextToInside;
             }
             for (int i = 0; i < N * N; i++)
@@ -403,7 +500,8 @@ namespace U5InValheim.WorldGen.Core
             for (int c = 0; c < N * N; c++)
             {
                 var k = lv.Rule[c].Kind;
-                bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
+                bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Walked != null && lv.Walked[c])
+                               || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
                 if (floored && !Solid(below, c)) ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
             }
         }
@@ -605,7 +703,7 @@ namespace U5InValheim.WorldGen.Core
                 var above = i + 1 < levels.Count ? levels[i + 1] : null;
                 var cells = new bool[N * N];
                 for (int c = 0; c < N * N; c++)
-                    cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c]));
+                    cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c] || (above.Walked != null && above.Walked[c])));
                 float baseY = ctx.Plan.Storey * (lv.Z + 1);
                 foreach (var building in RoofFootprints(cells))
                     HipRoof(ctx, IsCottage(lv, building) ? cottage : roof, building, baseY);
@@ -776,7 +874,7 @@ namespace U5InValheim.WorldGen.Core
             for (int c = 0; c < N * N; c++)
             {
                 if (done[c] || lv.Barrier[c]) continue;
-                if (lv.Z > 0 && !lv.Interior[c]) continue; // upper maps repeat the outdoors
+                if (lv.Z > 0 && !(lv.Walked != null ? lv.Walked[c] : lv.Interior[c])) continue; // upper maps repeat the ground below
                 var r = lv.Rule[c];
                 int tx = c % N, ty = c / N;
                 float x = CellX(p, c), z = CellZ(p, c);

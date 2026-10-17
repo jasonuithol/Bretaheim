@@ -59,6 +59,11 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
 
 ## Data quirks found while reading the files
 
+- **Upper floors repeat the ground below them** (so an upper window had something to show). Only the
+  tiles walkable from the ladders and stairs arriving from the floor below (through doors, secret doors
+  and archways, standing on something built or floored below) and the walls bounding that walk are on
+  an upper floor; roofs go only where nothing of the floor above stands.
+
 - **Tile numbers in `Constructing world assets.txt`** are decimal TILES.16 indexes and match the data, except around
   140: the data has 139 torture rack, 140 loose brick, 141 harpsichord, 142 guillotine, 143 lava (the doc is one lower).
   The tables follow the data's names.

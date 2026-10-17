@@ -43,6 +43,11 @@ if (argv.Count > 0 && argv[0] == "town")
     string kind = pois.First(p => p.Location == loc.Number).Kind;
     var plan = new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Plan(loc, kind, U5InValheim.WorldGen.Core.VBiome.Meadows);
     string outPath = argv.Count > 2 ? argv[2] : "town.ppm";
+    if (outPath == "floors")
+    {
+        Console.Write(new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).DescribeFloors(loc));
+        return 0;
+    }
     if (outPath.EndsWith(".json"))
         File.WriteAllText(outPath, "[" + string.Join(",\n", plan.Pieces.Select(p =>
             System.FormattableString.Invariant($"{{\"p\":\"{p.Prefab}\",\"x\":{p.X},\"y\":{p.Y},\"z\":{p.Z},\"yaw\":{p.Yaw},\"s\":[{(p.Scaled ? p.SX : 1)},{(p.Scaled ? p.SY : 1)},{(p.Scaled ? p.SZ : 1)}]}}"))) + "]");

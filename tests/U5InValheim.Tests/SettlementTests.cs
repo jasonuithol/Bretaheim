@@ -101,6 +101,23 @@ namespace U5InValheim.Tests
             }
         }
 
+        [U5Theory]
+        [InlineData(2)]
+        [InlineData(17)]
+        [InlineData(18)]
+        [InlineData(31)]
+        public void UpperFloorsAreOnlyWhatTheirLaddersReach(int location)
+        {
+            // upper maps repeat the ground below them; only the walk from the ladders and stairs is real
+            string floors = planner.Value.DescribeFloors(Env.Data.Location(location));
+            Assert.DoesNotContain("whole map", floors);
+            var upper = floors.Split("floor ").Skip(2).ToList();
+            Assert.NotEmpty(upper);
+            Assert.All(upper, f => Assert.Contains("o", f));
+            // the copied streets of Britain's ground floor are not on its upper floor
+            if (location == 2) Assert.True(upper[0].Count(ch => ch == 'o') < 400);
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {

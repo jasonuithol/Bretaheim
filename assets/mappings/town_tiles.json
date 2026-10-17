@@ -135,6 +135,7 @@
     "c9": {"kind": "ladder_down"},
     "ca": {"kind": "fence_ew"},
     "cb": {"kind": "fence_ns"},
+    "d8": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_2", "place": "stand"}]},
     "de": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_1", "place": "stand"}, {"prefab": "MountainKit_brazier_blue", "y": 1, "place": "stand"}]},
     "e0": {"kind": "prop", "paint": "paved", "parts": [{"prefab": "wood_pole2", "place": "stand"}, {"prefab": "wood_pole2", "y": 2, "place": "stand"}]},
     "e1": {"kind": "ground", "paint": "paved"},
