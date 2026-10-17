@@ -758,7 +758,8 @@ namespace U5InValheim.WorldGen.Core
         /// The roof zone starts on top of the last wall zone of each building: anything covered on
         /// one floor and not built on the floor above gets a hip roof whose eaves sit on the outer
         /// wall tops. Cobblestone cottages get thatch, other buildings their settlement's roof.
-        /// A building with parapets on its top is a flat roof (a wall-walk): it gets no roof.
+        /// A building with parapets on its top is a flat roof (a wall-walk): it gets no roof, except
+        /// over the tiles the floor above draws as roof.
         /// </summary>
         void Roofs(Ctx ctx, List<Level> levels, RoofSet roof, RoofSet cottage)
         {
@@ -771,9 +772,18 @@ namespace U5InValheim.WorldGen.Core
                 for (int c = 0; c < N * N; c++)
                     cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c] || (above.Walked != null && above.Walked[c])));
                 float baseY = ctx.Plan.Storey * (lv.Z + 1);
+                // a roof tile drawn on the floor above always gets a roof, parapets or not
+                bool RoofTile(int c) => above != null && tiles[above.Raw[c]].Kind == TileKind.Roof;
                 foreach (var building in RoofFootprints(cells))
                 {
-                    if (Enumerable.Range(0, N * N).Any(c => building[c] && (Parapet(c) || Neighbours8(c).Any(Parapet)))) continue;
+                    if (Enumerable.Range(0, N * N).Any(c => building[c] && (Parapet(c) || Neighbours8(c).Any(Parapet))))
+                    {
+                        var roofed = new bool[N * N];
+                        for (int c = 0; c < N * N; c++) roofed[c] = building[c] && RoofTile(c);
+                        foreach (var part in RoofFootprints(roofed))
+                            HipRoof(ctx, IsCottage(lv, part) ? cottage : roof, part, baseY);
+                        continue;
+                    }
                     HipRoof(ctx, IsCottage(lv, building) ? cottage : roof, building, baseY);
                 }
             }

@@ -64,9 +64,10 @@ namespace U5InValheim.Tests
             Assert.True(hold.Pieces.Count(x => x.Prefab == "piece_grausten_roof_45") > 50);
             // hips are triangles turned upside down
             Assert.Contains(hold.Pieces, x => x.Prefab.StartsWith("piece_grausten_roof_45_corner") && x.SY < 0);
-            // Lord British's castle is flat-topped: buildings with parapets on top get no roof
+            // Lord British's castle has parapets on its walls, but where its upper floor draws roof
+            // tiles (0x27/0x28) there is a roof
             var p = Plan(17, "castle");
-            Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("piece_grausten_roof")) < 20);
+            Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("piece_grausten_roof")) > 200);
             Assert.True(p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && Math.Abs((x.Y % 4 + 4) % 4 - 1.5f) < 0.01f) > 20, "merlons");
             Assert.Contains(p.Pieces, x => x.Prefab == "wood_door" && x.Lock != null);
         }
