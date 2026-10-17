@@ -787,9 +787,10 @@ namespace U5InValheim.WorldGen.Core
                         else if (r.Choices != null) ctx.Stand(r.Choices[Hash(tx, ty, 8) % r.Choices.Length], x, y, z, Hash(tx, ty, 9) % 4 * 90);
                         else if (r.Prefab != null && r.WallSide is float side)
                         {
-                            // mounted on the wall on that side, facing into the room
-                            Ctx.Rotate(0, 0.85f, side, out float ox, out float oz);
-                            ctx.Centre(r.Prefab, x + ox, y + 1.8f, z + oz, side + 180);
+                            // mounted on the wall on that side, facing into the room (checked in game:
+                            // the sconce's back is its local −x, and the tile's side is the far one)
+                            Ctx.Rotate(0, -0.85f, side, out float ox, out float oz);
+                            ctx.Centre(r.Prefab, x + ox, y + 1.8f, z + oz, side + 270);
                         }
                         else if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, r.Yaw);
                         break;

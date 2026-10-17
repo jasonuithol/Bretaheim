@@ -65,6 +65,13 @@ namespace U5InValheim.WorldGen
             __instance.m_noRoofWear = false;
             var piece = __instance.GetComponent<Piece>();
             if (piece != null) piece.m_canBeRemoved = false;
+            // town fires (torches, braziers, hearths, stoves) burn for ever, starting full
+            var fire = __instance.GetComponent<Fireplace>();
+            if (fire != null)
+            {
+                fire.m_infiniteFuel = true;
+                if (zdo.IsOwner() && zdo.GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel) zdo.Set(ZDOVars.s_fuel, fire.m_maxFuel);
+            }
             var target = zdo.GetVec3(Settlements.ClimbKey, Vector3.zero);
             if (target != Vector3.zero)
             {

@@ -301,13 +301,12 @@ Some gravestones.  Interacting with the grave stones will show a small eulogic p
 138: Headstone => Use a vegisir stone but remove the glowy red runes.
 
 
-139: Trapdoor => It's a stone floor (68) with no collision.
+140: Trapdoor => It's a stone floor (68) with no collision.
 
-140: Harpsicord => A Black Forge ? If it can't fit, maybe the Artisan Table.  interacting with it will allow the player to play the harpsicord ! Required for a quest.
+141: Harpsicord => A Black Forge ? If it can't fit, maybe the Artisan Table.  interacting with it will allow the player to play the harpsicord ! Required for a quest.
 
-141: guilotine => A mead kettle, with a human head inside it, and a battle axe leaning against it.
+142: guilotine => A mead kettle, with a human head inside it, and a battle axe leaning against it.
 
-142: Lava => Pretty sure we have lava in Valheim.
 
 144 - 147: Chair (facing N, E, S, W respectively)
 
