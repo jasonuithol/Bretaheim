@@ -48,26 +48,57 @@ namespace U5InValheim.Tests
         public void BritainHasRoofsUpperFloorsAndItsTownWall()
         {
             var p = Plan(2, "towne");
-            Assert.True(p.Pieces.Count(x => x.Prefab == "wood_roof") > 100);
-            Assert.True(p.Pieces.Count(x => x.Prefab == "wood_floor" && x.Y > 3) > 100, "upper floors");
-            Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("stone_wall")) > 100, "the stone town wall");
+            Assert.True(p.Pieces.Count(x => x.Prefab == "darkwood_roof") > 100, "shingle roofs");
+            Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof"); // the cobblestone cottages' thatch
+            Assert.True(p.Pieces.Count(x => x.Prefab == "wood_floor" && x.Y > 2.5f) > 100, "upper floors");
+            Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("stone_wall")) > 1000, "solid stone walls");
             Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text.Contains("PRIVATE"));
             Assert.True(p.HasWater, "the moat around the plaza");
             Assert.True(p.Pieces.Count(x => x.Climb) >= 2, "ladders between floors");
         }
 
-        [U5Theory]
-        [InlineData(13, "dwelling", 650, 30)]
-        [InlineData(2, "towne", 2600, 350)]
-        [InlineData(17, "castle", 6200, 900)]
-        public void PieceBudget(int location, string kind, int maxPieces, int maxSmall)
+        [U5Fact]
+        public void CastlesHaveGraustenRoofsAndParapets()
         {
-            // walls run corner to corner in 2 m pieces and floors take whole 2 m pieces per room;
-            // 1 m pieces only fill odd ends (next to doors and windows)
+            var p = Plan(17, "castle");
+            Assert.True(p.Pieces.Count(x => x.Prefab == "piece_grausten_roof_45") > 50);
+            // hips are triangles turned upside down
+            Assert.Contains(p.Pieces, x => x.Prefab.StartsWith("piece_grausten_roof_45_corner") && x.SY < 0);
+            Assert.True(p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && Math.Abs((x.Y % 3 + 3) % 3 - 1.5f) < 0.01f) > 20, "merlons");
+            Assert.Contains(p.Pieces, x => x.Prefab == "wood_door" && x.Lock != null);
+        }
+
+        [U5Theory]
+        [InlineData(13, "dwelling", 1150)]
+        [InlineData(2, "towne", 5000)]
+        [InlineData(17, "castle", 8000)]
+        public void PieceBudget(int location, string kind, int maxPieces)
+        {
             var p = Plan(location, kind);
             Assert.InRange(p.Pieces.Count, 1, maxPieces);
-            int small = p.Pieces.Count(x => x.Prefab == "wood_wall_quarter" || x.Prefab == "wood_floor_1x1" || x.Prefab == "stone_wall_1x1");
-            Assert.InRange(small, 0, maxSmall);
+            // runs are laid in 2 m bricks; 1 m bricks only at run ends and every other course's start
+            int big = p.Pieces.Count(x => x.Prefab == "stone_wall_2x1"), small = p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && !x.Scaled);
+            Assert.InRange(small, 0, Math.Max(10, (big + small) * 3 / 10));
+        }
+
+        [U5Theory]
+        [InlineData(2, "towne")]
+        [InlineData(17, "castle")]
+        public void BricksNeverOverlap(int location, string kind)
+        {
+            // every 1 m cell of every course is filled by at most one brick
+            var p = Plan(location, kind);
+            var cells = new System.Collections.Generic.HashSet<(int, int, int)>();
+            foreach (var b in p.Pieces.Where(x => (x.Prefab == "stone_wall_2x1" || x.Prefab == "stone_wall_1x1") && !x.Scaled))
+            {
+                bool wide = b.Prefab == "stone_wall_2x1";
+                int y = (int)Math.Floor(b.Y);
+                foreach (var d in wide ? new[] { -0.5f, 0.5f } : new[] { 0f })
+                {
+                    float x = b.X + (b.Yaw == 0 ? d : 0), z = b.Z + (b.Yaw == 0 ? 0 : d);
+                    Assert.True(cells.Add(((int)Math.Floor(x), y, (int)Math.Floor(z))), $"{b} overlaps another brick");
+                }
+            }
         }
 
         [Fact]

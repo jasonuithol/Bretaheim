@@ -13,6 +13,11 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>Pivot position: x east, y up from the settlement's ground, z north.</summary>
         public float X, Y, Z;
         public float Yaw;
+        /// <summary>Scale (0 = unscaled): pieces squeezed into the 2 m tile or turned upside down.</summary>
+        public float SX, SY, SZ;
+        public bool Scaled => SX != 0;
+        /// <summary>Doors: "key" or "magic" when locked, else null.</summary>
+        public string Lock;
         /// <summary>Sign text, or null.</summary>
         public string Text;
         /// <summary>Container contents as prefab names (one item each), or null.</summary>
@@ -31,7 +36,7 @@ namespace U5InValheim.WorldGen.Core
         public const int Size = SettlementMaps.Size;
         public Data.Location Location;
         public string Kind;
-        public float Tile = 2f, Storey = 4f;
+        public float Tile = 2f, Storey = 3f;
         public readonly List<Placement> Pieces = new List<Placement>();
         /// <summary>Terrain paint of each ground cell (row-major, y south).</summary>
         public readonly Paint[] GroundPaint = new Paint[Size * Size];
@@ -48,16 +53,18 @@ namespace U5InValheim.WorldGen.Core
     }
 
     /// <summary>
-    /// Turns a settlement's maps into a <see cref="SettlementPlan"/> (MASTER_PLAN §5.2, Phase 2).
-    /// One town tile is 2 m (the 64 m square fits between Britain's neighbours), a storey 4 m.
+    /// Turns a settlement's maps into a <see cref="SettlementPlan"/> (MASTER_PLAN §5.2, Phase 2;
+    /// authority: Constructing world assets.txt, Solution A). One town tile is 2 m × 2 m × 3 m.
+    ///
+    /// Height zones: the ground zone (floor tops at ground level), above it the 3 m wall zone where
+    /// walls, furniture and loose objects live, then per storey an inter-level wood floor whose top
+    /// is the top of the wall zone below and another wall zone; the roof zone starts on top of the
+    /// last wall zone.
     ///
     /// Per floor: a flood fill from the map border through non-barrier tiles (walls, windows,
     /// doors, battlements are barriers) separates outside from inside; inside tiles get floors,
-    /// barriers next to them become building walls. Walls run along the centre of their tiles:
-    /// a full 2 m piece on straight runs, 1 m stubs toward each neighbour at corners and junctions,
-    /// doors and windows in their run. Ground floors and streets are terrain paint (planks get
-    /// wooden floors). Anything covered on one floor but not on the floor above gets a roof there:
-    /// gabled (wood) over rectangles cut from the covered area, or flat walkable stone.
+    /// barriers next to them become building walls. A wall tile is a solid block filling its
+    /// tile. Ground floors and streets are terrain paint (planks get wooden floors).
     /// </summary>
     public class SettlementPlanner
     {
@@ -96,9 +103,8 @@ namespace U5InValheim.WorldGen.Core
             var plan = new SettlementPlan { Location = loc, Kind = kind };
             string styleKey = kind;
             if (loc.Number == 18) styleKey = "evil"; // Blackthorn's palace
-            if (!tiles.Settlements.TryGetValue(styleKey, out var styles)) styles = ("wood", "stone");
-            var house = tiles.Styles[styles.houses];
-            var outer = tiles.Styles[styles.perimeter];
+            if (!tiles.Settlements.TryGetValue(styleKey, out var materials)) materials = ("stone", "shingle");
+            var style = tiles.Styles[materials.walls];
 
             // First read every floor on its own; then again from the ground up, where a tile with
             // rooms, walls or a roof on the floor above is indoors (U5 draws buildings that way:
@@ -120,15 +126,16 @@ namespace U5InValheim.WorldGen.Core
             }
 
             var ctx = new Ctx(plan, geo);
-            Ground(ctx, levels[0], house);
-            foreach (var lv in levels)
+            Ground(ctx, levels[0]);
+            for (int i = 0; i < levels.Count; i++)
             {
-                Floors(ctx, lv, house);
-                Walls(ctx, lv, house, outer);
-                Battlements(ctx, lv, outer);
-                Furniture(ctx, lv, levels, biome);
+                var lv = levels[i];
+                Floors(ctx, lv, i > 0 ? levels[i - 1] : null, style);
+                Walls(ctx, lv, style, tiles.Cobble);
+                Battlements(ctx, lv, style);
+                Furniture(ctx, lv, levels, biome, Cottages(lv));
             }
-            Roofs(ctx, levels, house);
+            Roofs(ctx, levels, tiles.Roofs[materials.roof], tiles.Roofs[tiles.CottageRoof]);
             Signs(ctx, loc, levels);
             Spawn(plan, levels[0]);
             if (loc.Number == 13) IolosHut(ctx, levels[0]);
@@ -252,7 +259,6 @@ namespace U5InValheim.WorldGen.Core
             public Ctx(SettlementPlan plan, PieceGeometry geo) { Plan = plan; this.geo = geo; }
 
             public float Height(string prefab) => geo[prefab].SizeY;
-            public float Width(string prefab) => geo[prefab].SizeX;
             public bool Known(string prefab) => prefab != null && geo.Has(prefab);
 
             /// <summary>
@@ -265,7 +271,8 @@ namespace U5InValheim.WorldGen.Core
                 foreach (var p in Plan.Pieces)
                 {
                     if (p.Y > 1 || !geo.TryGet(p.Prefab, out var b)) continue;
-                    if (p.Prefab.Contains("wall") || p.Prefab.Contains("floor") || p.Prefab.Contains("roof") || p.Prefab.Contains("door")) continue;
+                    if (p.Prefab.Contains("wall") || p.Prefab.Contains("floor") || p.Prefab.Contains("roof") || p.Prefab.Contains("door")
+                        || p.Prefab == "stone_fence" || p.Prefab.StartsWith("wood_pole") || p.Prefab.StartsWith("wood_beam")) continue;
                     for (float lx = b.MinX + 0.2f; lx <= b.MaxX - 0.2f; lx += 0.25f)
                     for (float lz = b.MinZ + 0.2f; lz <= b.MaxZ - 0.2f; lz += 0.25f)
                     {
@@ -278,12 +285,19 @@ namespace U5InValheim.WorldGen.Core
                 return r;
             }
 
-            /// <summary>Places a piece so that the centre of its collider bounds is at (x, y, z).</summary>
-            public void Centre(string prefab, float x, float y, float z, float yaw)
+            /// <summary>The prefab's bounds centre relative to its pivot, scaled and turned by yaw.</summary>
+            void Offset(PieceGeometry.Box b, float yaw, float sx, float sy, float sz, out float ox, out float oy, out float oz)
             {
-                var b = geo[prefab];
-                Rotate((b.MinX + b.MaxX) / 2, (b.MinZ + b.MaxZ) / 2, yaw, out float ox, out float oz);
-                Add(prefab, x - ox, y - (b.MinY + b.MaxY) / 2, z - oz, yaw);
+                Rotate((b.MinX + b.MaxX) / 2 * sx, (b.MinZ + b.MaxZ) / 2 * sz, yaw, out ox, out oz);
+                oy = (b.MinY + b.MaxY) / 2 * sy;
+            }
+
+            /// <summary>Places a piece so that the centre of its (scaled) collider bounds is at (x, y, z).</summary>
+            public void Centre(string prefab, float x, float y, float z, float yaw, float sx = 1, float sy = 1, float sz = 1)
+            {
+                if (!geo.TryGet(prefab, out var b)) { Add(prefab, x, y, z, yaw, sx, sy, sz); return; }
+                Offset(b, yaw, sx, sy, sz, out float ox, out float oy, out float oz);
+                Add(prefab, x - ox, y - oy, z - oz, yaw, sx, sy, sz);
             }
 
             /// <summary>
@@ -292,26 +306,54 @@ namespace U5InValheim.WorldGen.Core
             /// base: the iron fire pit's by 0.73 m); poles and pillars, whose pivot is their middle,
             /// stand on the bottom of their bounds.
             /// </summary>
-            public void Stand(string prefab, float x, float y, float z, float yaw)
+            public void Stand(string prefab, float x, float y, float z, float yaw, float sx = 1, float sy = 1, float sz = 1)
             {
-                if (!geo.TryGet(prefab, out var b)) { Add(prefab, x, y, z, yaw); return; }
-                Rotate((b.MinX + b.MaxX) / 2, (b.MinZ + b.MaxZ) / 2, yaw, out float ox, out float oz);
-                bool centredPivot = prefab.Contains("pole") || prefab.Contains("pillar") || prefab == "wood_stack";
-                Add(prefab, x - ox, centredPivot ? y - b.MinY : y, z - oz, yaw);
+                if (!geo.TryGet(prefab, out var b)) { Add(prefab, x, y, z, yaw, sx, sy, sz); return; }
+                Offset(b, yaw, sx, sy, sz, out float ox, out _, out float oz);
+                bool centredPivot = prefab.Contains("pole") || prefab.Contains("pillar") || prefab.Contains("column") || prefab == "wood_stack";
+                Add(prefab, x - ox, centredPivot ? y - b.MinY * sy : y, z - oz, yaw, sx, sy, sz);
             }
 
             /// <summary>Places a piece so that the top of its bounds is at y (floors).</summary>
-            public void Top(string prefab, float x, float y, float z, float yaw)
+            public void Top(string prefab, float x, float y, float z, float yaw, float sx = 1, float sy = 1, float sz = 1)
             {
                 var b = geo[prefab];
-                Rotate((b.MinX + b.MaxX) / 2, (b.MinZ + b.MaxZ) / 2, yaw, out float ox, out float oz);
-                Add(prefab, x - ox, y - b.MaxY, z - oz, yaw);
+                Offset(b, yaw, sx, sy, sz, out float ox, out _, out float oz);
+                Add(prefab, x - ox, y - b.MaxY * sy, z - oz, yaw, sx, sy, sz);
             }
 
-            public void Pivot(string prefab, float x, float y, float z, float yaw) => Add(prefab, x, y, z, yaw);
+            public void Pivot(string prefab, float x, float y, float z, float yaw, float sx = 1, float sy = 1, float sz = 1)
+                => Add(prefab, x, y, z, yaw, sx, sy, sz);
 
-            public void Add(string prefab, float x, float y, float z, float yaw, string text = null, string[] items = null)
-                => Plan.Pieces.Add(new Placement { Prefab = prefab, X = x, Y = y, Z = z, Yaw = yaw, Text = text, Items = items });
+            public void Add(string prefab, float x, float y, float z, float yaw, float sx = 1, float sy = 1, float sz = 1, string text = null, string[] items = null)
+            {
+                var pl = new Placement { Prefab = prefab, X = x, Y = y, Z = z, Yaw = yaw, Text = text, Items = items };
+                if (sx != 1 || sy != 1 || sz != 1) { pl.SX = sx; pl.SY = sy; pl.SZ = sz; }
+                Plan.Pieces.Add(pl);
+            }
+
+            /// <summary>Sets a field of the piece added last.</summary>
+            public void Last(Func<Placement, Placement> change)
+            {
+                int i = Plan.Pieces.Count - 1;
+                Plan.Pieces[i] = change(Plan.Pieces[i]);
+            }
+
+            /// <summary>The pieces of a composite prop, turned by yaw around the tile centre (x, z), on floor y.</summary>
+            public void Parts(Part[] parts, float x, float y, float z, float yaw)
+            {
+                foreach (var part in parts)
+                {
+                    Rotate(part.X, part.Z, yaw, out float px, out float pz);
+                    float py = y + part.Y, pyaw = part.Yaw + yaw;
+                    switch (part.Place)
+                    {
+                        case PartPlace.Stand: Stand(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
+                        case PartPlace.Top: Top(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
+                        default: Centre(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
+                    }
+                }
+            }
 
             /// <summary>Unity's yaw (degrees, clockwise seen from above): local (x, z) → world.</summary>
             public static void Rotate(float x, float z, float yaw, out float wx, out float wz)
@@ -320,20 +362,6 @@ namespace U5InValheim.WorldGen.Core
                 wx = (float)(x * c + z * s);
                 wz = (float)(-x * s + z * c);
             }
-
-            /// <summary>Fills a wall of the given width from y0 to y1 with the style's pieces.</summary>
-            public void WallColumn(TownStyle style, bool full, float x, float z, float yaw, float y0, float y1)
-            {
-                string piece = full ? style.Wall : style.WallStub;
-                float h = Height(piece);
-                float y = y0;
-                while (y + h <= y1 + 0.01f) { Centre(piece, x, y + h / 2, z, yaw); y += h; }
-                if (full && y1 - y >= 0.99f && Known(style.WallHalf))
-                {
-                    float hh = Height(style.WallHalf);
-                    while (y + hh <= y1 + 0.01f) { Centre(style.WallHalf, x, y + hh / 2, z, yaw); y += hh; }
-                }
-            }
         }
 
         static float CellX(SettlementPlan p, int c) => p.LocalX(c % N);
@@ -341,7 +369,7 @@ namespace U5InValheim.WorldGen.Core
 
         // ── ground, floors ────────────────────────────────────────────────────────────────────
 
-        void Ground(Ctx ctx, Level g, TownStyle house)
+        void Ground(Ctx ctx, Level g)
         {
             var p = ctx.Plan;
             for (int c = 0; c < N * N; c++)
@@ -359,213 +387,217 @@ namespace U5InValheim.WorldGen.Core
             }
         }
 
+        /// <summary>A solid wall block (a wall tile built on this floor).</summary>
+        static bool Solid(Level lv, int c) => lv != null && lv.Built[c] && lv.Rule[c].Kind == TileKind.Wall;
+
         /// <summary>
-        /// Upper floors. A U5 wall fills its whole tile but ours runs along the tile's centre line,
-        /// so each room's floor also covers the room-side half of its wall tiles (a quarter of a
-        /// wall tile is on the room side when the tile beside it, above/below it or diagonal to it
-        /// in that direction is a room). That floor is laid out on a 1 m grid per room and tiled
-        /// with 2 m pieces on whichever of the four half-tile offsets fits the most of them —
-        /// between parallel walls the room then takes whole 2 m pieces instead of 1-2-…-2-1 —
-        /// and 1 m pieces fill what is left.
+        /// Inter-level floors (wood: stone is impractical up there): one 2 m piece per tile whose
+        /// top is the top of the wall zone below. Rooms, doorways, openings and wall-walks get one
+        /// unless they stand on a solid wall block of the floor below.
         /// </summary>
-        void Floors(Ctx ctx, Level lv, TownStyle house)
+        void Floors(Ctx ctx, Level lv, Level below, TownStyle style)
         {
-            if (lv.Z == 0) return;
+            if (lv.Z == 0 || below == null) return;
             var p = ctx.Plan;
             float y = p.Storey * lv.Z;
-            const int H = N * 2; // half-tile grid
-            var room = new int[H * H];
-            for (int i = 0; i < room.Length; i++) room[i] = -1;
-
-            // rooms: connected room tiles (battlement walks count as rooms of their own)
-            var label = new int[N * N];
-            for (int i = 0; i < label.Length; i++) label[i] = -1;
-            bool Floored(int c) => lv.Interior[c] || (lv.Rule[c].Kind == TileKind.Battlement && lv.Built[c]);
-            int rooms = 0;
-            for (int s0 = 0; s0 < N * N; s0++)
-            {
-                if (!Floored(s0) || label[s0] >= 0) continue;
-                var q = new Queue<int>();
-                q.Enqueue(s0); label[s0] = rooms;
-                while (q.Count > 0)
-                {
-                    int c = q.Dequeue();
-                    foreach (int n in Neighbours4(c))
-                        if (Floored(n) && label[n] < 0 && lv.Interior[n] == lv.Interior[c]) { label[n] = rooms; q.Enqueue(n); }
-                }
-                rooms++;
-            }
-            int L(int x, int yy) => x >= 0 && yy >= 0 && x < N && yy < N && lv.Interior[yy * N + x] ? label[yy * N + x] : -1;
             for (int c = 0; c < N * N; c++)
             {
-                int x = c % N, cy = c / N;
-                for (int qy = 0; qy < 2; qy++)
-                for (int qx = 0; qx < 2; qx++)
-                {
-                    int r = -1;
-                    if (Floored(c)) r = label[c];
-                    else if ((lv.Built[c] || lv.Doorway[c]) && ctx.Known(house.FloorSmall))
-                    {
-                        int sx = qx == 0 ? -1 : 1, sy = qy == 0 ? -1 : 1;
-                        r = L(x + sx, cy);
-                        if (r < 0) r = L(x, cy + sy);
-                        if (r < 0) r = L(x + sx, cy + sy);
-                    }
-                    if (r >= 0) room[(2 * cy + qy) * H + 2 * x + qx] = r;
-                }
-            }
-
-            for (int r = 0; r < rooms; r++)
-            {
-                int bestPx = 0, bestPz = 0, best = -1;
-                for (int pz = 0; pz < 2; pz++)
-                for (int px = 0; px < 2; px++)
-                {
-                    int n = 0;
-                    for (int hz = pz; hz + 1 < H; hz += 2)
-                    for (int hx = px; hx + 1 < H; hx += 2)
-                        if (Block(room, H, hx, hz, r)) n++;
-                    if (n > best) { best = n; bestPx = px; bestPz = pz; }
-                }
-                var used = new bool[H * H];
-                for (int hz = bestPz; hz + 1 < H; hz += 2)
-                for (int hx = bestPx; hx + 1 < H; hx += 2)
-                {
-                    if (!Block(room, H, hx, hz, r)) continue;
-                    used[hz * H + hx] = used[hz * H + hx + 1] = used[(hz + 1) * H + hx] = used[(hz + 1) * H + hx + 1] = true;
-                    ctx.Top(house.Floor, hx + 1 - N, y, N - 1 - hz, 0);
-                }
-                for (int h = 0; h < H * H; h++)
-                    if (room[h] == r && !used[h])
-                        ctx.Top(house.FloorSmall ?? house.Floor, (h % H) + 0.5f - N, y, N - 0.5f - h / H, 0);
+                var k = lv.Rule[c].Kind;
+                bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
+                if (floored && !Solid(below, c)) ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
             }
         }
-
-        static bool Block(int[] room, int H, int hx, int hz, int r)
-            => room[hz * H + hx] == r && room[hz * H + hx + 1] == r && room[(hz + 1) * H + hx] == r && room[(hz + 1) * H + hx + 1] == r;
 
         // ── walls ─────────────────────────────────────────────────────────────────────────────
 
-        void Walls(Ctx ctx, Level lv, TownStyle house, TownStyle outer)
+        /// <summary>Tiles a wall run continues through: built walls, openings and doorways.</summary>
+        static bool WallLike(Level lv, int x, int y)
         {
-            var p = ctx.Plan;
-            float y0 = p.Storey * lv.Z, y1 = y0 + p.Storey;
-            var arch = new TileRule { Kind = TileKind.Door, Open = true };
-            // 1 m wall segments on the tile centre lines: half a wall tile from its centre toward
-            // each connected neighbour. hseg[y][hx]: the segment from x = hx to hx + 1 m on row y.
-            var hseg = new TownStyle[N, N * 2];
-            var vseg = new TownStyle[N * 2, N];
-            for (int c = 0; c < N * N; c++)
-            {
-                int x = c % N, y = c / N;
-                float cx = CellX(p, c), cz = CellZ(p, c);
-                if (lv.Doorway[c])
-                {
-                    Opening(ctx, house, arch, cx, cz, EW(lv, c) ? 0 : 90, y0, y1);
-                    continue;
-                }
-                if (!lv.Built[c] || lv.Rule[c].Kind == TileKind.Battlement) continue;
-                var style = lv.Building[c] ? house : outer;
-                bool B(int nx, int ny) => nx >= 0 && ny >= 0 && nx < N && ny < N
-                                          && ((lv.Built[ny * N + nx] && lv.Rule[ny * N + nx].Kind != TileKind.Battlement) || lv.Doorway[ny * N + nx]);
-                bool e = B(x + 1, y), w = B(x - 1, y), n = B(x, y - 1), s = B(x, y + 1);
-                var rule = lv.Rule[c];
-                if (rule.IsOpening)
-                {
-                    // the opening lies in its wall run; a free-standing one spans across its open sides
-                    bool alongX = e || w || (!n && !s && y > 0 && y < N - 1 && !lv.Barrier[c - N] && !lv.Barrier[c + N]);
-                    Opening(ctx, style, rule, cx, cz, alongX ? 0 : 90, y0, y1);
-                    continue;
-                }
-                if (w) hseg[y, 2 * x] = style;
-                if (e) hseg[y, 2 * x + 1] = style;
-                if (n) vseg[2 * y, x] = style;
-                if (s) vseg[2 * y + 1, x] = style;
-                if (!(e || w || n || s))
-                {
-                    float h = ctx.Height(style.Pole);
-                    for (float yy = y0; yy + h <= y1 + 0.01f; yy += h) ctx.Centre(style.Pole, cx, yy + h / 2, cz, 0);
-                }
-            }
-            // Merge the segments of each row/column into runs and fill a run of L metres with
-            // L div 2 full pieces and at most one 1 m piece: between two corners the run is a
-            // whole number of tiles, so corners need no stubs.
-            for (int y = 0; y < N; y++)
-                Runs(N * 2, i => hseg[y, i], (from, len, st) => FillRun(ctx, st, from - N, p.LocalZ(y), true, len, y0, y1));
-            for (int x = 0; x < N; x++)
-                Runs(N * 2, i => vseg[i, x], (from, len, st) => FillRun(ctx, st, N - from, p.LocalX(x), false, len, y0, y1));
+            if (x < 0 || y < 0 || x >= N || y >= N) return false;
+            int c = y * N + x;
+            return (lv.Built[c] && lv.Rule[c].Kind != TileKind.Battlement) || lv.Doorway[c];
         }
 
-        /// <summary>Calls <paramref name="run"/>(start, length, style) for each maximal run of equal non-null entries.</summary>
-        static void Runs(int count, Func<int, TownStyle> at, Action<int, int, TownStyle> run)
+        /// <summary>A wall tile runs east–west when it continues that way (or nowhere north–south).</summary>
+        static bool AlongX(Level lv, int c)
         {
-            int i = 0;
-            while (i < count)
+            int x = c % N, y = c / N;
+            return WallLike(lv, x - 1, y) || WallLike(lv, x + 1, y) || !(WallLike(lv, x, y - 1) || WallLike(lv, x, y + 1));
+        }
+
+        /// <summary>
+        /// Wall tiles are solid 2 m × 2 m × 3 m blocks (the wall zone). Stone walls are three courses
+        /// of 2×1×1 bricks laid along their run, each course 1 m out of phase with the one below;
+        /// 1×1×1 bricks fill the odd ends, so neighbouring tiles of a run share bricks. Cobblestone
+        /// walls are a wooden frame filled with stone fence; windows a sill and arches with the
+        /// opening between; arrow slits leave a cross-shaped gap in the middle course; doors stand
+        /// in the middle of their tile, 3 m tall, or 2 m with an open viewport above; archways and
+        /// doorways are open below a course of bricks.
+        /// </summary>
+        void Walls(Ctx ctx, Level lv, TownStyle style, CobbleStyle cobble)
+        {
+            var p = ctx.Plan;
+            float y0 = p.Storey * lv.Z;
+            const int G = N * 2; // 1 m grid
+            var along = new bool[N * N];
+            for (int c = 0; c < N * N; c++) along[c] = AlongX(lv, c);
+
+            // courses of bricks
+            for (int course = 0; course < 3; course++)
             {
-                var st = at(i);
-                if (st == null) { i++; continue; }
-                int j = i;
-                while (j < count && at(j) == st) j++;
-                run(i, j - i, st);
-                i = j;
+                bool Brick(int c)
+                {
+                    if (lv.Doorway[c]) return course == 2;
+                    if (!lv.Built[c]) return false;
+                    var r = lv.Rule[c];
+                    if (r.Kind == TileKind.Wall) return r.Build == WallBuild.Brick;
+                    if (r.Kind == TileKind.Arch) return course == 2;
+                    if (r.Kind == TileKind.Window && r.Narrow) return course != 1;
+                    return false;
+                }
+                var used = new bool[G * G];
+                bool Cell(int gx, int gy, bool alongX)
+                {
+                    if (gx < 0 || gy < 0 || gx >= G || gy >= G || used[gy * G + gx]) return false;
+                    int c = (gy / 2) * N + gx / 2;
+                    return Brick(c) && along[c] == alongX;
+                }
+                float y = y0 + course + 0.5f;
+                for (int gy = 0; gy < G; gy++)
+                for (int gx = 0; gx < G; gx++)
+                {
+                    int c = (gy / 2) * N + gx / 2;
+                    if (used[gy * G + gx] || !Brick(c)) continue;
+                    bool ax = along[c];
+                    // a 2 m brick starts on cells of this course's phase when the next cell is free
+                    int pos = ax ? gx : gy;
+                    bool pair = (pos + course) % 2 == 0 && (ax ? Cell(gx + 1, gy, true) : Cell(gx, gy + 1, false));
+                    used[gy * G + gx] = true;
+                    if (pair)
+                    {
+                        if (ax) { used[gy * G + gx + 1] = true; ctx.Centre(style.Brick, gx + 1 - N, y, N - gy - 0.5f, 0); }
+                        else { used[(gy + 1) * G + gx] = true; ctx.Centre(style.Brick, gx + 0.5f - N, y, N - gy - 1, 90); }
+                    }
+                    else ctx.Centre(style.BrickSmall, gx + 0.5f - N, y, N - gy - 0.5f, 0);
+                }
+            }
+
+            var posts = new HashSet<(int, int)>();
+            for (int c = 0; c < N * N; c++)
+            {
+                if (!lv.Built[c] || lv.Rule[c].Kind == TileKind.Battlement) continue;
+                var r = lv.Rule[c];
+                float cx = CellX(p, c), cz = CellZ(p, c), yaw = along[c] ? 0 : 90;
+                switch (r.Kind)
+                {
+                    case TileKind.Wall when r.Build == WallBuild.Cobble:
+                        CobbleWall(ctx, lv, cobble, c, along[c], y0, posts);
+                        break;
+                    case TileKind.Wall when r.Build == WallBuild.Shelf && r.Parts != null:
+                        ctx.Parts(r.Parts, cx, y0, cz, yaw);
+                        break;
+                    case TileKind.Window when r.Narrow:
+                        // the middle course: four short pillars around a cross-shaped slit
+                        foreach (var (dx, dz) in new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) })
+                            ctx.Centre(style.BrickSmall, cx + dx * 0.625f, y0 + 1.5f, cz + dz * 0.625f, 0, 0.75f, 1, 0.75f);
+                        break;
+                    case TileKind.Window:
+                        ctx.Centre(style.Sill, cx, y0 + 0.5f, cz, yaw);
+                        for (int side = -1; side <= 1; side += 2)
+                        {
+                            Ctx.Rotate(0, side * 0.5f, yaw, out float ox, out float oz);
+                            ctx.Centre(style.Arch, cx + ox, y0 + 2.5f, cz + oz, yaw);
+                        }
+                        break;
+                    case TileKind.Door:
+                        if (r.Gate && ctx.Known(style.Gate)) ctx.Centre(style.Gate, cx, y0 + 1.5f, cz, yaw);
+                        else if (r.Viewport) ctx.Centre(style.Door, cx, y0 + 1, cz, yaw);
+                        else ctx.Centre(style.Door, cx, y0 + 1.5f, cz, yaw, 1, 1.5f, 1);
+                        if (r.Lock != null) ctx.Last(pl => { pl.Lock = r.Lock; return pl; });
+                        break;
+                }
             }
         }
 
         /// <summary>
-        /// A straight wall run starting at <paramref name="start"/> metres (x for rows, z for
-        /// columns, local) and running east (rows) or south (columns) for <paramref name="len"/> m.
+        /// A cobblestone wall tile: two rows of stone fence, three high, in a frame of 3 m posts on
+        /// the tile corners (shared along a run) with a beam along the top of each open face.
         /// </summary>
-        static void FillRun(Ctx ctx, TownStyle style, float start, float fixedCoord, bool alongX, int len, float y0, float y1)
+        static void CobbleWall(Ctx ctx, Level lv, CobbleStyle s, int c, bool alongX, float y0, HashSet<(int, int)> posts)
         {
-            float pos = 0;
-            float Centre(float offset) => alongX ? start + offset : start - offset;
-            int full = len / 2;
-            for (int k = 0; k < full; k++, pos += 2)
+            var p = ctx.Plan;
+            float cx = CellX(p, c), cz = CellZ(p, c), yaw = alongX ? 0 : 90;
+            for (int course = 0; course < 3; course++)
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Ctx.Rotate(0, side * 0.5f, yaw, out float ox, out float oz);
+                    ctx.Pivot(s.Fence, cx + ox, y0 + course, cz + oz, yaw);
+                }
+            foreach (var (dx, dz) in new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) })
             {
-                float m = Centre(pos + 1);
-                if (alongX) ctx.WallColumn(style, true, m, fixedCoord, 0, y0, y1);
-                else ctx.WallColumn(style, true, fixedCoord, m, 90, y0, y1);
+                if (!posts.Add(((int)Math.Round(cx + dx), (int)Math.Round(cz + dz)))) continue;
+                ctx.Stand(s.Post, cx + dx, y0, cz + dz, 0);
+                ctx.Stand(s.PostShort, cx + dx, y0 + 2, cz + dz, 0);
             }
-            if (len % 2 == 1)
-            {
-                float m = Centre(pos + 0.5f);
-                if (alongX) ctx.WallColumn(style, false, m, fixedCoord, 0, y0, y1);
-                else ctx.WallColumn(style, false, fixedCoord, m, 90, y0, y1);
-            }
+            int x = c % N, y = c / N;
+            foreach (var (nx, ny, dx, dz, byaw) in new[] { (x, y - 1, 0f, 1f, 0f), (x, y + 1, 0f, -1f, 0f), (x + 1, y, 1f, 0f, 90f), (x - 1, y, -1f, 0f, 90f) })
+                if (!WallLike(lv, nx, ny))
+                    ctx.Centre(s.Beam, cx + dx, y0 + 2.8f, cz + dz, byaw);
         }
 
-        static void Opening(Ctx ctx, TownStyle style, TileRule rule, float x, float z, float yaw, float y0, float y1)
+        /// <summary>
+        /// Parapets on the wall-walks: a 1 m course of bricks flush with the outer face of the
+        /// walk, and (unless the tile has none) a 1×1×1 merlon on the middle of each outer side.
+        /// The outer sides are the open sides facing away from the settlement's centre, limited to
+        /// the tile's own direction (N–S walks have their parapet east or west).
+        /// </summary>
+        void Battlements(Ctx ctx, Level lv, TownStyle style)
         {
-            if (rule.Kind == TileKind.Door)
-            {
-                float top = y0 + 2;
-                if (rule.Gate && ctx.Known("wood_gate")) { ctx.Centre("wood_gate", x, y0 + 1.5f, z, yaw); top = y0 + 3; }
-                else if (!rule.Open) ctx.Centre(style.Door, x, y0 + 1, z, yaw);
-                ctx.WallColumn(style, true, x, z, yaw, top, y1);
-                return;
-            }
-            // window: sill to 1 m, opening 1–2 m, wall above
-            ctx.WallColumn(style, true, x, z, yaw, y0, y0 + 1);
-            ctx.WallColumn(style, true, x, z, yaw, y0 + 2, y1);
-        }
-
-        void Battlements(Ctx ctx, Level lv, TownStyle outer)
-        {
-            if (outer.Merlon == null || !ctx.Known(outer.Merlon)) return;
-            float y = ctx.Plan.Storey * lv.Z;
+            var p = ctx.Plan;
+            float y = p.Storey * lv.Z;
             for (int c = 0; c < N * N; c++)
             {
                 if (lv.Rule[c].Kind != TileKind.Battlement || !lv.Built[c]) continue;
-                // merlons along the outer face: cells with an outside neighbour, every other one
-                bool edge = Neighbours4(c).Any(n => lv.Exterior[n]);
-                if (!edge || ((c % N) + (c / N)) % 2 != 0) continue;
-                ctx.Centre(outer.Merlon, CellX(ctx.Plan, c), y + ctx.Height(outer.Merlon) / 2, CellZ(ctx.Plan, c), 0);
+                int x = c % N, ty = c / N, raw = lv.Raw[c];
+                bool nsWalk = raw == 0x50 || raw == 0x56, ewWalk = raw == 0x51 || raw == 0x57;
+                float cx = CellX(p, c), cz = CellZ(p, c);
+                var sides = new List<(float dx, float dz)>();
+                foreach (var (nx, ny, dx, dz) in new[] { (x, ty - 1, 0f, 1f), (x, ty + 1, 0f, -1f), (x + 1, ty, 1f, 0f), (x - 1, ty, -1f, 0f) })
+                {
+                    if (nsWalk && dx == 0 || ewWalk && dz == 0) continue;
+                    bool open = nx < 0 || ny < 0 || nx >= N || ny >= N
+                                || (!lv.Built[ny * N + nx] && !lv.Covered[ny * N + nx] && !lv.Doorway[ny * N + nx]);
+                    if (open) sides.Add((dx, dz));
+                }
+                var outward = sides.Where(s => s.dx * cx + s.dz * cz > 0).ToList();
+                if (outward.Count > 0) sides = outward;
+                // the parapet's 1 m cells along the outer sides, then bricks over them
+                var cells = new HashSet<(int, int)>();
+                foreach (var (dx, dz) in sides)
+                    for (int a = -1; a <= 1; a += 2)
+                        cells.Add(dx != 0 ? ((int)dx, a) : (a, (int)dz));
+                var done = new HashSet<(int, int)>();
+                foreach (var (dx, dz) in sides)
+                {
+                    var (a, b) = dx != 0 ? (((int)dx, -1), ((int)dx, 1)) : ((-1, (int)dz), (1, (int)dz));
+                    if (done.Contains(a) || done.Contains(b)) continue;
+                    done.Add(a); done.Add(b);
+                    ctx.Centre(style.Brick, cx + dx * 0.5f, y + 0.5f, cz + dz * 0.5f, dx != 0 ? 90 : 0);
+                    if (lv.Rule[c].Merlons) ctx.Centre(style.Merlon, cx + dx * 0.5f, y + 1.5f, cz + dz * 0.5f, 0);
+                }
+                foreach (var (qx, qz) in cells)
+                    if (!done.Contains((qx, qz))) ctx.Centre(style.BrickSmall, cx + qx * 0.5f, y + 0.5f, cz + qz * 0.5f, 0);
             }
         }
 
         // ── roofs ─────────────────────────────────────────────────────────────────────────────
 
-        void Roofs(Ctx ctx, List<Level> levels, TownStyle house)
+        /// <summary>
+        /// The roof zone starts on top of the last wall zone of each building: anything covered on
+        /// one floor and not built on the floor above gets a hip roof whose eaves sit on the outer
+        /// wall tops. Cobblestone cottages get thatch, other buildings their settlement's roof.
+        /// </summary>
+        void Roofs(Ctx ctx, List<Level> levels, RoofSet roof, RoofSet cottage)
         {
             for (int i = 0; i < levels.Count; i++)
             {
@@ -575,28 +607,24 @@ namespace U5InValheim.WorldGen.Core
                 for (int c = 0; c < N * N; c++)
                     cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c]));
                 float baseY = ctx.Plan.Storey * (lv.Z + 1);
-                if (house.Gabled)
-                    foreach (var building in RoofFootprints(cells)) HipRoof(ctx, house, building, baseY);
-                else
-                    for (int c = 0; c < N * N; c++)
-                        if (cells[c]) ctx.Top(house.Floor, CellX(ctx.Plan, c), baseY, CellZ(ctx.Plan, c), 0);
+                foreach (var building in RoofFootprints(cells))
+                    HipRoof(ctx, IsCottage(lv, building) ? cottage : roof, building, baseY);
             }
         }
 
-        /// <summary>
-        /// One continuous hip roof over any footprint. Each roof cell gets a ring number: how many
-        /// cells it lies inside the footprint (Chebyshev distance to the outside). Ring k is 1 m
-        /// higher than ring k−1 — exactly the rise of Valheim's 26° roof pieces over a 2 m cell —
-        /// and each cell's piece follows from which neighbours are lower:
-        ///   one side lower → straight slope (wood_roof) facing it;
-        ///   two adjacent sides → outer corner (wood_roof_ocorner);
-        ///   only a diagonal → inner corner (wood_roof_icorner, L-shapes and stepped walls);
-        ///   opposite sides (a one-cell crest) or more → ridge cap (wood_roof_top) along the crest.
-        /// Piece conventions (from their snap points; pivot at the cell centre, y = low edge):
-        /// wood_roof is low along local +z; ocorner low along +x and +z; icorner low only at the
-        /// (+x, +z) corner; roof_top's ridge runs along local x. The roof sits 0.5 m low so the
-        /// slope meets the wall tops on the wall centre lines; the eaves overhang by 1 m.
-        /// </summary>
+        /// <summary>A building most of whose walls are cobblestone.</summary>
+        static bool IsCottage(Level lv, bool[] cells)
+        {
+            int walls = 0, cobble = 0;
+            for (int c = 0; c < N * N; c++)
+            {
+                if (!cells[c] || !Solid(lv, c)) continue;
+                walls++;
+                if (lv.Rule[c].Build == WallBuild.Cobble) cobble++;
+            }
+            return walls > 0 && cobble * 2 > walls;
+        }
+
         /// <summary>
         /// The roof outline of each building (4-connected group of roof cells): its bounding
         /// rectangle when the building nearly fills it — stepped diagonal walls like Iolo's octagonal
@@ -631,7 +659,22 @@ namespace U5InValheim.WorldGen.Core
             }
         }
 
-        static void HipRoof(Ctx ctx, TownStyle s, bool[] cells, float baseY)
+        /// <summary>
+        /// One continuous hip roof over any footprint. Each roof cell gets a ring number: how many
+        /// cells it lies inside the footprint (Chebyshev distance to the outside). Ring k's low edge
+        /// is k rises above the wall tops, and each cell's piece follows from which neighbours are lower:
+        ///   one side lower → straight slope facing it;
+        ///   two adjacent sides → outer corner (hip);
+        ///   only a diagonal → inner corner (valley: L-shapes and stepped walls);
+        ///   opposite sides (a one-cell crest) or more → ridge along the crest.
+        /// Thatch and shingle (26°, 1 m rise per 2 m cell) have a piece for each; their slope is low
+        /// along local +z, the ocorner low along +x and +z, the icorner low only at the (+x, +z)
+        /// corner, the ridge cap runs along local x, all with the pivot on the low edge. Grausten
+        /// (45°, 2 m rise, pivot at mid-height) has only slopes and two triangles: a valley is the
+        /// two triangles, a hip the same two upside down (a triangle with its low edge and apex
+        /// swapped), a crest two half-size slopes.
+        /// </summary>
+        static void HipRoof(Ctx ctx, RoofSet s, bool[] cells, float baseY)
         {
             var p = ctx.Plan;
             var ring = new int[N * N];
@@ -657,7 +700,6 @@ namespace U5InValheim.WorldGen.Core
                     if (cells[n] && ring[n] < 0) { ring[n] = ring[c] + 1; q.Enqueue(n); }
             }
 
-            string ocorner = s.Roof + "_ocorner", icorner = s.Roof + "_icorner";
             for (int c = 0; c < N * N; c++)
             {
                 if (!cells[c]) continue;
@@ -665,26 +707,68 @@ namespace U5InValheim.WorldGen.Core
                 int R(int nx, int ny) => nx < 0 || ny < 0 || nx >= N || ny >= N ? -1 : ring[ny * N + nx];
                 bool n = R(x, y - 1) < k, e = R(x + 1, y) < k, so = R(x, y + 1) < k, w = R(x - 1, y) < k;
                 int lower = (n ? 1 : 0) + (e ? 1 : 0) + (so ? 1 : 0) + (w ? 1 : 0);
-                float px = CellX(p, c), pz = CellZ(p, c), py = baseY + k - 0.5f;
+                float px = CellX(p, c), pz = CellZ(p, c), low = baseY + k * s.Rise;
+
+                if (s.Triangles)
+                {
+                    float py = low + s.Rise / 2;
+                    if (lower == 0)
+                    {
+                        float yaw = R(x + 1, y - 1) < k ? 0 : R(x + 1, y + 1) < k ? 90 : R(x - 1, y + 1) < k ? 180 : 270;
+                        Triangle(ctx, s.Corner, px, py, pz, yaw, false);
+                        Triangle(ctx, s.Corner2, px, py, pz, yaw + 90, false);
+                    }
+                    else if (lower == 1)
+                        ctx.Pivot(s.Slope, px, py, pz, n ? 0 : e ? 90 : so ? 180 : 270);
+                    else if (lower == 2 && !(n && so) && !(e && w))
+                    {
+                        float yaw = n && e ? 0 : e && so ? 90 : so && w ? 180 : 270;
+                        Triangle(ctx, s.Corner, px, py, pz, yaw + 180, true);
+                        Triangle(ctx, s.Corner2, px, py, pz, yaw + 270, true);
+                    }
+                    else
+                    {
+                        // a crest: two half-size slopes meeting 1 m above the neighbours' tops
+                        float yaw = n && so ? 0 : 90;
+                        for (int side = 0; side < 2; side++)
+                        {
+                            float sy = yaw + side * 180;
+                            Ctx.Rotate(0, 0.5f, sy, out float ox, out float oz);
+                            ctx.Pivot(s.Slope, px + ox, low + s.Rise / 4, pz + oz, sy, 1, 0.5f, 0.5f);
+                        }
+                    }
+                    continue;
+                }
 
                 if (lower == 0)
                 {
-                    // concave corner: the lower cell is diagonal
                     float yaw = R(x + 1, y - 1) < k ? 0 : R(x + 1, y + 1) < k ? 90 : R(x - 1, y + 1) < k ? 180 : 270;
-                    ctx.Pivot(ctx.Known(icorner) ? icorner : s.Roof, px, py, pz, yaw);
+                    ctx.Pivot(ctx.Known(s.ICorner) ? s.ICorner : s.Slope, px, low, pz, yaw);
                 }
                 else if (lower == 1)
-                    ctx.Pivot(s.Roof, px, py, pz, n ? 0 : e ? 90 : so ? 180 : 270);
+                    ctx.Pivot(s.Slope, px, low, pz, n ? 0 : e ? 90 : so ? 180 : 270);
                 else if (lower == 2 && !(n && so) && !(e && w))
-                    ctx.Pivot(ctx.Known(ocorner) ? ocorner : s.Roof, px, py, pz, n && e ? 0 : e && so ? 90 : so && w ? 180 : 270);
-                else if (ctx.Known(s.RoofTop))
-                    ctx.Pivot(s.RoofTop, px, py, pz, n && so ? 0 : 90); // ridge across the lower sides
+                    ctx.Pivot(ctx.Known(s.OCorner) ? s.OCorner : s.Slope, px, low, pz, n && e ? 0 : e && so ? 90 : so && w ? 180 : 270);
+                else if (ctx.Known(s.Top))
+                    ctx.Pivot(s.Top, px, low, pz, n && so ? 0 : 90); // ridge across the lower sides
             }
+        }
+
+        /// <summary>
+        /// A grausten roof triangle covering half a cell. The pieces' cell is centred 0.5 m along
+        /// their local +z from the pivot; upright, the high edge is the cell's local south side and
+        /// the low point its +x (corner) or −x (corner2) north corner. Upside down (y scale −1) the
+        /// south side becomes the low edge and that corner the apex.
+        /// </summary>
+        static void Triangle(Ctx ctx, string prefab, float x, float y, float z, float yaw, bool flipped)
+        {
+            Ctx.Rotate(0, 0.5f, yaw, out float ox, out float oz);
+            ctx.Pivot(prefab, x - ox, y, z - oz, yaw % 360, 1, flipped ? -1 : 1, 1);
         }
 
         // ── furniture, plants, fences, climbing ──────────────────────────────────────────────
 
-        void Furniture(Ctx ctx, Level lv, List<Level> levels, VBiome biome)
+        void Furniture(Ctx ctx, Level lv, List<Level> levels, VBiome biome, bool[] cottage)
         {
             var p = ctx.Plan;
             float y = p.Storey * lv.Z;
@@ -699,20 +783,30 @@ namespace U5InValheim.WorldGen.Core
                 switch (r.Kind)
                 {
                     case TileKind.Prop:
-                        if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, r.Yaw);
+                        if (r.Parts != null) ctx.Parts(r.Parts, x, y, z, r.Yaw);
+                        else if (r.Choices != null) ctx.Stand(r.Choices[Hash(tx, ty, 8) % r.Choices.Length], x, y, z, Hash(tx, ty, 9) % 4 * 90);
+                        else if (r.Prefab != null && r.WallSide is float side)
+                        {
+                            // mounted on the wall on that side, facing into the room
+                            Ctx.Rotate(0, 0.85f, side, out float ox, out float oz);
+                            ctx.Centre(r.Prefab, x + ox, y + 1.8f, z + oz, side + 180);
+                        }
+                        else if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, r.Yaw);
                         break;
                     case TileKind.Chair:
                         ctx.Stand("piece_chair", x, y, z, r.Yaw);
                         break;
                     case TileKind.BedHead:
                     {
+                        // cottages have plain wooden beds, everyone else the fancy one
+                        string bed = cottage[c] ? "bed" : "piece_bed02";
                         int foot = Neighbours4(c).Where(n => lv.Rule[n].Kind == TileKind.BedFoot && !done[n]).DefaultIfEmpty(-1).First();
-                        if (foot < 0) { ctx.Stand("bed", x, y, z, 0); break; }
+                        if (foot < 0) { ctx.Stand(bed, x, y, z, 0); break; }
                         done[foot] = true;
                         float bx = (x + CellX(p, foot)) / 2, bz = (z + CellZ(p, foot)) / 2;
                         bool horizontal = foot / N == c / N;
                         float yaw = horizontal ? (foot > c ? 270 : 90) : (foot > c ? 0 : 180);
-                        ctx.Stand("bed", bx, y, bz, yaw);
+                        ctx.Stand(bed, bx, y, bz, yaw);
                         break;
                     }
                     case TileKind.Table:
@@ -751,6 +845,31 @@ namespace U5InValheim.WorldGen.Core
                         break;
                 }
             }
+        }
+
+        /// <summary>Cells of buildings most of whose walls are cobblestone (cottages), per <see cref="IsCottage"/>.</summary>
+        static bool[] Cottages(Level lv)
+        {
+            var r = new bool[N * N];
+            var seen = new bool[N * N];
+            for (int s0 = 0; s0 < N * N; s0++)
+            {
+                if (!lv.Covered[s0] || seen[s0]) continue;
+                var group = new bool[N * N];
+                var list = new List<int>();
+                var q = new Queue<int>();
+                q.Enqueue(s0); seen[s0] = true;
+                while (q.Count > 0)
+                {
+                    int c = q.Dequeue();
+                    group[c] = true;
+                    list.Add(c);
+                    foreach (int n in Neighbours4(c))
+                        if (lv.Covered[n] && !seen[n]) { seen[n] = true; q.Enqueue(n); }
+                }
+                if (IsCottage(lv, group)) foreach (int c in list) r[c] = true;
+            }
+            return r;
         }
 
         /// <summary>

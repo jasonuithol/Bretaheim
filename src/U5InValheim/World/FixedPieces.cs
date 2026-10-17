@@ -18,6 +18,7 @@ namespace U5InValheim.WorldGen
         {
             try
             {
+                Postfix(harmony, typeof(ZNetView), "Awake", nameof(ZNetView_Awake));
                 Postfix(harmony, typeof(WearNTear), "Awake", nameof(WearNTear_Awake));
                 Prefix(harmony, typeof(WearNTear), "Damage", nameof(Block));
                 Prefix(harmony, typeof(WearNTear), "ApplyDamage", nameof(BlockApply));
@@ -34,6 +35,15 @@ namespace U5InValheim.WorldGen
 
         static void Prefix(Harmony h, Type t, string m, string patch)
             => h.Patch(AccessTools.Method(t, m) ?? throw new MissingMethodException(t.Name, m), prefix: new HarmonyMethod(typeof(FixedPieces), patch));
+
+        /// <summary>Settlement pieces squeezed into their tile (or turned upside down) get their scale back on load.</summary>
+        static void ZNetView_Awake(ZNetView __instance)
+        {
+            var zdo = __instance.GetZDO();
+            if (zdo == null) return;
+            var scale = zdo.GetVec3(Settlements.ScaleKey, Vector3.zero);
+            if (scale != Vector3.zero) __instance.transform.localScale = scale;
+        }
 
         static void WearNTear_Awake(WearNTear __instance)
         {

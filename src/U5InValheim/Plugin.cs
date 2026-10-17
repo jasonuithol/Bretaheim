@@ -57,9 +57,9 @@ namespace U5InValheim
                 "Location numbers of the settlements built from their maps in new Britannia worlds " +
                 "(2 Britain, 13 Iolo's hut, 17 Lord British's castle; see 'u5 dump locations'). " +
                 "Must be the same on the server and every client.");
-            CombinedShells = Config.Bind("World", "CombinedShells", "13",
+            CombinedShells = Config.Bind("World", "CombinedShells", "*",
                 "Settlements whose building shells (walls, floors, roofs) are built as one combined object per " +
-                "zone instead of separate pieces (13 = Iolo's hut, being tried first). Must match on every peer.");
+                "zone instead of thousands of separate pieces (* = all of them). Must match on every peer.");
             DumpPieceGeometry = Config.Bind("Development", "DumpPieceGeometry", "",
                 "Comma-separated prefab names (or *) whose snap points and bounds are written to " +
                 "BepInEx/u5_piece_geometry.json at start-up. Leave empty.");

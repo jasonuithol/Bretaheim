@@ -46,7 +46,11 @@ namespace U5InValheim.WorldGen
                 var kinds = new SortedSet<string>();
                 foreach (var c in t.GetComponentsInChildren<Component>(true)) kinds.Add(c.GetType().Name);
                 int colliders = t.GetComponentsInChildren<Collider>(true).Length, renderers = t.GetComponentsInChildren<Renderer>(true).Length;
-                Plugin.Log.LogInfo($"template {n}: {renderers} renderers, {colliders} colliders, components {string.Join(",", kinds)}");
+                int readable = 0, meshes = 0;
+                foreach (var mf in t.GetComponentsInChildren<MeshFilter>(true))
+                    if (mf.sharedMesh != null) { meshes++; if (mf.sharedMesh.isReadable) readable++; }
+                var piece = ZNetScene.instance?.GetPrefab(n)?.GetComponent<Piece>();
+                Plugin.Log.LogInfo($"template {n} ({piece?.m_name}): {renderers} renderers, {colliders} colliders, {readable}/{meshes} readable meshes, components {string.Join(",", kinds)}");
             }
         }
 
@@ -57,7 +61,7 @@ namespace U5InValheim.WorldGen
             string n = p.Prefab;
             if (n.Contains("door") || n.Contains("gate")) return false;
             return n.Contains("wall") || n.Contains("floor") || n.Contains("roof") || n.Contains("pole") || n.Contains("pillar")
-                   || n.StartsWith("blackmarble_");
+                   || n.Contains("fence") || n.Contains("beam") || n.Contains("arch") || n.StartsWith("blackmarble_");
         }
 
         /// <summary>
@@ -133,6 +137,7 @@ namespace U5InValheim.WorldGen
                 if (template == null) { missing++; continue; }
                 var pos = settlement.Origin + new Vector3(p.X, p.Y, p.Z);
                 var go = Instantiate(template, pos, Quaternion.Euler(0, p.Yaw, 0), transform);
+                if (p.Scaled) go.transform.localScale = new Vector3(p.SX, p.SY, p.SZ);
                 go.SetActive(true);
             }
             if (missing > 0) Plugin.Log.LogWarning($"Structure {loc}/{zone}: {missing} pieces with unknown prefabs");

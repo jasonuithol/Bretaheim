@@ -15,16 +15,20 @@ namespace U5InValheim.Tests
         static JsonElement Load(string name)
             => JsonDocument.Parse(File.ReadAllText(Path.Combine(Env.RepoRoot, "assets/mappings", name))).RootElement;
 
+        static readonly HashSet<string> PrefabKeys = new HashSet<string>
+        {
+            "prefab", "extra", "outfit", "prefab_by_circle", "choices",
+            "floor", "door", "gate", "merlon", "brick", "brick_small", "sill", "arch",
+            "slope", "ocorner", "icorner", "top", "corner", "corner2", "fence", "post", "post_short", "beam",
+        };
+
         /// <summary>Every string property called prefab / base / extra / outfit / alt.prefab in the document.</summary>
         static IEnumerable<string> PrefabNames(JsonElement e)
         {
             if (e.ValueKind == JsonValueKind.Object)
                 foreach (var p in e.EnumerateObject())
                 {
-                    bool named = p.Name == "prefab" || p.Name == "extra" || p.Name == "outfit" || p.Name == "prefab_by_circle"
-                                 || p.Name == "wall" || p.Name == "floor_small" || p.Name == "wall_stub" || p.Name == "wall_half" || p.Name == "floor" || p.Name == "roof"
-                                 || p.Name == "roof_top" || p.Name == "gable" || p.Name == "door" || p.Name == "pole" || p.Name == "merlon"
-                                 || (p.Name == "base" && p.Value.ValueKind == JsonValueKind.String);
+                    bool named = PrefabKeys.Contains(p.Name) || (p.Name == "base" && p.Value.ValueKind == JsonValueKind.String);
                     if (named && p.Value.ValueKind == JsonValueKind.String) yield return p.Value.GetString();
                     else if (named && p.Value.ValueKind == JsonValueKind.Array)
                         foreach (var x in p.Value.EnumerateArray()) yield return x.GetString();

@@ -30,6 +30,8 @@ namespace U5InValheim.WorldGen
         public const string FixedKey = "u5_fixed";
         public const string ClimbKey = "u5_climb";
         public const string ClimbVerbKey = "u5_climb_verb";
+        public const string ScaleKey = "u5_scale";
+        public const string LockKey = "u5_lock";
 
         public static List<Built> All { get; private set; } = new List<Built>();
         static Dictionary<Vector2s, List<(Built settlement, Placement piece)>> byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
@@ -57,7 +59,8 @@ namespace U5InValheim.WorldGen
             All = new List<Built>();
             byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
             shells = new Dictionary<(int, Vector2s), List<Placement>>();
-            var combined = new HashSet<int>(Plugin.CombinedShells.Value.Split(',')
+            bool combineAll = Plugin.CombinedShells.Value.Trim() == "*";
+            var combined = combineAll ? new HashSet<int>() : new HashSet<int>(Plugin.CombinedShells.Value.Split(',')
                 .Select(t => t.Trim()).Where(t => t.Length > 0).Select(int.Parse));
             var wanted = new HashSet<int>(Plugin.BuildSettlements.Value.Split(',')
                 .Select(t => t.Trim()).Where(t => t.Length > 0).Select(int.Parse));
@@ -85,7 +88,7 @@ namespace U5InValheim.WorldGen
                 foreach (var piece in plan.Pieces)
                 {
                     var zone = ZoneSystem.GetZone(built.Origin + new Vector3(piece.X, 0, piece.Z));
-                    if (combined.Contains(loc.Number) && Structures.IsShell(piece))
+                    if ((combineAll || combined.Contains(loc.Number)) && Structures.IsShell(piece))
                     {
                         if (!shells.TryGetValue((loc.Number, zone), out var shell))
                         {
@@ -160,6 +163,8 @@ namespace U5InValheim.WorldGen
                 var pos = structure ? new Vector3(zonePos.x, b.Origin.y, zonePos.z) : b.Origin + new Vector3(p.X, p.Y, p.Z);
                 if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
                 var go = UnityEngine.Object.Instantiate(prefab, pos, Quaternion.Euler(0, p.Yaw, 0));
+                var scale = p.Scaled ? new Vector3(p.SX, p.SY, p.SZ) : Vector3.zero;
+                if (p.Scaled) go.transform.localScale = scale;
                 var zdo = go.GetComponent<ZNetView>()?.GetZDO();
                 if (zdo != null && structure)
                 {
@@ -170,6 +175,8 @@ namespace U5InValheim.WorldGen
                 else if (zdo != null)
                 {
                     zdo.Set(FixedKey, true);
+                    if (p.Scaled) zdo.Set(ScaleKey, scale);
+                    if (p.Lock != null) zdo.Set(LockKey, p.Lock);
                     if (p.Text != null) zdo.Set(ZDOVars.s_text, p.Text);
                     if (p.Items != null) zdo.Set(ZDOVars.s_items, ContainerBytes(p.Items));
                     if (p.Climb)
