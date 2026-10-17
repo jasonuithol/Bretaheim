@@ -122,6 +122,26 @@ namespace U5InValheim.Tests
             if (location == 2) Assert.True(upper[0].Count(ch => ch == 'o') < 400);
         }
 
+        [U5Fact]
+        public void WallWalksBetweenParapetsAreOpenToTheSky()
+        {
+            // CASTLE.DAT: floor 2's wall-walks (0x45, black marble) run between parapets; nothing
+            // may be built over them (they once got a doorway lintel a storey up)
+            var loc = Env.Data.Location(17);
+            var raw = Env.Data.Maps.Floor(loc, 2);
+            var p = Plan(17, "castle");
+            int walks = 0;
+            for (int c = 0; c < 32 * 32; c++)
+            {
+                if (raw[c] != 0x45) continue;
+                walks++;
+                float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
+                Assert.DoesNotContain(p.Pieces, pc => pc.Y > 2 * p.Storey + 0.5f && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f
+                                                      && !pc.Prefab.StartsWith("piece_grausten"));
+            }
+            Assert.True(walks > 100, $"{walks} wall-walk tiles");
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {

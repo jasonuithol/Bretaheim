@@ -577,6 +577,18 @@ namespace U5InValheim.WorldGen.Core
             return (lv.Built[c] && lv.Rule[c].Kind != TileKind.Battlement) || lv.Doorway[c];
         }
 
+        /// <summary>
+        /// A doorway between storey-high walls (not parapets: a wall-walk between two parapets is
+        /// open to the sky and gets no lintel).
+        /// </summary>
+        static bool TallFlanks(Level lv, int c)
+        {
+            bool Tall(int n) => lv.Built[n] && lv.Rule[n].Kind != TileKind.Battlement;
+            int x = c % N;
+            bool ew = x > 0 && x < N - 1 && lv.Barrier[c - 1] && lv.Barrier[c + 1];
+            return ew ? Tall(c - 1) && Tall(c + 1) : Tall(c - N) && Tall(c + N);
+        }
+
         /// <summary>A wall tile runs east–west when it continues that way (or nowhere north–south).</summary>
         static bool AlongX(Level lv, int c)
         {
@@ -607,7 +619,7 @@ namespace U5InValheim.WorldGen.Core
             {
                 bool Brick(int c)
                 {
-                    if (lv.Doorway[c]) return course == lintel;
+                    if (lv.Doorway[c]) return course == lintel && TallFlanks(lv, c);
                     if (!lv.Built[c]) return false;
                     var r = lv.Rule[c];
                     if (r.Kind == TileKind.Wall) return r.Build == WallBuild.Brick;
