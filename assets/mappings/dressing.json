@@ -1,0 +1,30 @@
+{
+  "_doc": "Edge dressing: plants and rocks scattered along coasts, river banks and paths when a zone is generated (deterministic per position). Each rule: edge (coast | river | path), from/to metres from the edge (coast: from the back of the beach sand, negative = on the sand; river: from the water's edge; path: from the path's edge), chance per 3 m x 3 m cell, min_height/max_height above the water, and prefabs per Valheim biome ('*' = any biome not listed). Settlements are left alone.",
+  "rules": [
+    {"name": "beach rocks", "edge": "coast", "from": -35, "to": 0, "chance": 0.004, "min_height": 0.0, "prefabs": {"*": ["rock4_coast", "Rock_3"]}},
+    {"name": "beach flint", "edge": "coast", "from": -35, "to": 0, "chance": 0.006, "min_height": 0.0, "prefabs": {"*": ["Pickable_Flint"]}},
+    {"name": "dune bushes", "edge": "coast", "from": 0, "to": 14, "chance": 0.07, "min_height": 0.3, "prefabs": {
+      "Meadows": ["Bush01", "Bush01", "shrub_2", "shrub_2", "RaspberryBush"], "BlackForest": ["Bush01", "shrub_2", "Bush02_en", "BlueberryBush"],
+      "Swamp": ["shrub_2", "Bush02_en"], "Plains": ["shrub_2_heath", "Bush01_heath", "CloudberryBush"], "Mountain": ["shrub_2_heath"], "AshLands": ["AshlandsBush1", "AshlandsBush2"]}},
+    {"name": "dune rocks", "edge": "coast", "from": 0, "to": 25, "chance": 0.012, "min_height": 0.3, "prefabs": {
+      "*": ["Rock_7", "Rock_3"], "BlackForest": ["rock4_forest", "Rock_3"], "Plains": ["Rock_4_plains", "rock4_heath"], "Mountain": ["rock3_mountain", "rock1_mountain"], "Mistlands": ["rock_mistlands1"]}},
+    {"name": "coast trees", "edge": "coast", "from": 10, "to": 45, "chance": 0.035, "min_height": 0.6, "prefabs": {
+      "Meadows": ["Beech1", "Beech1", "Oak1", "Birch1"], "BlackForest": ["FirTree", "FirTree", "Pinetree_01", "Birch1"], "Swamp": ["SwampTree2"],
+      "Plains": ["Birch1", "Birch2"], "Mountain": ["FirTree_small"]}},
+    {"name": "river bushes", "edge": "river", "from": 3, "to": 14, "chance": 0.09, "min_height": 0.3, "prefabs": {
+      "Meadows": ["Bush01", "Bush01", "shrub_2", "shrub_2", "RaspberryBush"], "BlackForest": ["Bush01", "shrub_2", "Bush02_en", "BlueberryBush"],
+      "Swamp": ["shrub_2", "Bush02_en"], "Plains": ["shrub_2_heath", "Bush01_heath", "CloudberryBush"], "Mountain": ["shrub_2_heath"], "AshLands": ["AshlandsBush1", "AshlandsBush2"]}},
+    {"name": "river rocks", "edge": "river", "from": 0, "to": 8, "chance": 0.015, "min_height": 0.0, "prefabs": {
+      "*": ["Rock_7", "Rock_3"], "BlackForest": ["rock4_forest", "Rock_3"], "Plains": ["Rock_4_plains", "rock4_heath"], "Mountain": ["rock3_mountain", "rock1_mountain"], "Mistlands": ["rock_mistlands1"]}},
+    {"name": "river trees", "edge": "river", "from": 12, "to": 38, "chance": 0.035, "min_height": 0.6, "prefabs": {
+      "Meadows": ["Beech1", "Oak1", "Birch1"], "BlackForest": ["FirTree", "Pinetree_01", "Birch1"], "Swamp": ["SwampTree2"],
+      "Plains": ["Birch1", "Birch2"], "Mountain": ["FirTree_small"]}},
+    {"name": "path bushes", "edge": "path", "from": 1.5, "to": 6, "chance": 0.03, "min_height": 0.3, "prefabs": {
+      "Meadows": ["Bush01", "shrub_2", "RaspberryBush"], "BlackForest": ["Bush01", "shrub_2", "BlueberryBush"], "Swamp": ["shrub_2"],
+      "Plains": ["shrub_2_heath", "Bush01_heath"], "Mountain": ["shrub_2_heath"], "AshLands": ["AshlandsBush1"]}},
+    {"name": "path rocks", "edge": "path", "from": 1, "to": 6, "chance": 0.012, "min_height": 0.3, "prefabs": {
+      "*": ["Rock_7", "Rock_3"], "BlackForest": ["rock4_forest", "Rock_3"], "Plains": ["Rock_4_plains", "rock4_heath"], "Mountain": ["rock3_mountain"], "Mistlands": ["rock_mistlands1"]}},
+    {"name": "path trees", "edge": "path", "from": 4, "to": 10, "chance": 0.012, "min_height": 0.6, "prefabs": {
+      "Meadows": ["Beech1", "Oak1", "Birch1"], "BlackForest": ["FirTree", "Pinetree_01"], "Plains": ["Birch1", "Birch2"], "Mountain": ["FirTree_small"]}}
+  ]
+}

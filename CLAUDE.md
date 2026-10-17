@@ -18,7 +18,7 @@ Ultima V rebuilt inside Valheim (BepInEx + Jötunn). `MASTER_PLAN.md` is the bac
 - A world is Britannia iff its seed name starts with "Britannia" (synced to clients by vanilla);
   `NewWorldsAreBritannia` makes World.GenerateSeed return such seeds.
 - Town plans: `dotnet run --project tools/U5Dump -- town <loc> floors` prints each storey (# wall, + opening, o inside/walked, ~ water); `town <loc> probe <z> <x> <y>` explains one tile; `town <loc> out.json` + `tools/render_town.py` renders it.
-- Offline terrain preview: `dotnet run --project tools/U5Dump -- preview out.ppm [px] [extraTiles]`; `slopes [step]` prints slope percentiles per terrain class.
+- Offline terrain preview: `dotnet run --project tools/U5Dump -- preview out.ppm [px] [extraTiles]`; `slopes [step]` prints slope percentiles per terrain class; `dressing` counts the edge plants and rocks (`dressing.json`).
 - `tools/data/valheim_prefabs.txt` prefab inventory (`tools/extract_prefabs.sh` after Valheim updates).
 
 ## Build / test / ship

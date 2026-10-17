@@ -32,6 +32,24 @@ if (argv.Count > 0 && argv[0] == "preview")
     Console.WriteLine($"wrote {outPath}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "dressing")
+{
+    // dressing: how many of each prefab dressing.json scatters over the whole overworld
+    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    var d = U5InValheim.WorldGen.Core.Dressing.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "dressing.json")));
+    var counts = new System.Collections.Generic.Dictionary<string, int>();
+    int cells = (int)(shape.WrapMetres / U5InValheim.WorldGen.Core.Dressing.Cell) / 2;
+    for (int cz = -cells; cz < cells; cz++)
+    for (int cx = -cells; cx < cells; cx++)
+    {
+        var name = d.Pick(shape, cx, cz, out _, out _, out _, out _);
+        if (name != null) counts[name] = counts.TryGetValue(name, out int n) ? n + 1 : 1;
+    }
+    foreach (var (name, n) in counts.OrderByDescending(kv => kv.Value)) Console.WriteLine($"{name,-20} {n,7}");
+    Console.WriteLine($"total {counts.Values.Sum()} over {shape.WrapMetres / 1000:0.0} km square");
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "slopes")
 {
     // slopes [step=4]: slope angle percentiles per terrain class over the whole overworld

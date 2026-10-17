@@ -27,7 +27,7 @@ static class Preview
         for (int x = 0; x < px; x++)
         {
             int i = y * px + x;
-            var (r, g, bl) = dirt[i] && h[i] >= 0 ? (140f, 100f, 60f) : Colour(b[i], h[i]);
+            var (r, g, bl) = dirt[i] && h[i] >= 0 ? (140f, 100f, 60f) : h[i] >= 0 && h[i] <= 0.2f ? (225f, 210f, 160f) : Colour(b[i], h[i]);
             float dx = h[y * px + Math.Min(px - 1, x + 1)] - h[i];
             float dy = h[Math.Min(px - 1, y + 1) * px + x] - h[i];
             float shade = h[i] < 0 ? 1f : Math.Clamp(1f + (-dx - dy) / step * 0.9f, 0.45f, 1.35f);

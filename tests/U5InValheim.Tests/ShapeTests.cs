@@ -133,6 +133,48 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void BeachesAreSand()
+        {
+            // Valheim's terrain shader draws sand within ~0.15 m of the water: low beaches sit there
+            var s = shape.Value;
+            int beach = 0, sand = 0;
+            for (float z = -4000; z < 4000; z += 6)
+            for (float x = -4000; x < 4000; x += 6)
+            {
+                float coast = s.CoastDistance(x, z, out float width);
+                if (coast < 2 || coast > width - 2) continue;
+                float h = s.Height(x, z);
+                if (h > 3) continue; // rocky shores
+                beach++;
+                if (h <= 0.2f) sand++;
+            }
+            Assert.True(beach > 1000, $"{beach} beach samples");
+            Assert.True(sand > beach * 0.8, $"{sand} of {beach} beach samples are low enough for sand");
+        }
+
+        [U5Fact]
+        public void EdgesAreDressed()
+        {
+            var s = shape.Value;
+            var d = Dressing.Parse(File.ReadAllText(Path.Combine(Env.RepoRoot, "assets/mappings/dressing.json")));
+            var byRule = new System.Collections.Generic.Dictionary<string, int>();
+            int picks = 0;
+            for (int cz = -600; cz < 600; cz++)
+            for (int cx = -600; cx < 600; cx++)
+            {
+                var name = d.Pick(s, cx, cz, out float x, out float z, out float h, out _);
+                if (name == null) continue;
+                picks++;
+                Assert.True(s.PathDistance(x, z) > BritanniaShape.PathWidth / 2, $"{name} on a path at ({x}, {z})");
+                Assert.True(h >= 0, $"{name} under water at ({x}, {z})");
+                byRule[name] = byRule.TryGetValue(name, out int n) ? n + 1 : 1;
+            }
+            Assert.True(picks > 1000, $"{picks} pieces of dressing in the middle of the map");
+            foreach (var expected in new[] { "rock4_coast", "Bush01", "Beech1", "shrub_2" })
+                Assert.True(byRule.ContainsKey(expected), $"no {expected}: {string.Join(", ", byRule.Select(kv => kv.Key + " " + kv.Value))}");
+        }
+
+        [U5Fact]
         public void PathsAreANarrowDirtTrack()
         {
             var s = shape.Value; var m = Env.Data.Britannia; var t = terrain.Value;

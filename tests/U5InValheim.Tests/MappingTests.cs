@@ -20,7 +20,16 @@ namespace U5InValheim.Tests
             "prefab", "extra", "outfit", "prefab_by_circle", "choices",
             "floor", "door", "gate", "merlon", "brick", "brick_small", "sill", "arch",
             "slope", "ocorner", "icorner", "top", "corner", "corner2", "fence", "post", "post_short", "beam",
+            "banners", "trophies", "trophy_stand", "prefabs",
         };
+
+        /// <summary>Every string anywhere inside a named value (prefab lists keyed by biome …).</summary>
+        static IEnumerable<string> Strings(JsonElement e)
+        {
+            if (e.ValueKind == JsonValueKind.String) yield return e.GetString();
+            else if (e.ValueKind == JsonValueKind.Array) foreach (var x in e.EnumerateArray()) foreach (var s in Strings(x)) yield return s;
+            else if (e.ValueKind == JsonValueKind.Object) foreach (var p in e.EnumerateObject()) foreach (var s in Strings(p.Value)) yield return s;
+        }
 
         /// <summary>Every string property called prefab / base / extra / outfit / alt.prefab in the document.</summary>
         static IEnumerable<string> PrefabNames(JsonElement e)
@@ -29,9 +38,8 @@ namespace U5InValheim.Tests
                 foreach (var p in e.EnumerateObject())
                 {
                     bool named = PrefabKeys.Contains(p.Name) || (p.Name == "base" && p.Value.ValueKind == JsonValueKind.String);
-                    if (named && p.Value.ValueKind == JsonValueKind.String) yield return p.Value.GetString();
-                    else if (named && p.Value.ValueKind == JsonValueKind.Array)
-                        foreach (var x in p.Value.EnumerateArray()) yield return x.GetString();
+                    if (named && p.Value.ValueKind != JsonValueKind.Object) foreach (var x in Strings(p.Value)) yield return x;
+                    else if (named && p.Name == "prefabs") foreach (var x in Strings(p.Value)) yield return x;
                     else foreach (var n in PrefabNames(p.Value)) yield return n;
                 }
             else if (e.ValueKind == JsonValueKind.Array)
@@ -47,6 +55,7 @@ namespace U5InValheim.Tests
         [InlineData("items.json")]
         [InlineData("npcs.json")]
         [InlineData("town_tiles.json")]
+        [InlineData("dressing.json")]
         public void EveryPrefabExists(string file)
         {
             var missing = PrefabNames(Load(file)).Where(n => n != null && !IsPlaceholder(n) && !Prefabs.Contains(n)).ToList();

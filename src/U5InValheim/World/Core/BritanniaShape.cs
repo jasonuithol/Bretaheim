@@ -181,7 +181,16 @@ namespace U5InValheim.WorldGen.Core
         /// On a dirt path: within PathWidth/2 of the smoothed path lines (tile coordinates), which
         /// wobble a little so they aren't ruled.
         /// </summary>
-        bool OnPath(double u, double v)
+        bool OnPath(double u, double v) => PathDistanceTiles(u, v) < PathWidth / 2 / TileMetres;
+
+        /// <summary>Metres from a world position to the nearest path's centre line (∞ when none passes near).</summary>
+        public float PathDistance(float wx, float wz)
+        {
+            ToTile(wx, wz, out double u, out double v);
+            return (float)(PathDistanceTiles(u, v) * TileMetres);
+        }
+
+        double PathDistanceTiles(double u, double v)
         {
             double mu = u / MapTiles, mv = v / MapTiles;
             double wobble = 2.0 / TileMetres;
@@ -189,9 +198,9 @@ namespace U5InValheim.WorldGen.Core
             v += wobble * PeriodicFbm(mu, mv, 64, 2, 909) * 2;
             int tx = (int)Math.Floor(u), ty = (int)Math.Floor(v);
             var bucket = pathBuckets[Wrap(ty) * MapTiles + Wrap(tx)];
-            if (bucket == null) return false;
+            if (bucket == null) return double.PositiveInfinity;
             // segments are stored near their own copy of the map; bring the point next to them
-            double r = PathWidth / 2 / TileMetres;
+            double best = double.PositiveInfinity;
             foreach (int k in bucket)
             {
                 var (ax, ay, bx, by) = pathSegments[k];
@@ -199,9 +208,9 @@ namespace U5InValheim.WorldGen.Core
                 double ex = bx - ax, ey = by - ay, len2 = ex * ex + ey * ey;
                 double t = len2 > 0 ? Math.Max(0, Math.Min(1, ((pu - ax) * ex + (pv - ay) * ey) / len2)) : 0;
                 double dx = pu - (ax + ex * t), dy = pv - (ay + ey * t);
-                if (dx * dx + dy * dy < r * r) return true;
+                best = Math.Min(best, dx * dx + dy * dy);
             }
-            return false;
+            return Math.Sqrt(best);
         }
 
         /// <summary>
@@ -290,7 +299,7 @@ namespace U5InValheim.WorldGen.Core
                 sm.Add(pts[pts.Count - 1]);
                 pts = sm;
             }
-            double pad = PathWidth / 2 / TileMetres + 2.0 / TileMetres * 1.5;
+            double pad = 12.0 / TileMetres; // PathDistance is answered up to ~12 m away (path edges are dressed)
             for (int i = 0; i < Math.Max(1, pts.Count - 1); i++)
             {
                 var (ax, ay) = pts[i]; var (bx, by) = pts[Math.Min(i + 1, pts.Count - 1)];
@@ -327,34 +336,42 @@ namespace U5InValheim.WorldGen.Core
             if (s >= 0.5f)
             {
                 // the seabed shelves gently out from the beach (about 7°) before the open sea
-                h = Math.Min(-0.4, Math.Max(h, -0.4 - 0.12 * coast));
+                h = Math.Min(-0.15, Math.Max(h, -0.15 - 0.12 * coast));
             }
             else
             {
                 h = Math.Max(h, 0.8);
                 h += 0.6 * PeriodicFbm(mu, mv, 256, 2, 202);
-                // beaches on low coasts: a flat strip half a metre to a metre and a half above the
-                // water for 10-15 m, then the ground rises back to its own height by about 60 m
-                // inland; high ground (mountain lakes, sea cliffs) keeps its rocky shore
-                if (coast < 60)
+                // Beaches on low coasts. Valheim's terrain shader draws sand only within ~0.15 m of
+                // the water level (on flat ground), so the beach is a flat sand strip that wide
+                // above the sea, 8-35 m deep (broad sand flats in places), then low dunes and a
+                // rise back to the natural ground; high ground (mountain lakes, sea cliffs) keeps
+                // its rocky shore.
+                double beach = BeachWidth(mu, mv);
+                if (coast < beach + 60)
                 {
-                    double ceiling = 0.5 + 0.06 * coast + 0.007 * Math.Max(0, coast - 10) * Math.Max(0, coast - 10);
-                    double w = (1 - SmoothStep((coast - 35) / 25)) * (1 - SmoothStep((h - 5) / 10));
+                    double t = coast - beach, ceiling;
+                    if (t < 0) ceiling = SandHeight + 0.05 * PeriodicFbm(mu, mv, 512, 1, 1201);
+                    else ceiling = SandHeight + 0.05 * t + 0.006 * t * t + 1.5 * Ridges(mu, mv, 1101) * SmoothStep(t / 6) * (1 - SmoothStep((t - 20) / 15));
+                    double w = (1 - SmoothStep((t - 35) / 25)) * (1 - SmoothStep((h - 5) / 10));
                     h = Lerp(h, Math.Min(h, ceiling), w);
                 }
-                // Every river has gentle banks: within about 40 m the ground eases down to half a
-                // metre above the water, then the bed shelves into a channel at least 2.8 m deep
-                // (boats need ~2 m). Rivers widen toward the sea (a wider blur near the mouth).
+                // Every river has gentle banks: a narrow sandy edge at the water, a flat flood
+                // plain about a metre up with low hummocks, then the ground rises back over ~40 m;
+                // the bed shelves into a channel at least 2.8 m deep (boats need ~2 m). Rivers
+                // widen toward the sea (a wider blur near the mouth).
                 r = Math.Max(r, Sample(riverWide, gx, gy) * 1.6f);
                 double rb = Sample(riverBank, gx, gy);
                 if (rb > 0.05)
                 {
-                    double ceiling = 0.5 + 12 * Math.Max(0, (0.42 - rb) / 0.37);
+                    double q = Math.Max(0, Math.Min(1, (0.42 - rb) / 0.37)); // 0 at the water's edge, 1 ~40 m back
+                    double ceiling = SandHeight + 0.9 * SmoothStep((q - 0.06) / 0.08) + 11 * SmoothStep((q - 0.45) / 0.55)
+                                     + 0.7 * Ridges(mu, mv, 1301) * SmoothStep((q - 0.15) / 0.1) * (1 - SmoothStep((q - 0.5) / 0.2));
                     h = Lerp(h, Math.Min(h, ceiling), SmoothStep((rb - 0.05) / 0.2));
                 }
                 if (r > 0.3f)
                 {
-                    double bed = Lerp(0.5, -2.8 - Math.Max(0, r - 0.75) * 2.0, SmoothStep((r - 0.3) / 0.45));
+                    double bed = Lerp(SandHeight, -2.8 - Math.Max(0, r - 0.75) * 2.0, SmoothStep((r - 0.3) / 0.45));
                     h = Math.Min(h, bed);
                 }
             }
@@ -365,6 +382,36 @@ namespace U5InValheim.WorldGen.Core
                 h = Lerp(h, DeepOcean, t);
             }
             return (float)h;
+        }
+
+        /// <summary>Height of beach sand above the water (the terrain shader's sand band is ~0.1-0.3 m).</summary>
+        public const double SandHeight = 0.1;
+
+        /// <summary>Metres of flat sand behind the waterline: 8-35 m, varying along the coast.</summary>
+        double BeachWidth(double mu, double mv) => 8 + 27 * SmoothStep(PeriodicFbm(mu, mv, 48, 2, 1001) * 1.6 + 0.5);
+
+        /// <summary>Ridged noise 0..1 at ~20 m: dunes and hummocks.</summary>
+        double Ridges(double mu, double mv, int salt) => Math.Max(0, 1 - Math.Abs(PeriodicFbm(mu, mv, 384, 2, salt) * 2.2));
+
+        /// <summary>Metres inland from the coast (0 at sea), and how deep the beach there is.</summary>
+        public float CoastDistance(float wx, float wz, out float beachWidth)
+        {
+            ToTile(wx, wz, out double u, out double v);
+            double gx = u * SamplesPerTile - 0.5, gy = v * SamplesPerTile - 0.5;
+            beachWidth = (float)BeachWidth(u / MapTiles, v / MapTiles);
+            return Sample(sea, gx, gy) >= 0.5f || OutsideTiles(u, v) > 0 ? 0 : Sample(coastDist, gx, gy);
+        }
+
+        /// <summary>Approximate metres from a river's water's edge (0 in the water, ∞ more than ~40 m away).</summary>
+        public float RiverDistance(float wx, float wz)
+        {
+            ToTile(wx, wz, out double u, out double v);
+            if (OutsideTiles(u, v) > 0) return float.PositiveInfinity;
+            double gx = u * SamplesPerTile - 0.5, gy = v * SamplesPerTile - 0.5;
+            if (Sample(sea, gx, gy) >= 0.3f) return float.PositiveInfinity;
+            double rb = Sample(riverBank, gx, gy);
+            if (rb <= 0.05) return float.PositiveInfinity;
+            return (float)(Math.Max(0, (0.42 - rb) / 0.37) * 40);
         }
 
         /// <summary>

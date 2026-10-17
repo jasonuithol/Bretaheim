@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using HarmonyLib;
 using U5InValheim.WorldGen.Core;
@@ -8,21 +9,14 @@ using UnityEngine;
 namespace U5InValheim.WorldGen
 {
     /// <summary>
-    /// Life along Britannia's rivers: water lilies in the shallows (a copy of Valheim's lily
-    /// clutter kept to rivers by the forest factor, which is treeless over the sea) and shrubs and
-    /// the odd berry bush on the banks, spawned with each zone like the settlements.
+    /// Life along Britannia's edges: water lilies in the river shallows (a copy of Valheim's lily
+    /// clutter kept to rivers by the forest factor, which is treeless over the sea), and the bushes,
+    /// rocks and trees of dressing.json along coasts, river banks and paths, spawned with each
+    /// zone like the settlements.
     /// </summary>
     public static class RiverBanks
     {
         const string LilyClutterName = "u5_river_lilies";
-        const float Step = 3f, Density = 0.09f;
-        static readonly Dictionary<VBiome, string[]> Shrubs = new Dictionary<VBiome, string[]>
-        {
-            { VBiome.Meadows, new[] { "Bush01", "Bush01", "shrub_2", "shrub_2", "RaspberryBush" } },
-            { VBiome.BlackForest, new[] { "Bush01", "shrub_2", "Bush02_en", "BlueberryBush" } },
-            { VBiome.Swamp, new[] { "shrub_2", "Bush02_en" } },
-            { VBiome.Plains, new[] { "shrub_2_heath", "Bush01_heath", "CloudberryBush" } },
-        };
 
         public static void Install(Harmony harmony)
         {
@@ -76,28 +70,32 @@ namespace U5InValheim.WorldGen
             if (clutter != null) clutter.m_enabled = Britannia.Active != null;
         }
 
+        static Dressing dressing;
+
+        /// <summary>Dresses the coasts, river banks and paths of a zone being generated (dressing.json).</summary>
         static void PlaceLocations_Postfix(Vector2s zoneID, ZoneSystem.SpawnMode mode, List<GameObject> spawnedObjects)
         {
             var shape = Britannia.Active;
             if (shape == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
+            if (dressing == null)
+            {
+                try { dressing = Dressing.Parse(File.ReadAllText(Path.Combine(Plugin.PluginDirectory, "mappings", "dressing.json"))); }
+                catch (Exception e) { Plugin.Log.LogError($"dressing.json: {e.Message}"); dressing = new Dressing(); }
+            }
             var centre = ZoneSystem.GetZonePos(zoneID);
             float half = ZoneSystem.c_ZoneSize / 2f;
+            float x0 = centre.x - half, z0 = centre.z - half, x1 = centre.x + half, z1 = centre.z + half;
             int spawned = 0;
-            for (float dz = -half; dz < half; dz += Step)
-            for (float dx = -half; dx < half; dx += Step)
+            // a cell belongs to the zone its (jittered) point falls in, so nothing is placed twice
+            for (int cz = Mathf.FloorToInt(z0 / Dressing.Cell) - 1; cz <= Mathf.FloorToInt(z1 / Dressing.Cell); cz++)
+            for (int cx = Mathf.FloorToInt(x0 / Dressing.Cell) - 1; cx <= Mathf.FloorToInt(x1 / Dressing.Cell); cx++)
             {
-                uint h = Hash(Mathf.RoundToInt(centre.x + dx), Mathf.RoundToInt(centre.z + dz));
-                float x = centre.x + dx + (h & 0xff) / 255f * Step, z = centre.z + dz + ((h >> 8) & 0xff) / 255f * Step;
-                float bank = shape.RiverBank(x, z);
-                if (bank <= 0 || ((h >> 16) & 0xffff) / 65535f > bank * Density) continue;
-                if (InSettlement(shape, x, z)) continue;
-                float height = shape.Height(x, z);
-                if (height < 0.3f) continue;
-                if (!Shrubs.TryGetValue(shape.Biome(x, z), out var choices)) continue;
-                var prefab = ZNetScene.instance.GetPrefab(choices[(h >> 3) % (uint)choices.Length]);
+                var name = dressing.Pick(shape, cx, cz, out float x, out float z, out float height, out float yaw);
+                if (name == null || x < x0 || x >= x1 || z < z0 || z >= z1 || InSettlement(shape, x, z)) continue;
+                var prefab = ZNetScene.instance.GetPrefab(name);
                 if (prefab == null) continue;
                 if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
-                var go = UnityEngine.Object.Instantiate(prefab, new Vector3(x, Britannia.SeaLevel + height, z), Quaternion.Euler(0, h % 360, 0));
+                var go = UnityEngine.Object.Instantiate(prefab, new Vector3(x, Britannia.SeaLevel + height, z), Quaternion.Euler(0, yaw, 0));
                 if (mode == ZoneSystem.SpawnMode.Ghost)
                 {
                     spawnedObjects.Add(go);
@@ -105,7 +103,7 @@ namespace U5InValheim.WorldGen
                 }
                 spawned++;
             }
-            if (spawned > 0) Plugin.Log.LogDebug($"Zone {zoneID}: {spawned} river bank shrubs");
+            if (spawned > 0) Plugin.Log.LogDebug($"Zone {zoneID}: {spawned} edge plants and rocks");
         }
 
         static bool InSettlement(BritanniaShape shape, float x, float z)
@@ -113,16 +111,6 @@ namespace U5InValheim.WorldGen
             foreach (var site in shape.Sites)
                 if (Math.Max(Math.Abs(x - site.CentreX), Math.Abs(z - site.CentreZ)) < site.Half + site.Blend) return true;
             return false;
-        }
-
-        static uint Hash(int x, int z)
-        {
-            unchecked
-            {
-                uint h = (uint)(x * 73856093 ^ z * 19349663 ^ 0x5bd1e995);
-                h = (h ^ (h >> 13)) * 1274126177u;
-                return h ^ (h >> 16);
-            }
         }
     }
 }
