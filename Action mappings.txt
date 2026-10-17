@@ -38,7 +38,11 @@ Valheim already has a complete torch crafting and weilding system.  It's fine.
 
 [Jimmy lock]
 
-As sad as this makes me: there a no locked doors or chests in this particular game.
+A normally locked door will have an interaction prompt to Jimmy the door IF you possess a normal skeleton key.  Otherwise it'll just say "Locked - no keys !"
+
+In Ultima - this doesn't apply to magically locked doors, which require that you "Use" a skull key and then pick a direction.
+
+BUT we're going to change it up - a magically locked door will prompt for interaction to "Use Skull Key" IF you possess one.  Otherwise just says "Magically sealed."
 
 [klimb up/down]
 
@@ -116,6 +120,8 @@ Using a:
     gem          => See "view gem" below
 
     grapple      => equips the grapple.  See "Klimb" for more details.
+
+    skull key    => see "Jimmy" for how skull keys are handled.
 
 [View Gem]
 

@@ -1,0 +1,397 @@
+[The Problem]
+
+UltimaV has TWO scales for tiles - Overworld, and Town/City.  In either case, each tile is the same visual and world size - 1 tile.
+
+The player uses their imagination to rescale everything appropriately IN THEIR HEAD.
+
+
+For biome tiles, this can make perfect sense. But we also have a bridge being the same size as a keep, or a signpost, or a cactus, or dungeon entrance.
+
+These overworld tiles are often overly simplistic representations of whats really there.  So let's ignore them.
+
+The "town/city" tiles - these are much more meant to represent the actual detailed architecture and furniture of a place - and are much closer to the "real" scale that an individual player navigates.
+
+Same problem though e.g. a wall mounted torch is the same size as a wardrobe, a staircase, a lamppost, a harpsicord etc etc
+
+However in Valheim, a 3D game, all assets have a variety of sizes and there IS no rescaling - scale is expected to be 1:1.
+
+
+(also note some tiles exist in both scales, e.g. the biome tiles, bridges, rivers - they represent the same concepts, but at very different scales, when that happens.)
+
+[A Note On Elevation]
+
+Just because there's a maximum elevation height, doesn't mean we have to use it. I have noticed that mountains and peaks tend to just shoot straight up.  a SLIGHTLY more managed ascent to the heavens would look better and let's not feel we have to reach ALL the way to the maximum height.
+
+The existence of waterfalls implies the existence of discontinuties in the height of a bit of land that water is travelling over.  So if you need to place cliffs anywhere (a cliff being said discontinuty), try using the location of these waterfalls (tiles 212 - 215) as a guideline.
+
+[Solution A] (recommended)
+
+We create a standard scale mapping for ultima overworld scale tiles: 1 tile -> 32m x 32m x 3m
+
+Most towns and cities are 31x31 so this actually a great scale mapping.  obviously when mapping a "representative" tile like a town icon, we don't use 32x32x3 metres to make a singular icon - we delve into the plan of the actual town and render it at a different scale.
+
+And obviously that scale WOULD be 1m x 1m x 3m.  This turns out to be awful.  Make it 2m x 2m x 3m instead.  This means that when placing a town somewhere, it will likely spill over into other "tiles" in the overworld.  Not a big deal, we are big boys and can shuffle things around to make it all fit.
+
+PRO: A true 1:1 mapping from the Ultima files to the Valheim world can now be made.  This would be almost effortless.
+
+CON: Everything needs be squeezed into a 2m x 2m x 3m shape.  Getting that right could take a bit of work - and worse - it's going to look like Minecraft.
+
+If using this solution, see "Tile Mappings" section below
+
+
+[Solution B]
+
+We describe each town's layout and content and furniture, and then make Valheim appropriate buildings from those descriptions.
+
+PRO: Should look a lot more "Valheimy" and everything can have their natural Valheim dimension.
+
+CON: Will not exactly resemble the original towns.  In some rare cases this might break quests -> we can deal with that on a case-by-case basis I reckon.  Will be relying very heavily on AI to create complex 3D assets !!!  This will use a vast amount of tokens.
+
+
+[Solution C]
+
+The AI can place the foundation of each town down into the world. The human developer then builds each town using valheims in-game construction system.
+
+PRO: Each town can be built exactly how the human likes it.  No tokens will be harmed, and if a random rule needs to be broken to add flair or whatever, lo, it can be done.  Issues will be fixed on the fly.
+
+CON: This will take ages and suck all the fun out of "discovering" a new place, because it won't be new will it ?  You'll know every nook and cranny cause YOU BUILT IT. Only applies to the human that built everything.  All other players can still enjoy it - months down the track of course.
+
+
+[Tile Mappings - Overworld]
+
+For Solution A this is a 1:1 mapping table.  For Solution B, a guideline.
+
+The numeric index at the start of each line is the index into the TILES.16 table.  Also the data value found in files line TOWNE.DAT
+
+- Biome tiles:
+
+ 1: Rough Ocean  => True Ocean biome
+ 2: Calm Ocean   => Ocean inside another biome
+ 3: Shallows     => Walkable Beach
+ 4: Swamp        => The swamp !
+ 5: Grasslands   => The Plains !
+ 6: Meadows      => Open meadows
+ 7: Desert       => Ashlands !
+ 8: Scrub        => Meadows with thick tree cover
+ 9: Forest       => Black forest (light)
+10: Dense Forest => Black forest (heavy)
+11: Foothills    => Black forest (treeless and lots of boulders variant)
+12: Mountain     => The Mountains !
+13: Peak         => The Mistlands !
+14, 15: Border foothills => Open meadow with lots of boulders.
+
+143: Lava        => Ashlands, but the lava bit.
+
+(skipping a bunch of structures)
+
+28: Desert Mirage => Ashlands.
+30, 31: Border Ashlands => just make it Ashlands
+47: Desert, with cactus => Ashlands again.  Is there some sort of horrible ashlands feature we can put here ?
+221: Desert again ? => This might have some special use.  Otherwise treat like Desert (7)
+
+48, 49, 50, 51: Shoreline, mostly land => Plains, but right at sea level (ish)
+
+The following allow land sea borders that follow NE, NW, SE, SW compass bearings:
+
+52: Land sea border NE1: Sea is on the NW half, sea level hieght plains on the SE half.
+53: Land sea border NW1: Sea is on the NE half, sea level hieght plains on the SW half.
+54: Land sea border NE2: Sea is on the SE half, sea level hieght plains on the NW half.
+55: Land sea border NW2: Sea is on the SW half, sea level hieght plains on the NE half.
+
+- Structure entry points:
+
+Each of these arbitrarily sits on Grasslands (5), or in the handful of cases for dungeon entrances, mountain (12) but this is a convenient visual fiction.
+
+In reality they should sit in the biome of the immediately surrounding squares.  For dungeon entrances, this is probably always going to be mountain anyway.
+
+As for rendering the structures, find their plans in TOWN.DAT, CASTLE.DAT, etc.
+
+16: Tiny hut
+17: Codex entrance
+18: Tower
+19: Village
+20: Town
+21: Castle/Keep
+22: Cave entrance (dungeon)
+23: Mine entrance (dungeon)
+24: Dungeon entrance (dungeon)
+
+223: Sealed dungeon entrance (dungeon)
+
+25: Shrine
+26: broken shrine
+27: lighthouse
+
+57: Blackthornes Castle entrance
+62: Lord British's Castle entrance
+
+- Non-enterable representative structures.
+
+These represent the idea that the structures will take more than 32x32 land area BUT FUN FACT the .DAT files show that EVERY structure is 31m x 31m.  So... these are visual fictions useful in Ultima but now require us to guess the biome in Valheim.
+
+Luckily there's only two structures that use these, so let's just map them explictly:
+
+Lord British's Castle => use Plains
+Blackthorn's Castle   => use Black forest (treeless and lots of boulders variant)
+
+Here are the structure indexes:
+
+58: Generic big-ass castle wall - NORTH WEST
+59: Generic big-ass castle wall - NORTH
+60: Generic big-ass castle wall - NORTH EAST
+61: Generic big-ass castle wall - SOUTH WEST
+63: Generic big-ass castle wall - SOUTH EAST
+
+- In-world objects
+
+These are considered either landscaping, or outdoor structures that are landscaping adjacent.
+
+29: Bridge E-W. Note there are two more bridges (106,107) - not sure why we need this third bridge.....
+
+NOTE: afaik there are no bridge assets in valheim, you have to build one yourself.
+
+The following a dirt empathen style paths. For now just make the biome plains:
+
+32: Dirt Path, North-South.
+33: Dirt Path, East-West.
+34: Dirt Path bend, North-East
+35: Dirt Path bend, South-East
+36: Dirt Path bend, South-West
+37: Dirt Path bend, North-West
+38: Dirt Path Crossroads, connects all four major compass points.
+
+The two guardian statues of the codex.  Whilst there's no "guardian" in Vahleim it could be fun to have two big Valkeries, (a "good" one - the one that drops you off at the start) and an "evil" one - a Fallen Valkerie from the Ashlands) - scaled up to enormous size and rendered in stone.
+
+Guardians are in some sort of rocky biome, but guard a dirt path !  I'd say they are in "Black Forest (treeless, lots of large boulders)"
+
+94: Guardian, facing east
+95: Guardian, facing west
+
+The following are river tiles.  In geology the rule is that near the coast, rivers are wide and flat and the banks have gentle slopse, but near their source in the mountains, are narrow with very steep banks.  Let;s see if we can apply that to the Valheim generation of these rivers.
+
+ALSO Rivers can appear in forests and grasslands and even swamp !  try to match the surrounding biome.
+
+ 96: River N-S
+ 97: River E-W
+ 98: River N-E
+ 99: River S-E
+100: River S-W
+101: River N-W
+102: River T-Junction N-E-S
+103: River T-Junction E-S-W
+104: River T-Junction S-W-N
+105: River T-Junction W-N-E
+
+106: Bridge E-W (crossing river going N-S)
+107: Bridge N-S (crossing river going E-W)
+
+164: Signpost => There's another signpost for indoors, but THIS is the overland signpost.  It needs to be noticable from everywhere in it's 32m x 32m square so it should be in the middle of a clearing.  Let's also vahleim it up and make it one of those standing stones with runes on it that glow in the dark.  It needs to adopt the biome of it's surrounding tiles.
+
+
+[Tile Mappings - Town/City/Castle (i.e. indoors)]
+
+Once we're at the 2m x 2m x 3m style scalings inside a town like Britain, for example, we have different tiles to consider.
+
+NOTE: "Overworld" tiles can still appear in towns, especially biome tiles !  These often need a second mapping attached to make sense in a smaller scale, and especially in a settlement environment.
+
+- Height Zones
+
+There is a ground zone. the top of all floor tiles should be in the same plane. it should roughly match ground-level.
+
+Atop the ground zone is the wall zone.  it extends 3m upwards from the top of the floor zone.  All walls and furniture and loose objects live here.
+
+For multi-story buildings, there is the inter-level zone. Floor pieces go here - the top of every floor piece is in the same plane as the top of the wall zone under it.  Keeps the maths tidy.  Obviously you then add another wall-zone above that inter-level zone.  Keep repeating for every story.
+
+CAUTION: Some multi-story constructions will try to tell you to put stone flooring in the inter-level floors.  This is nigh on impossible.  Use wood instead.
+
+- Roofs
+
+Once we run out of extra floors, we enter the roof zone.  the bottom of the roof zone is also the top of the wall zone.
+
+Cobblestone walled cottages get thatched roofs (wood)
+All other town/village structures get shingled roofs (shingle)
+Castle/keep/tower/lighthouse structures get grausten roofs (grausten)
+
+- Tile Mappings
+
+39, 40: Roof.  It's for multi-story buildings.  You can assume that all buildings have roofs, so technically speaking you should be able to ignore these.
+
+41: Mysterious glass orb on a table => "Round table" (scaled to 2m x 2m x 1m) with a "refined eitr" (scaled 2x size and reshaded blue) in the middle
+
+42: Lighthouse light => Iron Brazier, scaled to 2m x 2m and proportional height.
+
+43: Dead Tree => Ancient tree borrowed from the swamp.
+
+44: cultivated soil.
+45: cultivated soil with barley growing on it.
+
+46: A singular tree.  A small tree from the Plains would fit 2m x 2m x 3m perfectly and should be used when in crowded situations.  Where more room permits, use the largest tree that will fit (but no swamp trees)
+
+68: Stone tile - floor
+69: Black marble tile - floor
+70: Stone column on stone tile.
+71: jetty E-W. oak pylons with a wood deck.
+72, 73: These are often used as drawbridges.  If there's water to the east and west of a line of these, it's a drawbridge.  See if you can't stick a real valheim drawbridge in there.  OTHERWISE: wood flooring, plain and simple.
+
+Our first indoor scale walls.  Let's keep things simple and ensure the walls are THICC (2m x 2m x 3m):
+
+74: stone wall with arrow slit =>  make it out of smaller stone bricks and leave a gap for archers to shoot arrows through. the tile is a-directional, so the gap also needs to be a-directional, like a crossroads.
+
+75: stone wall with window => tiles also a-directional, but windows cannot be.  determine the direction by looking at surrounding tiles.  Then use stone floor 2x2 (atop the regular floor) and
+then attach stone arches to the top of the wall zone - aligned with the direction of the surrounding wall.
+
+76: Big boulder
+
+77: Cobblestone wall.  Make a 2x2x3 wood frame, then fill it with Stone Fence.  Trust me bro.
+
+78: Secret door in Stone wall.  If you hit it, it reveals a door, dark souls style.  the Stone Wall should have a small rune carved in it to be a clue.  Remember to determine the direction of the door by the surrounding tiles, mkay ?
+
+79: Basic Stone Wall:
+
+        NOTE: please try the deluxe version first, then medium, then easy.
+
+        easy version   => stack three 2x2x3 stone floors atop eachother. a busy look.
+
+        medium version => pair off adjacent walls, then use 4m x 2m x 1m walls sandwiched together to make a 4m x 2m x 2m block of stone wall.  If there's a leftover bit of wall, fill it in with the easy version.
+
+        deluxe version => three layers of 2x1x1 stone walls, but each layer is 1m out of phase with the one below it.  Use a 1x1x1 stone wall to fill in the out of phase bits.  Runs of adjacent walls will replace pairs of 1x1x1 stone wall with a 2x1x1, giving that lovely alternating brick look.
+
+135: A stone wall directly above a gate or iron grill.  Probably can be identical to a Basic Stone Wall (79)
+
+Stone parapets.  Consist of a low wall with evenly spaced vertical projections and vertical gaps.
+The low wall can be a 2x1x1 stone wall. Make sure to make the wall flush with the exterior of the building !  verticle projections are just 1x1x1 stone bricks placed in the centre of the low wall.
+
+80: Stone parapet N-S
+81: Stone parapet E-W
+82: Stone parapet corner S-E
+83: Stone parapet corner S-W
+84: Stone parapet corner N-W
+85: Stone parapet corner N-E
+86: Stone parapet (no vertical projections) N-S
+87: Stone parapet (no vertical projections) E-W
+
+[Furniture]
+
+All furniture lives in the wall zone and so must fit in a 2m x 2m x 3m space.
+
+88: Anvil       => There's a few to choose from in Valheim, maybe just randomly pick one each time.
+
+89: Telescope   => We can construct with with a wooden tripod 1m high, then attach a 2m 26 degree oak wood piece to the top of the tripod.  Reshade the oak a really dark stained wood or some such.  Interacting with the telescope will be like using a Spyglass.  Whilst interacting with the telescope, you cannot walk around, but you can look all around the sky like normal.  Walking away will stop the interaction and hence the Spyglass effect.
+
+90: Wall shelf => construct by making a 2x2x3 wooden frame and then just having a wood floor 1m and then another 2m up above the floor.  Place some items on the shelves (non interactable).
+
+91: Potted plant => A fancy vase will do just fine.
+
+92, 93: Bookshelf.  Tough one.  Just make it a Wall Shelf (90).
+
+128, 129, 139: Torture table, empty.  => Put a table on there with an axe and a knife and some chains on it ?
+130, 131: Torture table, with victim on it => Same as Torture table, but also put some poor NPC on there.  Human, or humanoid, doesn't matter.
+
+132: Stocks. Construct with two wooden planks stuck in the ground, then two wooden planks spanning the first two, one horiz, and one at 26 degrees.  Is empty.
+
+133: Shackles.  Now, I think this is technically a floor tile. Make it a stone floor and if you can rustle up some chains to drape all over it, perfect.
+
+134: Floor grate => Easy one, we have an iron floor grate.  Make sure it's in the ground/floor/inter-zone and it's 2x2
+
+136: Pile of cannon balls => Find some sphere shaped object (like refined eitr) and reshade them into iron. Make a pyramid stack of them 4 high.
+
+Some gravestones.  Interacting with the grave stones will show a small eulogic phrase.  Interacting with the ground directly next to it (to the south, by convention) will sometimes dig up a body, or even loot !
+
+137: Paupers grave marker => A wooden cross. construct from wood beams.
+138: Headstone => Use a vegisir stone but remove the glowy red runes.
+
+
+139: Trapdoor => It's a stone floor (68) with no collision.
+
+140: Harpsicord => A Black Forge ? If it can't fit, maybe the Artisan Table.  interacting with it will allow the player to play the harpsicord ! Required for a quest.
+
+141: guilotine => A mead kettle, with a human head inside it, and a battle axe leaning against it.
+
+142: Lava => Pretty sure we have lava in Valheim.
+
+144 - 147: Chair (facing N, E, S, W respectively)
+
+Some Tables. Will often be a row of table tiles, so consolidate adjacent tiles and place large valheim tables there in those cases.  Sometimes you'll need multiple Valheim tables !
+
+148, 149: Empty Table.
+154 - 156: Table with food on it.
+190: table with lighting on it. A few resin candles wouldn't hurt.
+
+Some Doors.  If a door has a viewport, it's a 2x2 door with a 1m gap above it. Otherwise it's a 3x2 door.  If it's magically locked, it needs a blue glow around it.  See "Jimmy" in "Action mappings" for how interaction works.
+
+151: Door - magically locked
+152: Door - magically locked, with viewport.
+153: Iron gate => Use an Iron Gate.  HOWEVER, it is opened and shut by the guards, not us !  Normally closed and locked from 10pm to 6am.  Cannot be unlocked.
+
+184: Door - normal, unlocked
+185: Door - normal, locked.
+186: Door - normal, unlocked, with a viewport
+187: Door - normal, locked, with a viewport
+
+Etc
+
+157 - 159: Standing mirror (shows nothing, shows player, is broken) => This will be fun.  We have crystal glass panels we might be able to do something with ?  The end game quest involves walking through a mirror .. so it'd be good to get this right, and working nicely.
+
+160: "Indoor" Signpost => Construct it from a vertical wood beam and then attach the sign to the top.
+
+161: Wishing Well =>
+
+        Construct from a tight circle of 2x2x1 Stone walls. Atop that circle, place two vertical wood beams, then another horiz wood beam bridging the two verticals at the top.  Draping a rope from that horiz beam would be grand.
+
+        NOTE:It has an interaction prompt to drop a coin (ONLY IF YOU HAVE GOLD COIN).  One of the wells in the game let's you wish for any kind of transport (including cars !) and doing so will cause a horse to magically appear !
+
+162: Horse hitching post.  Just two vertical beams 1m high, bridged by a horiz wood beam 2m long.
+
+163: Stack of firewood (mildly fancy) => Scale down some 2m horiz oak beams to about 1/3 size and pile in a sort of pyramid stack 4 high.
+
+165: Writing Desk => try the Chopping Block.  NOTE: It's searchable
+
+166: Upright barrel => Use the brewing barrel.  Searchable.
+167: Sideways barrel => Use the brewing barrel turned onto it's side.  Not searchable.
+168: Vanity table => Chopping Block with a pane of crystal glass on top ?
+169: giant water jug => A decorative vase ON A SMALL TABLE/STOOL would be perfect.
+170: Carpet, possibly not magic => pick from the many kinds of rugs valheim has.
+171, 172: Bed (head, foot, respectively). Beds take up two adjacent tiles, and so we will align the direction of the valheim bed accordingly.  Cobblestone walled cottages have plain wood beds, everyone else gets the fancy bed.
+173: Dresser => I think there's some sort of cupboard/closet in valheim.
+174: Low table => Use the low wood table in valehim
+175: Footlocker => Use the basic wooden chest.
+
+176, 177: Wall mounted torches (west, east): Bronze wall mounted braziers are perfect fits.
+178: Floor brazier => Iron Brazier is a perfect fit.
+179: campfire =>
+        Outdoor setting: Obviously we have the Campfire AND the Cooking Station that goes on top. So slap those together. Flatten the ground around it a bit.
+
+        Indoor setting: IF you can find the room, an Iron Cooking Station over a Hearth alway looks fantasic.
+180 - 183: Cannon (N, E, S, W) => Balistas are the closest thing we're getting to cannons for now.
+
+188: Fireplace => This is embedded in a stone wall.  Rescale a Stone Hearth to fit that space. Note that this will be completely traversable by a player, since these are often used to hide secret passages.  Do note that smoke mechanics might need to be turned off for these to work.
+
+189: lamppost => a Dvergr Lantern Pole would be perfect.
+
+191: Kettle Stove: A Cauldron with a campfire underneath.  If multiple side by side, then multiple cauldrons over a hearth (ground floor only).  These are always indoors and again we might need to suppress smoke mechanics for this to work.
+
+196-199: Stairs (ascending N,E,S,W respectively) => a real bugger. For Solution A: Replace with stairs.  For Solution B - you're already freeballing the dimensions so try stairs and good luck.
+
+200, 201: Ladder (up, down) => We need to construct these from wood beams, no biggie.
+
+202, 203: Klimable Fence (N-S, E-W respectively) => round pole fences.
+
+216-219: water fountain => Hot tub, retextured to white marble, shrunk to 2x2.  Get rid of the attached stove.  place on top of a black marble colum, wide (also retextured to white marble).  Never needs refuelling and wont prompt for that.  Instead, the interaction prompt is to drink.
+
+222: A flame of virtue => a black marble column, small.  On top of that, a blue flame brazier.
+
+Signage.  Signs in towns can take up multiple tiles.  There'll be multple signpost tiles, and then a singular shop icon representing the guild that the merchant belongs to.
+
+A cool thing to do for this would be to have a banner mounted to a tall post and have the likeness of the icon printed on the banner.  It would blow people's minds.
+
+224: Shopfront signpost bottom.  Part of a multi-ultima-tile signpost for businesses
+225,226: Shopfront signpost top (facing east, west).  It will be facing the icon tile.
+240-249, excluding 248: guild icons.
+
+248: A Stone Wall (79) with a mounted sign.
+
+250,251: Grandfather clock.  Yep I have no idea.  Stick an upright wooden beam with a sign on it that reads the time.  We shall improve this one over time.
+
+252,253: Bellows => Use the Valheim Crafting table upgrade "bellows"
+
+

@@ -6,7 +6,7 @@ schedules with their original conversations, its monsters, items and magic mappe
 systems, and the main story (Shadowlords, shards, Blackthorn, Lord British) playable to the end.
 
 This document is the backbone: what we are building, what we already have, the architecture, the
-phases, and the decisions that must not drift. Everything here builds on five bodies of prior work:
+phases, and the decisions that must not drift. Everything here builds on six bodies of prior work:
 
 | Source | What it gives us |
 |---|---|
@@ -15,6 +15,7 @@ phases, and the decisions that must not drift. Everything here builds on five bo
 | `/media/jason/FABA03B0BA036889/Users/jason/Desktop/Projects/BritanniaUE/` | The UE build of Britain: `scripts/ue_town_layout.py`, `ue_britain_v5.py`, `ue_britain_roofs.py`, `ue_ground*.py`, `ue_path_taxi*.py`, `ue_pois.py`, `ue_scatter.py`, `ue_orchard_*.py`, `ue_inn*.py`: tile → building/wall/roof/path/vegetation placement rules that worked, plus `britannia_build/` (heightmap.png, layers, pois.json, meta.json) and `scum_assets/` (asset inventory). |
 | `~/Projects/U5InValheim/Ultima5 to Valheim asset mappings.txt` | The preferred U5 → Valheim *asset* mapping: humans, monsters, static assets, biomes, armour, shields, weapons, rings/amulets (Valheim trinkets), reagents, mixed spells, potions, scrolls, quest items, transport, character and party status effects. Treated as the default; deviations must be recorded in `docs/MAPPING_DECISIONS.md`. |
 | `~/Projects/U5InValheim/Restrictions and Etc.txt` | Food (barley rations, daily eating, karma for stealing crops, karma as a "skill"), the Valheim tools allowed only around Iolo's hut, the banned Valheim actions, the new-world intro and character generation in Iolo's hut. Summarised in §5.12–5.13; the file is the authority. |
+| `~/Projects/U5InValheim/Constructing world assets.txt` | The scale problem and its resolution (Solution A: 32 m×32 m×3 m overworld tiles, 2 m×2 m×3 m indoor tiles), the elevation guidance, and the authoritative tile-by-tile construction tables for overworld tiles (biomes, structures, paths, rivers, signposts, guardians) and indoor tiles (height zones, roofs, walls, doors, furniture, fixtures). Summarised in §5.1–5.2; the file is the authority. |
 | `~/Projects/U5InValheim/Action mappings.txt` | How each U5 *command* (Attack … Z-stats) is realised in Valheim: which existing mechanic is reused, which key/interaction triggers it, and the custom rules (camping, mixing, climbing, spyglass sky, yelling words of power). Summarised in §5.11; the file is the authority. |
 | `~/Projects/UltimatePyve/docs/` | Older notes: `SPAWN_RULES.md`, `ultima5_npc_porting_notes.md`, NPC/armour spreadsheets. |
 | `~/Projects/Jotunn`, `~/Projects/ValheimKillFeed`, `~/Projects/ClaudeHeim` | Our Valheim modding toolchain and precedents (BepInEx 5 + Harmony, Jötunn lib source, csproj reference layout, Thunderstore publishing rules in `~/.claude/CLAUDE.md`). |
@@ -149,7 +150,21 @@ town populations when their zone loads.
   (the same approach the BetterContinents mod uses — study it for the exact hook set). Height field
   is generated once per world seed from the U5 data (fast: 256² → bilinear + noise), cached in memory.
 - Roads: U5 road tiles → Valheim "dirt empathen"/"rock empathen" paint (TerrainModifier at zone
-  load). Rivers: U5 river tiles → carved channels (height) + water; bridges → wood bridge pieces.
+  load). Rivers: U5 river tiles → carved channels (height) + water, wide/flat near the coast and
+  narrow/steep near their mountain sources, taking the surrounding biome; bridges (29, 106, 107)
+  are built from wood pieces (Valheim has no bridge asset).
+- Elevation (from `Constructing world assets.txt`): do not use the full height range — mountains
+  and peaks rise with a managed ascent rather than straight up; where cliffs (height discontinuities)
+  are needed, place them where the map has waterfalls (tiles 212–215).
+- Overworld tile table (authority: `Constructing world assets.txt`, section "Tile Mappings –
+  Overworld"): biome tiles map as listed there (e.g. Scrub = Meadows with heavy tree cover,
+  Foothills = treeless Black Forest with boulders, border foothills = open meadow with boulders,
+  shoreline tiles 48–55 = Plains at sea level with the diagonal land/sea splits); structure-entry
+  tiles (hut, tower, village, town, castle, cave/mine/dungeon entrances, shrines, lighthouse, the
+  two castle entrances) take the biome of their neighbours (dungeon entrances: mountain); the
+  non-enterable castle-wall tiles are fixed (Lord British's castle = Plains, Blackthorn's = treeless
+  Black Forest with boulders); the overland signpost (164) is a rune-lit standing stone in a
+  clearing; the Codex guardians (94/95) are two enormous stone Valkyries, one good, one fallen.
 - **Underworld = a full second continent (decided).** Built from UNDER.DAT with the same pipeline,
   placed beside Britannia on an expanded world disc (the radius override is a known-working
   technique, cf. the "Expand World Size" mod: generator, water edge and minimap constants). It is
@@ -160,18 +175,46 @@ town populations when their zone loads.
   (Valheim's own crypt-interior technique), at the cost of cosmetic-only water.
 
 ### 5.2 Places (towns, castles, keeps, dwellings)
-- Each location = Jötunn `CustomLocation` generated at runtime from its 32×32 map(s): tile →
-  prefab rule table (walls → stone/darkwood/black marble per settlement type; floors; doors;
-  windows; furniture tiles → chairs/tables/beds/chests/anvils/ovens; crops/trees; water; lava).
-  Reuse the proven rules from `ue_town_layout.py`/`ue_britain_v5.py` (wall runs, roof spans over
-  enclosed rooms, path routing via `ue_path_taxi`, scatter) translated to Valheim pieces.
-- Multi-floor maps (castles, keeps, towers): stack floors at 3–4 m intervals with stairs/ladders
-  where the map has them; basements (jails) below ground level.
+- **Scale (decided — Solution A of `Constructing world assets.txt`).** U5 draws everything at one
+  tile size and lets the player rescale in their head; Valheim is 1:1. We therefore use two
+  scales: an overworld tile is **32 m × 32 m × 3 m**, and inside a settlement each map tile is
+  **2 m × 2 m × 3 m** (1 m proved awful). A 31×31 town therefore spills over its neighbouring
+  overworld tiles; places are shuffled to fit. This keeps a direct, near-effortless mapping from the
+  `.DAT` files to the world at the cost of a boxy look. Solution B (describe each town and hand-model
+  Valheim-style buildings) and C (lay foundations, build by hand in-game) were considered and
+  rejected for v1: B burns enormous effort on bespoke assets and drifts from the originals; C takes
+  ages and spoils discovery for the builder.
+- **Height zones (decided).** Ground zone: tops of all floor tiles in one plane at ground level.
+  Wall zone: 3 m above the floor; all walls, furniture and loose objects live here. Multi-storey:
+  an inter-level zone whose floor tops align with the wall-zone top below it (wood floors — stone
+  is impractical here), then another wall zone, repeated per storey. Roof zone starts at the top
+  wall zone: cobblestone cottages get thatch, other town buildings shingles, castles/keeps/towers/
+  lighthouses grausten.
+- **Indoor tile table (authority: `Constructing world assets.txt`, "Tile Mappings – Town/City/
+  Castle" and "Furniture").** Each location is a Jötunn `CustomLocation` built at runtime from its
+  32×32 map(s) through that table: floors (stone, black marble, jetty decks, drawbridges where
+  water flanks the planks), walls (the basic stone wall in deluxe/medium/easy variants with the
+  out-of-phase brick look, arrow-slit and window walls oriented by neighbours, cobblestone walls as
+  wood frame + stone fence, secret doors revealed by hitting a rune-marked wall, parapets with and
+  without merlons), doors (2 m with a gap above when they have a viewport, 3 m otherwise; magically
+  locked doors glow blue; iron gates are guard-operated, shut 22:00–06:00, never jimmied), and the
+  furniture/fixture list (anvils, the interactable telescope = spyglass, shelves, torture tables
+  and stocks, grates, cannonball pyramids, graves with eulogies and a dig spot to the south,
+  trapdoors, the playable harpsichord, guillotine, chairs/tables consolidated into runs, standing
+  mirrors incl. the end-game one, indoor signposts, the coin-taking wishing well, hitching posts,
+  firewood, searchable desks and barrels, beds in two-tile runs, dressers, braziers and wall
+  torches, camp/hearth cooking setups, ballistas for cannons, traversable hearths in walls (smoke
+  off), lamp poles, kettle stoves, stairs, ladders, climbable fences, marble drinking fountains,
+  flames of virtue, shop-front banners with the guild icon, clocks, bellows). The UE-era layout
+  rules (`ue_town_layout.py`, roofs, path routing) remain guidelines for consolidation and roofing.
+- Multi-floor maps (castles, keeps, towers) follow the height zones; basements (jails) below
+  ground level.
 - Signs: SIGNS.DAT text on Valheim sign pieces; runic font replaced by text.
 - Entry: the overworld tile for the settlement is the location centre; the U5 entry position
   (15,30 etc.) becomes the gate.
 - Build cost: a town is ~1–3 k pieces. Use plain piece prefabs first; if performance demands,
-  merge static runs into combined meshes (Phase 2 risk item).
+  merge static runs into combined meshes (Phase 2 risk item; combined building shells are already
+  the direction taken in the current builder).
 
 ### 5.3 NPCs and conversation
 - Prefab per NPC type from the mapping (child → Hildir; guard → iron armour + bronze spear; etc.),
@@ -226,8 +269,8 @@ town populations when their zone loads.
   trinket (time via the message system); Grapple → iron pickaxe (equipped: climb slopes beyond
   ~45°, see §5.11 Klimb); Black Badge → black-metal Iron Brooch (equipped: Blackthorn's guards stand
   down); Sandalwood Box → Pulled Bear; Shards → black-metal rubies; Crown/Sceptre/Amulet of Lord
-  British → gold-reshaded Dvergr circlet / bronze mace / silver necklace. Keys and skull keys are
-  dropped: **this version has no locked doors or chests** (no Jimmy).
+  British → gold-reshaded Dvergr circlet / bronze mace / silver necklace. Keys → swamp key
+  re-shaded bronze; Skull keys → the swamp key as is (locks: see §5.11 Jimmy).
 - Magic (decided): premixed spells are bowls of raw mead and are **equipped like a stack of arrows**
   (right-click in the inventory → the active spell); casting fires the active spell as a bow fires
   an arrow. Staffs are optional "bows" for this — add them only if it reads cleaner, sold with
@@ -313,7 +356,7 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
 | Get | Default pick-up interaction. |
 | Hole up & camp | H places a campfire; sleep at it (rules in §5.9); day sleep allowed. |
 | Ignite torch | Valheim torches. |
-| Jimmy | Not needed: no locked doors or chests in this version. |
+| Jimmy | A locked door offers "Jimmy" when you carry a key, else says "Locked – no keys!". Magically locked doors offer "Use Skull Key" when you carry one, else "Magically sealed." (a deliberate change from the original's Use-then-direction). Guard gates cannot be unlocked. |
 | Klimb | Stairs/ladders/jumping; equipped grapple (pickaxe) allows climbing slopes beyond ~45°. |
 | Look | Interaction points (as on Vegvisir stones); wells etc. open a small panel; wells built from rock pieces. |
 | Mix | M near a campfire → recipe menu (no kettle). |

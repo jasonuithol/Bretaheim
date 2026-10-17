@@ -185,8 +185,8 @@ Sextant         => A Heart of the Forest trinket.
 Pocket Watch    => an Iron Brooch trinket.
 Grapple         => An iron pickaxe
 
-Key           => n/a — no locked doors in this version
-Skull Key     => n/a — no locked doors in this version
+Key           => Swamp key, reshaded to bronze
+Skull Key     => Swamp key, untouched.
 Black Badge   => An Iron Brooch trinket, reshaded to be made of black metal.  Equip it to stop Blackthorn’s guards from attacking.
 
 Magic Sheet Music                         => A reel of linen in the same manner as a Scroll.
