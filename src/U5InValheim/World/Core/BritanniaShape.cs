@@ -43,6 +43,8 @@ namespace U5InValheim.WorldGen.Core
         readonly float[] sea = new float[N * N];
         readonly float[] river = new float[N * N];
         readonly float[] riverWide = new float[N * N];
+        /// <summary>Metres from each sample to the coastline (land samples: to the sea; sea samples: to land).</summary>
+        readonly float[] coastDist = new float[N * N];
         /// <summary>Rivers blurred over about 40 m: how near the water a bank is.</summary>
         readonly float[] riverBank = new float[N * N];
         readonly float[] forest = new float[N * N];
@@ -95,6 +97,7 @@ namespace U5InValheim.WorldGen.Core
             for (int i = 0; i < baseH.Length; i++) baseH[i] = 0.2f * fine[i] + 0.8f * coarse[i];
             Array.Copy(Blur(tAmp, 1.6f), amp, amp.Length);
             Array.Copy(Blur(tSea, 0.8f), sea, sea.Length);
+            CoastDistances();
             Array.Copy(Blur(tRiver, 0.8f), river, river.Length);
             Array.Copy(Blur(tMouth, 2.4f), riverWide, riverWide.Length);
             Array.Copy(Blur(tRiver, 3f), riverBank, riverBank.Length);
@@ -320,11 +323,25 @@ namespace U5InValheim.WorldGen.Core
             double ridged = 1 - Math.Abs(PeriodicFbm(mu, mv, 6, 3, 101));
             double h = b + a * (0.6 * n + 0.6 * (ridged - 0.5));
 
-            if (s >= 0.5f) h = Math.Min(h, -1.0 - (s - 0.5) * 2.0);
+            float coast = Sample(coastDist, gx, gy);
+            if (s >= 0.5f)
+            {
+                // the seabed shelves gently out from the beach (about 7°) before the open sea
+                h = Math.Min(-0.4, Math.Max(h, -0.4 - 0.12 * coast));
+            }
             else
             {
                 h = Math.Max(h, 0.8);
                 h += 0.6 * PeriodicFbm(mu, mv, 256, 2, 202);
+                // beaches on low coasts: a flat strip half a metre to a metre and a half above the
+                // water for 10-15 m, then the ground rises back to its own height by about 60 m
+                // inland; high ground (mountain lakes, sea cliffs) keeps its rocky shore
+                if (coast < 60)
+                {
+                    double ceiling = 0.5 + 0.06 * coast + 0.007 * Math.Max(0, coast - 10) * Math.Max(0, coast - 10);
+                    double w = (1 - SmoothStep((coast - 35) / 25)) * (1 - SmoothStep((h - 5) / 10));
+                    h = Lerp(h, Math.Min(h, ceiling), w);
+                }
                 // Every river has gentle banks: within about 40 m the ground eases down to half a
                 // metre above the water, then the bed shelves into a channel at least 2.8 m deep
                 // (boats need ~2 m). Rivers widen toward the sea (a wider blur near the mouth).
@@ -409,6 +426,59 @@ namespace U5InValheim.WorldGen.Core
                 case "ne": return sx > sy;
                 case "sw": return sx < sy;
                 default: return false;
+            }
+        }
+
+        /// <summary>
+        /// Distance in metres from every sample to the nearest sample on the other side of the
+        /// coastline (sea = blurred sea ≥ ½), less half a sample so both sides meet at ~0: a
+        /// two-pass chamfer transform on the torus, repeated so it carries across the map edge.
+        /// </summary>
+        void CoastDistances()
+        {
+            float spacing = TileMetres / SamplesPerTile;
+            const float Far = 1e6f;
+            var land = new float[N * N];
+            var water = new float[N * N];
+            for (int i = 0; i < N * N; i++)
+            {
+                bool isSea = sea[i] >= 0.5f;
+                land[i] = isSea ? 0 : Far;  // distance to the nearest sea sample, for land
+                water[i] = isSea ? Far : 0; // distance to the nearest land sample, for sea
+            }
+            Chamfer(land, spacing);
+            Chamfer(water, spacing);
+            for (int i = 0; i < N * N; i++)
+                coastDist[i] = Math.Max(0, (sea[i] >= 0.5f ? water[i] : land[i]) - spacing / 2);
+        }
+
+        static void Chamfer(float[] d, float step)
+        {
+            float a = step, b = step * 1.4142f;
+            for (int rep = 0; rep < 2; rep++)
+            {
+                for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    int i = y * N + x;
+                    float v = d[i];
+                    v = Math.Min(v, d[y * N + WrapN(x - 1)] + a);
+                    v = Math.Min(v, d[WrapN(y - 1) * N + x] + a);
+                    v = Math.Min(v, d[WrapN(y - 1) * N + WrapN(x - 1)] + b);
+                    v = Math.Min(v, d[WrapN(y - 1) * N + WrapN(x + 1)] + b);
+                    d[i] = v;
+                }
+                for (int y = N - 1; y >= 0; y--)
+                for (int x = N - 1; x >= 0; x--)
+                {
+                    int i = y * N + x;
+                    float v = d[i];
+                    v = Math.Min(v, d[y * N + WrapN(x + 1)] + a);
+                    v = Math.Min(v, d[WrapN(y + 1) * N + x] + a);
+                    v = Math.Min(v, d[WrapN(y + 1) * N + WrapN(x + 1)] + b);
+                    v = Math.Min(v, d[WrapN(y + 1) * N + WrapN(x - 1)] + b);
+                    d[i] = v;
+                }
             }
         }
 

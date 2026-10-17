@@ -124,6 +124,15 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void CoastsHaveBeaches()
+        {
+            // shorelines ease into the sea instead of stepping down into it (90 % were under 53°)
+            var a = Slopes("shore", "shore_nw", "shore_ne", "shore_se", "shore_sw");
+            Assert.InRange(a[a.Length / 2], 0, 6);
+            Assert.InRange(a[a.Length * 9 / 10], 0, 32);
+        }
+
+        [U5Fact]
         public void PathsAreANarrowDirtTrack()
         {
             var s = shape.Value; var m = Env.Data.Britannia; var t = terrain.Value;
