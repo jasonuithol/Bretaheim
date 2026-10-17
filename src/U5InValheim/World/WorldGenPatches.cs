@@ -43,6 +43,16 @@ namespace U5InValheim.WorldGen
                 Plugin.Log.LogError($"World generator not installed, Valheim has changed: {e.Message}");
                 harmony.UnpatchSelf();
                 Installed = false;
+                return;
+            }
+            // tree density per tile (optional: without it the vanilla forests grow)
+            try
+            {
+                Patch(typeof(WorldGenerator), "GetForestFactor", new[] { typeof(Vector3) }, prefix: nameof(GetForestFactor_Prefix));
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning($"Forest density per tile not installed: {e.Message}");
             }
         }
 
@@ -63,6 +73,14 @@ namespace U5InValheim.WorldGen
         {
             if (Britannia.Active == null) return true;
             ___m_lakes = new List<Vector2>();
+            return false;
+        }
+
+        static bool GetForestFactor_Prefix(Vector3 pos, ref float __result)
+        {
+            var shape = Britannia.Active;
+            if (shape == null) return true;
+            __result = shape.ForestFactor(pos.x, pos.z);
             return false;
         }
 

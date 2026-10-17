@@ -27,6 +27,13 @@ namespace U5InValheim.WorldGen.Core
         public float Noise;
         public string Poi;
         public bool Impassable;
+        /// <summary>Valheim forest factor (lower = denser trees; ≥ 1.6 open, 3 treeless).</summary>
+        public float Forest = 1f;
+        /// <summary>Diagonal shore tiles: the half of the tile that is sea ("nw", "ne", "se", "sw"), else null.</summary>
+        public string SeaHalf;
+        public float SeaBase = -4f;
+        /// <summary>Biome overrides within R tiles of a map position.</summary>
+        public List<(int x, int y, int r, VBiome biome)> BiomeNear = new List<(int, int, int, VBiome)>();
     }
 
     /// <summary>Tile id (0..255) → terrain class, from terrain.json.</summary>
@@ -58,7 +65,17 @@ namespace U5InValheim.WorldGen.Core
                     Noise = (float)Json.Num(o, "noise"),
                     Poi = Json.Str(o, "poi"),
                     Impassable = Json.Bool(o, "impassable"),
+                    Forest = (float)Json.Num(o, "forest", 1),
+                    SeaHalf = Json.Str(o, "sea_half"),
+                    SeaBase = (float)Json.Num(o, "sea_base", -4),
                 };
+                if (Json.Get(o, "biome_near") is List<object> near)
+                    foreach (var n in near)
+                    {
+                        var e = Json.Obj(n);
+                        c.BiomeNear.Add(((int)Json.Num(e, "x"), (int)Json.Num(e, "y"), (int)Json.Num(e, "r"),
+                            (VBiome)Enum.Parse(typeof(VBiome), Json.Str(e, "biome"))));
+                    }
                 // Sea water is the Ocean biome; the land biome of everything wet comes from its banks.
                 if (c.Water == WaterKind.Sea) c.Biome = VBiome.None;
                 t.Classes[c.Name] = c;

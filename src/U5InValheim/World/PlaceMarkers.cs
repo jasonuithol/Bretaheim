@@ -10,11 +10,13 @@ namespace U5InValheim.WorldGen
     /// <summary>
     /// Phase 1 placeholders for the places of Britannia: a sign with the name stands on each one
     /// (spawned once, when its zone is generated, so it is saved with the world) and every place
-    /// gets a minimap pin. Phase 2 replaces the signs with the real towns.
+    /// gets a minimap pin. Phase 2 replaces the signs with the real towns. The overland signposts
+    /// (tile 0xa4, also the moongate sites) are rune-lit standing stones in a clearing, seen from
+    /// anywhere in their 32 m square (Constructing world assets.txt).
     /// </summary>
     public static class PlaceMarkers
     {
-        const float ClearRadius = 6f;
+        const float ClearRadius = 6f, StoneClearRadius = 14f;
         static Dictionary<Vector2s, List<Poi>> byZone;
         static Type clearAreaType;
 
@@ -57,22 +59,37 @@ namespace U5InValheim.WorldGen
         {
             if (Britannia.Active == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
             if (!ByZone().TryGetValue(zoneID, out var pois)) return;
-            var prefab = ZNetScene.instance.GetPrefab("sign");
-            if (prefab == null) return;
-
             foreach (var p in pois)
             {
                 var pos = Britannia.TileCentre(p.TileX, p.TileY);
-                clearAreas.Add(Activator.CreateInstance(clearAreaType, pos, ClearRadius));
+                bool stone = p.Kind == "moongate";
+                var prefab = ZNetScene.instance.GetPrefab(stone ? StoneFor(Britannia.Active.LandBiomeOfTile(p.TileX, p.TileY)) : "sign");
+                if (prefab == null) continue;
+                clearAreas.Add(Activator.CreateInstance(clearAreaType, pos, stone ? StoneClearRadius : ClearRadius));
                 if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
                 var sign = UnityEngine.Object.Instantiate(prefab, pos + Vector3.up * 0.1f, Quaternion.identity);
                 var zdo = sign.GetComponent<ZNetView>()?.GetZDO();
-                zdo?.Set(ZDOVars.s_text, p.Name);
+                if (!stone) zdo?.Set(ZDOVars.s_text, p.Name);
                 if (mode == ZoneSystem.SpawnMode.Ghost)
                 {
                     spawnedObjects.Add(sign);
                     ZNetView.FinishGhostInit();
                 }
+            }
+        }
+
+        /// <summary>The glowing rune stone of the biome the signpost stands in.</summary>
+        static string StoneFor(VBiome biome)
+        {
+            switch (biome)
+            {
+                case VBiome.BlackForest: return "RuneStone_BlackForest";
+                case VBiome.Swamp: return "RuneStone_Swamps";
+                case VBiome.Mountain: return "RuneStone_Mountains";
+                case VBiome.Plains: return "RuneStone_Plains";
+                case VBiome.Mistlands: return "RuneStone_Mistlands";
+                case VBiome.AshLands: return "RuneStone_Ashlands";
+                default: return "RuneStone_Meadows";
             }
         }
 

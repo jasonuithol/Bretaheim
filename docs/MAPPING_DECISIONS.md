@@ -46,6 +46,10 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
 | 2026-10-17 | Roofs | cottages `wood_roof` (thatch), other town buildings `darkwood_roof` (shingle), castles/keeps/lighthouses `piece_grausten_roof_45` | Doc. Grausten hips are its two triangle pieces turned upside down (y scale −1); crests are half-size slopes. |
 | 2026-10-17 | Shop signposts (0xe0 bottom, 0xe1/0xe2 top) | a 4 m post on 0xe0; the guild icon tile keeps its banner | Doc 224–226 (the tile names say "parched desert"; the maps show them as posts). Banner with the guild icon on the post: later. |
 | 2026-10-17 | Furniture (first pass) | anvil `forge_ext2`, bellows `forge_ext6`, harpsichord `blackforge`, guillotine `piece_MeadCauldron`, torture rack `piece_table`, metal grate `iron_floor_2x2`, wall torches `piece_walltorch`, brazier and lighthouse light `piece_brazierfloor01`, street lamp `piece_dvergr_lantern_pole`, fireplace `hearth` squeezed to 2×2, stove `fire_pit` + `piece_cauldron`, spit `fire_pit` + `piece_cookingstation`, Flame `blackmarble_column_1` + `MountainKit_brazier_blue`, carpets a random rug, beds `piece_bed02` (cottages `bed`), dead tree `SwampTree1`; shelves, bookshelves, well, hitching post, stocks, grave cross and headstone, mirror and vanity built from pieces | Doc. Still to come: telescope, cannonball pyramid, manacles' chains, food on tables, candles, the playable harpsichord, the coin well, drawbridges (0x48/0x49 are plank floors for now), real stairs and beam ladders. |
+| 2026-10-17 | Overworld biomes | meadows (6) open, scrub (8) Meadows thick forest, forest (9) light / dense forest (10) heavy Black Forest, foothills (11) treeless Black Forest, border foothills (14, 15) open Meadows, paths Plains, shoreline (48–55) Plains at sea level with 52–55 split diagonally into land and sea, big castle walls Plains (Lord British) / treeless Black Forest (Blackthorn) | `Constructing world assets.txt`. Tree density is Valheim's forest factor per tile. Boulders for the foothills: to come. |
+| 2026-10-17 | Elevation | mountains 140 m, peaks 230 m (were 220 / 420) | Doc: a managed ascent, not the full height range. Cliffs at the waterfalls (212–215): to come. |
+| 2026-10-17 | Rivers | wide with gentle banks near the sea, narrow and steep ten tiles upstream | Doc. |
+| 2026-10-17 | Overland signpost (0xa4) | a rune stone of the surrounding biome (`RuneStone_*`) in a 14 m clearing | Doc. The same tile marks the moongate sites; the stones stay and the gates appear there in Phase 7. |
 
 ## Open (need a decision)
 
@@ -54,6 +58,10 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
 | — | Nothing open. | |
 
 ## Data quirks found while reading the files
+
+- **Tile numbers in `Constructing world assets.txt`** are decimal TILES.16 indexes and match the data, except around
+  140: the data has 139 torture rack, 140 loose brick, 141 harpsichord, 142 guillotine, 143 lava (the doc is one lower).
+  The tables follow the data's names.
 
 - **TOWNE.TLK 23 (Mario, Yew)** has a stray NUL inside his "mino/crim" answer, so every later keyword is
   shifted by one section in the original too. We reproduce the original's sectioning; his last

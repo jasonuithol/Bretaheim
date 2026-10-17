@@ -40,6 +40,10 @@ namespace U5InValheim.WorldGen.Core
         readonly float[] amp = new float[N * N];
         readonly float[] sea = new float[N * N];
         readonly float[] river = new float[N * N];
+        /// <summary>River samples weighted by how close to the sea their river is (1 at the mouth).</summary>
+        readonly float[] riverMouth = new float[N * N];
+        readonly float[] riverWide = new float[N * N];
+        readonly float[] forest = new float[N * N];
         readonly VBiome[] landBiome = new VBiome[MapTiles * MapTiles];
         readonly int seed;
 
@@ -59,15 +63,22 @@ namespace U5InValheim.WorldGen.Core
             var tAmp = new float[N * N];
             var tSea = new float[N * N];
             var tRiver = new float[N * N];
+            var tMouth = new float[N * N];
+            var tForest = new float[N * N];
+            var mouth = RiverMouthCloseness();
             for (int y = 0; y < N; y++)
             for (int x = 0; x < N; x++)
             {
-                var c = terrain[map[x / SamplesPerTile, y / SamplesPerTile]];
+                int tx = x / SamplesPerTile, ty = y / SamplesPerTile;
+                var c = terrain[map[tx, ty]];
                 int i = y * N + x;
-                tBase[i] = c.Base;
-                tAmp[i] = c.Noise;
-                tSea[i] = c.Water == WaterKind.Sea ? 1f : 0f;
+                bool seaHalf = c.SeaHalf != null && InSeaHalf(c.SeaHalf, x % SamplesPerTile, y % SamplesPerTile);
+                tBase[i] = seaHalf ? c.SeaBase : c.Base;
+                tAmp[i] = seaHalf ? 0.3f : c.Noise;
+                tSea[i] = c.Water == WaterKind.Sea || seaHalf ? 1f : 0f;
                 tRiver[i] = c.Water == WaterKind.River ? 1f : 0f;
+                tMouth[i] = tRiver[i] * mouth[ty * MapTiles + tx];
+                tForest[i] = c.Forest;
             }
             // two-scale base: local relief (σ ≈ ¼ tile) + long slopes toward the ranges (σ ≈ 1.1 tiles)
             var fine = Blur(tBase, 1f);
@@ -76,6 +87,9 @@ namespace U5InValheim.WorldGen.Core
             Array.Copy(Blur(tAmp, 1.6f), amp, amp.Length);
             Array.Copy(Blur(tSea, 0.8f), sea, sea.Length);
             Array.Copy(Blur(tRiver, 0.8f), river, river.Length);
+            Array.Copy(Blur(tMouth, 0.8f), riverMouth, riverMouth.Length);
+            Array.Copy(Blur(tMouth, 2.4f), riverWide, riverWide.Length);
+            Array.Copy(Blur(tForest, 2f), forest, forest.Length);
 
             ResolveLandBiomes();
         }
@@ -174,12 +188,19 @@ namespace U5InValheim.WorldGen.Core
             {
                 h = Math.Max(h, 0.8);
                 h += 0.6 * PeriodicFbm(mu, mv, 256, 2, 202);
-                if (r > 0.3f)
+                // Rivers are wide with gentle banks near the sea and narrow with steep banks near
+                // their sources: the mouth closeness widens the channel (a wider blur of the river
+                // near its mouth) and stretches the bank band.
+                float wide = Sample(riverWide, gx, gy);
+                float m = Math.Max(r > 0.01f ? Math.Min(1f, Sample(riverMouth, gx, gy) / r) : 0f, Math.Min(1f, wide * 3));
+                r = Math.Max(r, wide * 1.6f);
+                double bankFrom = 0.45 - 0.3 * m;
+                if (r > bankFrom)
                 {
                     // banks slope into a channel at least 2.5 m deep (boats need ~2 m)
-                    double t = Math.Min(1, (r - 0.3) / 0.2);
+                    double t = Math.Min(1, (r - bankFrom) / (0.5 - bankFrom));
                     double channel = -2.5 - Math.Max(0, r - 0.5) * 2.0;
-                    h = r >= 0.5f ? Math.Min(h, channel) : Lerp(h, Math.Min(h, 0.6), t);
+                    h = r >= 0.5f ? Math.Min(h, channel) : Lerp(h, Math.Min(h, 0.6), t * t);
                 }
             }
 
@@ -206,10 +227,73 @@ namespace U5InValheim.WorldGen.Core
             return landBiome[Wrap((int)Math.Floor(wv)) * MapTiles + Wrap((int)Math.Floor(wu))];
         }
 
+        /// <summary>
+        /// Valheim's forest factor (lower = denser forest; the vegetation tables gate their trees on
+        /// it): per tile class, blurred over about half a tile and varied a little by noise.
+        /// </summary>
+        public float ForestFactor(float wx, float wz)
+        {
+            ToTile(wx, wz, out double u, out double v);
+            float f = Sample(forest, u * SamplesPerTile - 0.5, v * SamplesPerTile - 0.5);
+            double mu = u / MapTiles, mv = v / MapTiles;
+            return (float)(f * (1 + 0.25 * PeriodicFbm(mu, mv, 512, 2, 505)));
+        }
+
         /// <summary>The land biome assigned to tile (tx, ty) (water and POI tiles take their surroundings').</summary>
         public VBiome LandBiomeOfTile(int tx, int ty) => landBiome[Wrap(ty) * MapTiles + Wrap(tx)];
 
         // ── internals ───────────────────────────────────────────────────────────────────────
+
+        /// <summary>Sample (sx, sy) of a tile (0..SamplesPerTile−1, sy south) lies in its diagonal sea half.</summary>
+        static bool InSeaHalf(string half, int sx, int sy)
+        {
+            int last = SamplesPerTile - 1;
+            switch (half)
+            {
+                case "nw": return sx + sy < last;
+                case "se": return sx + sy > last;
+                case "ne": return sx > sy;
+                case "sw": return sx < sy;
+                default: return false;
+            }
+        }
+
+        /// <summary>
+        /// Per tile, how close its river is to the sea: 1 for river tiles touching the sea, falling
+        /// to 0 ten river tiles upstream (BFS along the river network on the torus); 0 elsewhere.
+        /// </summary>
+        float[] RiverMouthCloseness()
+        {
+            const int Reach = 10;
+            var dist = new int[MapTiles * MapTiles];
+            var queue = new Queue<int>();
+            bool River(int i) => Terrain[Map[i % MapTiles, i / MapTiles]].Water == WaterKind.River;
+            bool Sea(int i) => Terrain[Map[i % MapTiles, i / MapTiles]].Water == WaterKind.Sea;
+            int[] dx = { 1, -1, 0, 0 }, dy = { 0, 0, 1, -1 };
+            for (int i = 0; i < dist.Length; i++)
+            {
+                dist[i] = -1;
+                if (!River(i)) continue;
+                int x = i % MapTiles, y = i / MapTiles;
+                for (int k = 0; k < 4; k++)
+                    if (Sea(Wrap(y + dy[k]) * MapTiles + Wrap(x + dx[k]))) { dist[i] = 0; queue.Enqueue(i); break; }
+            }
+            while (queue.Count > 0)
+            {
+                int i = queue.Dequeue();
+                int x = i % MapTiles, y = i / MapTiles;
+                for (int k = 0; k < 4; k++)
+                {
+                    int j = Wrap(y + dy[k]) * MapTiles + Wrap(x + dx[k]);
+                    if (dist[j] >= 0 || !River(j)) continue;
+                    dist[j] = dist[i] + 1;
+                    queue.Enqueue(j);
+                }
+            }
+            var r = new float[dist.Length];
+            for (int i = 0; i < r.Length; i++) r[i] = dist[i] < 0 ? 0 : Math.Max(0, 1 - dist[i] / (float)Reach);
+            return r;
+        }
 
         /// <summary>Tiles without a land biome (water, roads, places) take the nearest land tile's biome (BFS on the torus).</summary>
         void ResolveLandBiomes()
@@ -217,7 +301,11 @@ namespace U5InValheim.WorldGen.Core
             var queue = new Queue<int>();
             for (int i = 0; i < landBiome.Length; i++)
             {
-                landBiome[i] = Terrain[Map[i % MapTiles, i / MapTiles]].Biome;
+                int x = i % MapTiles, y = i / MapTiles;
+                var c = Terrain[Map[x, y]];
+                landBiome[i] = c.Biome;
+                foreach (var near in c.BiomeNear)
+                    if (Math.Abs(x - near.x) <= near.r && Math.Abs(y - near.y) <= near.r) landBiome[i] = near.biome;
                 if (landBiome[i] != VBiome.None) queue.Enqueue(i);
             }
             if (queue.Count == 0)

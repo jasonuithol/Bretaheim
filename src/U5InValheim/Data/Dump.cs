@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -54,6 +55,17 @@ namespace U5InValheim.Data
                         var nums = args.Skip(1).Where(a => a != "under").Select(int.Parse).ToArray();
                         return World(under ? d.Underworld : d.Britannia, nums[0], nums[1],
                             nums.Length > 2 ? nums[2] : 32, nums.Length > 3 ? nums[3] : 16);
+                    case "find":
+                    {
+                        // find <tile> [tile …] [under]: where those tiles are on the map
+                        var map = args.Contains("under") ? d.Underworld : d.Britannia;
+                        var want = new HashSet<int>(args.Skip(1).Where(a => a != "under").Select(a => a.StartsWith("0x") ? Convert.ToInt32(a, 16) : int.Parse(a)));
+                        var hits = new List<string>();
+                        for (int y = 0; y < WorldMap.Size; y++)
+                        for (int x = 0; x < WorldMap.Size; x++)
+                            if (want.Contains(map[x, y])) hits.Add($"{map[x, y],3} at ({x}, {y})");
+                        return Lines(hits);
+                    }
                     case "tiles":
                         int from = args.Length > 1 ? int.Parse(args[1]) : 0;
                         int count = args.Length > 2 ? int.Parse(args[2]) : 256;
