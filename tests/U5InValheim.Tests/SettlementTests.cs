@@ -377,6 +377,23 @@ namespace U5InValheim.Tests
                                              && Math.Abs(((b.Yaw - a.Yaw) % 360 + 360) % 360 - 180) < 0.1f);
         }
 
+        [U5Theory]
+        [InlineData(19)] [InlineData(20)] [InlineData(21)] [InlineData(2)]
+        public void ShopkeepersWorkUnderARoofEvenBehindWideShopFronts(int location)
+        {
+            // the pub (West Britanny), the stables (North), the healer and the shipwright (East)
+            // are open two or three tiles wide to the street
+            var loc = Env.Data.Location(location);
+            var p = Plan(location, location == 2 ? "towne" : "village");
+            foreach (var npc in Env.Data.NpcsOf(loc).Where(n => n.Exists && n.IsShopkeeper && n.Schedule.Z[1] == 0))
+            {
+                float x = p.LocalX(npc.Schedule.X[1]), z = p.LocalZ(npc.Schedule.Y[1]);
+                Assert.True(p.Pieces.Any(pc => pc.Y >= p.Storey - 0.5f && Math.Abs(pc.X - x) < 1.1f && Math.Abs(pc.Z - z) < 1.1f
+                                               && (pc.Prefab.Contains("roof") || pc.Prefab.Contains("floor"))),
+                            $"{loc.Name} {npc.Trade} at ({npc.Schedule.X[1]}, {npc.Schedule.Y[1]}) has no roof");
+            }
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {

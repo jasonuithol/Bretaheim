@@ -268,9 +268,10 @@ namespace U5InValheim.WorldGen.Core
                 lv.Barrier[i] = lv.Rule[i].IsBarrier;
             }
 
-            // A one-tile gap between two wall tiles is a doorway (many U5 houses have no door
-            // tile): closed for the flood fill so the house does not leak into the street. A gap
-            // with no room on either side is an alley and is reopened.
+            // A gap of up to three tiles between two wall tiles is a doorway (many U5 houses have
+            // no door tile; shop fronts are wide open): closed for the flood fill so the house
+            // does not leak into the street. A gap with no room on either side is an alley and is
+            // reopened.
             for (int i = 0; i < N * N; i++)
             {
                 if (lv.Barrier[i]) continue;
@@ -369,8 +370,44 @@ namespace U5InValheim.WorldGen.Core
             return r;
         }
 
-        static bool EW(Level lv, int i) { int x = i % N; return x > 0 && x < N - 1 && lv.Barrier[i - 1] && lv.Barrier[i + 1]; }
-        static bool NS(Level lv, int i) { int y = i / N; return y > 0 && y < N - 1 && lv.Barrier[i - N] && lv.Barrier[i + N]; }
+        /// <summary>A gap in a wall running east–west (a doorway passed north–south).</summary>
+        static bool EW(Level lv, int i) => Gap(lv, i, 1, out _, out _);
+        /// <summary>A gap in a wall running north–south.</summary>
+        static bool NS(Level lv, int i) => Gap(lv, i, N, out _, out _);
+
+        /// <summary>Widest gap in a wall taken for a doorway (shop fronts, stables and the pub are 2–3 tiles open).</summary>
+        const int MaxGap = 3;
+
+        /// <summary>
+        /// Tile i is in a gap of a wall running along step (1: east–west, N: north–south): a run
+        /// of 1..MaxGap open tiles [first, last] with a barrier at each end. A gap wider than one
+        /// tile must be open on both sides along its whole width (a passage through the wall,
+        /// not a nook beside it), and the wall must carry on straight past one of its ends.
+        /// </summary>
+        static bool Gap(Level lv, int i, int step, out int first, out int last)
+        {
+            first = last = i;
+            if (lv.Barrier[i]) return false;
+            bool Same(int a, int b) => step == 1 ? a / N == b / N : true;
+            bool Inside(int c, int from) => c >= 0 && c < N * N && Same(c, from);
+            while (Inside(first - step, first) && !lv.Barrier[first - step] && last - first < MaxGap * step) first -= step;
+            while (Inside(last + step, last) && !lv.Barrier[last + step] && last - first < MaxGap * step) last += step;
+            if (!Inside(first - step, first) || !Inside(last + step, last) || !lv.Barrier[first - step] || !lv.Barrier[last + step]) return false;
+            if (first == last) return true;
+            int side = step == 1 ? N : 1;
+            bool Open(int c, int from) => c >= 0 && c < N * N && (side == N || c / N == from / N) && !lv.Barrier[c];
+            // the wall carries on straight past at least one end, open on both sides there (a room
+            // the width of the gap, between two walls, is not a gap: its ends are cross walls)
+            bool Continues(int end, int dir) => Inside(end + dir, end) && lv.Barrier[end + dir] && Open(end - side, end) && Open(end + side, end);
+            if (!Continues(first - step, -step) && !Continues(last + step, step)) return false;
+            for (int c = first; c <= last; c += step)
+            {
+                int a = c - side, b = c + side;
+                if (a < 0 || b >= N * N || (side == 1 && (a / N != c / N || b / N != c / N))) return false;
+                if (lv.Barrier[a] || lv.Barrier[b]) return false;
+            }
+            return true;
+        }
 
         static bool Enclosed(Level lv, int c)
             => c >= 0 && c < N * N && !lv.Exterior[c] && !lv.Barrier[c] && !lv.Doorway[c] && !lv.Rule[c].IsOutdoor;
@@ -646,9 +683,9 @@ namespace U5InValheim.WorldGen.Core
         static bool TallFlanks(Level lv, int c)
         {
             bool Tall(int n) => lv.Built[n] && lv.Rule[n].Kind != TileKind.Battlement;
-            int x = c % N;
-            bool ew = x > 0 && x < N - 1 && lv.Barrier[c - 1] && lv.Barrier[c + 1];
-            return ew ? Tall(c - 1) && Tall(c + 1) : Tall(c - N) && Tall(c + N);
+            if (Gap(lv, c, 1, out int first, out int last)) return Tall(first - 1) && Tall(last + 1);
+            if (Gap(lv, c, N, out first, out last)) return Tall(first - N) && Tall(last + N);
+            return Tall(c - N) && Tall(c + N);
         }
 
         /// <summary>A wall tile runs east–west when it continues that way (or nowhere north–south).</summary>
