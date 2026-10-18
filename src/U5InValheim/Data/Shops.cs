@@ -37,7 +37,11 @@ namespace U5InValheim.Data
         const int ShopWordPtrs = 0x23ea, GreetingOffsets = 0x3b2a, NothingBoughtOffsets = 0x3b6a, ThanksOffsets = 0x3baa,
             GuildPrices = 0x3bea, HealPrices = 0x3d86, CurePrices = 0x3d8e, ArmsHail = 0x3d46,
             RationPrices = 0x4c54, Morning = 0x7826, Afternoon = 0x782e, Evening = 0x7838, SaysKeeper = 0x785c,
-            ArmsWelcome = 0x8018, ArmsSays = 0x8036, ComeSeeMe = 0x9196, WhenOpen = 0x91c4;
+            ArmsWelcome = 0x8018, ArmsSays = 0x8036, ComeSeeMe = 0x9196, WhenOpen = 0x91c4,
+            SellOffers = 0x3cbe, SellNames = 0x3cce, LongNames = 0x17f6, SellWhat = 0x3d2e, SellElse = 0x3d3e,
+            NoAmmo = 0x7d32, Done = 0x7d76, CannotBuy = 0x7d8c, NothingToSell = 0x7f20;
+        /// <summary>The Avatar's intelligence until characters have Ultima stats (Phase 5).</summary>
+        public const int DefaultIntelligence = 15;
         const int ShoppeBlock = 0x5dc;
 
         readonly U5Data data;
@@ -127,17 +131,49 @@ namespace U5InValheim.Data
             return r;
         }
 
+        // ── selling arms (SHOPPES arms_sell_browser / arms_sell_item) ──────────────────────
+
+        /// <summary>Arrows and quarrels: "We don't deal in used ammunition!"</summary>
+        public static bool IsAmmo(int item) => item == 0x1b || item == 0x1d;
+
+        /// <summary>What the armourer offers: intelligence × base price (16-bit) × 3 / 100 + 1; 0 when they cannot buy it.</summary>
+        public int SellOffer(int item, int intelligence)
+        {
+            int price = item >= 0 && item < 0x30 ? Ovl.ItemPrice(item) : 0;
+            if (price == 0) return 0;
+            return (int)((ushort)(intelligence * price) * 3u / 100) + 1;
+        }
+
+        public string SellPrompt(Random rnd) => "\"" + Ovl.PtrStr(SellWhat, rnd.Next(4)) + "\"";
+        public string SellMore(Random rnd) => "\"" + Ovl.PtrStr(SellElse, rnd.Next(4)) + "\"";
+
+        /// <summary>A random offer ("For thy admittedly inferior &amp;, I will pay thee % gp.") and "Deal?"</summary>
+        public string Offer(ShopInfo s, int item, int price, int hour, Random rnd)
+            => "\"" + ShoppeDat(Ovl.U16(SellOffers + rnd.Next(8) * 2), s, hour, price, SellName(item)).Trim() + " Deal?\"";
+
+        public string Sold(ShopInfo s, int hour) => Expand(Bytes(Done), s, hour).Replace("Yes", "").Trim();
+        public string WillNotBuy(ShopInfo s, int item, int hour)
+            => (IsAmmo(item) ? Expand(Bytes(NoAmmo), s, hour) : "\"" + Expand(Bytes(CannotBuy), s, hour)).Trim();
+        public string NoWares(ShopInfo s, int hour) => "\"" + Expand(Bytes(NothingToSell), s, hour).Trim();
+
+        /// <summary>The name an armourer calls an item by (0x3cce, else the long name).</summary>
+        public string SellName(int item)
+        {
+            int p = Ovl.U16(SellNames + item * 2);
+            return Ovl.CStr(p != 0 ? p : Ovl.U16(LongNames + item * 2)).Trim();
+        }
+
         /// <summary>Healer's prices: heal and cure (0 = free, as in Minoc).</summary>
         public (int heal, int cure) HealerPrices(ShopInfo s) => (Ovl.U8(HealPrices + s.Slot), Ovl.U8(CurePrices + s.Slot));
 
-        string ShoppeDat(int offset, ShopInfo s, int hour)
+        string ShoppeDat(int offset, ShopInfo s, int hour, int price = 0, string item = "")
         {
             if (offset < 0 || offset >= shoppe.Length) return "";
             int end = offset;
             while (end < shoppe.Length && end - offset < ShoppeBlock && shoppe[end] != 0) end++;
             var b = new byte[end - offset];
             Buffer.BlockCopy(shoppe, offset, b, 0, b.Length);
-            return Expand(b, s, hour);
+            return Expand(b, s, hour, price, 0, item);
         }
 
         byte[] Bytes(int dg)

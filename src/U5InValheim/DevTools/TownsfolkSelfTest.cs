@@ -40,6 +40,10 @@ namespace U5InValheim.DevTools
                 Plugin.Log.LogInfo($"  {n.GetHoverName()}: model {zdo.GetInt(ZDOVars.s_modelIndex)} chest {Name(zdo.GetInt(ZDOVars.s_chestItem))} legs {Name(zdo.GetInt(ZDOVars.s_legItem))} helmet {Name(zdo.GetInt(ZDOVars.s_helmetItem))} right {Name(zdo.GetInt(ZDOVars.s_rightItem))} left {Name(zdo.GetInt(ZDOVars.s_leftItem))} hair {Name(zdo.GetInt(ZDOVars.s_hairItem))} beard {Name(zdo.GetInt(ZDOVars.s_beardItem))} scale {n.transform.localScale.x:0.00}" +
                     $" layer {LayerMask.LayerToName(n.gameObject.layer)} components {string.Join(",", n.GetComponents<Component>().Select(c => c.GetType().Name))}");
             }
+            // Iolo's Bows' stock as the trade window gets it
+            var keeper = folk.FirstOrDefault(f => f.GetHoverName() == "Armourer");
+            var trader = keeper?.ShopTrader();
+            Plugin.Log.LogInfo($"townsfolk self-test shop: {(trader == null ? "none" : string.Join("; ", trader.m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price} gp tooltip {(t.m_tooltip == null ? "NULL" : "ok")} effects {(t.m_buyPlayerEffects == null ? "NULL" : "ok")}")))}");
             // a guard and a greyling: the guard should run at it and strike
             var guard = folk.FirstOrDefault(f => f.GetHoverName() == "Guard" && f.transform.position.y - b.Origin.y < 1f);
             var greyling = ZNetScene.instance.GetPrefab("Greyling");

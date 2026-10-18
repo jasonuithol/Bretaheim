@@ -26,6 +26,22 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void ArmourersBuyArmsButNotAmmunition()
+        {
+            var loc = Env.Data.Location(2);
+            var s = Env.Data.Shops.Of(loc, Env.Data.NpcsOf(loc).First(n => n.IsShopkeeper && n.Trade == ShopTrade.Armoury));
+            int bow = Items.EquipmentOf("BowFineWood");
+            Assert.True(bow >= 0, "the fine wood bow is the Ultima bow");
+            // 15 × 75 × 3 / 100 + 1
+            Assert.Equal(34, Env.Data.Shops.SellOffer(bow, 15));
+            var offer = Env.Data.Shops.Offer(s, bow, 34, 10, new Random(3));
+            Assert.Contains("34", offer);
+            Assert.EndsWith("Deal?\"", offer);
+            Assert.Contains("ammunition", Env.Data.Shops.WillNotBuy(s, 0x1b, 10));
+            Assert.Contains("Gwenneth", Env.Data.Shops.Sold(s, 10));
+        }
+
+        [U5Fact]
         public void EveryShopsWaresAreValheimItems()
         {
             var prefabs = File.ReadAllLines(Path.Combine(Env.RepoRoot, "tools/data/valheim_prefabs.txt")).ToHashSet();

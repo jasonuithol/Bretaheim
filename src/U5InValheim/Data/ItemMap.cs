@@ -32,6 +32,13 @@ namespace U5InValheim.Data
             return m;
         }
 
+        /// <summary>The Ultima equipment id a Valheim item stands for (its main prefab), or −1.</summary>
+        public int EquipmentOf(string prefab)
+        {
+            foreach (var kv in equipment) if (kv.Value.prefab == prefab) return kv.Key;
+            return -1;
+        }
+
         /// <summary>The Valheim prefab of a shop ware (<see cref="Ware.Item"/>) and the pieces given with it, or null when it has none.</summary>
         public (string prefab, string[] extra)? Of(int item)
         {

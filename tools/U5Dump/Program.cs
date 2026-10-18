@@ -138,6 +138,15 @@ if (argv.Count > 0 && argv[0] == "shops")
         Console.WriteLine("closed: " + data.Shops.Closed(s));
         Console.WriteLine(data.Shops.Greeting(s, 10, rnd));
         foreach (var w in data.Shops.Stock(s)) Console.WriteLine($"  {w.Name} x{w.Quantity}: {w.Price} gp");
+        if (s.Trade == U5InValheim.Data.ShopTrade.Armoury)
+        {
+            Console.WriteLine(data.Shops.SellPrompt(rnd));
+            foreach (int id in new[] { 0x1a, 0x1b, 0x0f })
+            {
+                int offer = data.Shops.SellOffer(id, U5InValheim.Data.Shops.DefaultIntelligence);
+                Console.WriteLine(offer > 0 && !U5InValheim.Data.Shops.IsAmmo(id) ? data.Shops.Offer(s, id, offer, 10, rnd) + " " + data.Shops.Sold(s, 10) : data.Shops.WillNotBuy(s, id, 10));
+            }
+        }
         if (s.Trade == U5InValheim.Data.ShopTrade.Healer) Console.WriteLine($"  heal {data.Shops.HealerPrices(s).heal} gp, cure {data.Shops.HealerPrices(s).cure} gp");
         Console.WriteLine(data.Shops.Farewell(s, true, 10, rnd));
     }

@@ -351,7 +351,12 @@ namespace U5InValheim.WorldGen
                 var map = ShopTrading.Items.Of(ware.Item);
                 var drop = map != null ? ObjectDB.instance?.GetItemPrefab(map.Value.prefab)?.GetComponent<ItemDrop>() : null;
                 if (drop == null) continue;
-                items.Add(new Trader.TradeItem { m_prefab = drop, m_stack = ware.Quantity, m_price = ware.Price, m_name = ware.Name });
+                // (the trade window expects the empty strings and effect list a serialized trader has, not nulls)
+                items.Add(new Trader.TradeItem
+                {
+                    m_prefab = drop, m_stack = ware.Quantity, m_price = ware.Price, m_name = ware.Name,
+                    m_tooltip = "", m_requiredGlobalKey = "", m_buyKey = "", m_incrementKey = "", m_buyPlayerEffects = new EffectList(),
+                });
             }
             if (items.Count == 0) return null;
             var go = new GameObject("u5_shop");

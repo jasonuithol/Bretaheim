@@ -28,7 +28,7 @@ Britain, Lord British's castle and Iolo's hut):
   clothes); hover over them for their name.
 - New Avatars arrive in Britannia with 150 gold.
 - Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at
-  the original prices in Valheim's trade window; healers heal and cure. Guards run down and kill
+  the original prices in Valheim's trade window; armourers buy your arms; healers heal and cure. Guards run down and kill
   monsters that come into town.
 - Talk to townsfolk (E): their original conversations, typed keywords and Name/Job/Bye, with
   their words over their heads. They sit on chairs, sleep in beds and keep to one tile each.
