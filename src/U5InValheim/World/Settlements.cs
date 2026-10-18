@@ -98,6 +98,7 @@ namespace U5InValheim.WorldGen
                 {
                     Location = loc.Number, CentreX = cx, CentreZ = cz, Half = plan.HalfSize, Tile = plan.Tile,
                     Base = SiteBase(shape, cx, cz, plan, tiles), Paint = plan.GroundPaint, Water = plan.Water,
+                    Basement = plan.HasBasement ? plan.Basement : null, Storey = plan.Storey,
                 };
                 sites.Add(site);
                 var built = new Built { Location = loc, Plan = plan, Site = site, Origin = new Vector3(cx, Britannia.SeaLevel + site.Base, cz) };
@@ -127,7 +128,8 @@ namespace U5InValheim.WorldGen
 
         /// <summary>
         /// Settlement ground: the average natural height of its square; with water tiles, 1.5 m (or
-        /// its water_ground), so they hold the sea-level water.
+        /// its water_ground), so they hold the sea-level water; with a basement, high enough to
+        /// keep the sea out of it.
         /// </summary>
         static float SiteBase(BritanniaShape shape, float cx, float cz, SettlementPlan plan, TownTiles tiles)
         {
@@ -140,8 +142,9 @@ namespace U5InValheim.WorldGen
                 n++;
             }
             float avg = (float)(sum / n);
-            if (plan.HasWater) return tiles.WaterGround.TryGetValue(plan.Location.Number, out float g) ? g : 1.5f;
-            return Mathf.Clamp(avg, 1.5f, 60f);
+            float ground = plan.HasWater ? (tiles.WaterGround.TryGetValue(plan.Location.Number, out float g) ? g : 1.5f) : Mathf.Clamp(avg, 1.5f, 60f);
+            // a basement's floor stays a metre above the sea (below it, the sea would flood in)
+            return plan.HasBasement ? Mathf.Max(ground, plan.Storey + 1) : ground;
         }
 
         public static bool IsBuilt(int location) => All.Any(b => b.Location.Number == location);

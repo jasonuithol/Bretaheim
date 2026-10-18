@@ -78,7 +78,7 @@ namespace U5InValheim.Tests
         [U5Theory]
         [InlineData(13, "dwelling", 1300)]
         [InlineData(2, "towne", 6000)]
-        [InlineData(17, "castle", 8000)]
+        [InlineData(17, "castle", 11000)]
         public void PieceBudget(int location, string kind, int maxPieces)
         {
             var p = Plan(location, kind);
@@ -324,7 +324,7 @@ namespace U5InValheim.Tests
             bool Wall(int x, int y) => x < 0 || y < 0 || x >= 32 || y >= 32 || tt[raw[y * 32 + x]].IsBarrier;
             int ToWall(int x, int y, int dx, int dy) { int k = 0; while (!Wall(x + dx * (k + 1), y + dy * (k + 1))) k++; return k; }
             int beds = 0, lockers = 0;
-            foreach (var bed in p.Pieces.Where(pc => (pc.Prefab == "bed" || pc.Prefab == "piece_bed02") && pc.Y < 1))
+            foreach (var bed in p.Pieces.Where(pc => (pc.Prefab == "bed" || pc.Prefab == "piece_bed02") && Math.Abs(pc.Y) < 1))
             {
                 // the headboard is the local −z end
                 double r = bed.Yaw * Math.PI / 180;
@@ -338,7 +338,7 @@ namespace U5InValheim.Tests
                 {
                     int cx = fx + dx, cy = fy + dy;
                     if (cx == hx && cy == hy) continue;
-                    var chest = p.Pieces.FirstOrDefault(pc => pc.Prefab == "piece_chest_wood" && pc.Y < 1 && Tx(pc.X) == cx && Ty(pc.Z) == cy && pc.Items == null);
+                    var chest = p.Pieces.FirstOrDefault(pc => pc.Prefab == "piece_chest_wood" && Math.Abs(pc.Y) < 1 && Tx(pc.X) == cx && Ty(pc.Z) == cy && pc.Items == null);
                     if (chest.Prefab == null) continue;
                     double cr = chest.Yaw * Math.PI / 180;
                     Assert.Equal(dx, (int)Math.Round(Math.Sin(cr)));
@@ -423,6 +423,36 @@ namespace U5InValheim.Tests
             }
             // bridge planks without water at both ends stay a plank floor (Blackthorn's palace gate rows have water; Britain has none)
             Assert.DoesNotContain(Plan(2, "towne").Pieces, pc => pc.Look != null && pc.Look.StartsWith("drawbridge:"));
+        }
+
+        [U5Fact]
+        public void LordBritishsCastleHasItsBasement()
+        {
+            var p = Plan(17, "castle");
+            Assert.True(p.HasBasement);
+            int dug = p.Basement.Count(b => b);
+            Assert.True(dug > 250, $"{dug} basement tiles");
+            // each dug tile is roofed at street level with stone
+            for (int c = 0; c < 32 * 32; c++)
+                if (p.Basement[c])
+                    Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Math.Abs(pc.X - p.LocalX(c % 32)) < 0.1f && Math.Abs(pc.Z - p.LocalZ(c / 32)) < 0.1f);
+            // the corner towers' ladders lead down and back up
+            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.Storey - 0.2f) < 0.01f); // (a pole's pivot is its middle)
+            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y < -2 && Math.Abs(pc.ClimbY - 0.2f) < 0.01f);
+            // its walls and the armourer's display wall stand a storey down
+            Assert.True(p.Pieces.Count(pc => pc.Prefab.StartsWith("stone_wall") && pc.Y < 0) > 500);
+            Assert.True(p.Pieces.Count(pc => pc.Prefab == "itemstand" && pc.Y < 0 && pc.StandItem != null && !pc.StandItem.StartsWith("Trophy")) >= 6);
+            // the ground is dug a storey down, right up to (and on) the edges of the dug tiles
+            var site = new SettlementSite { Half = p.HalfSize, Tile = p.Tile, Base = 5, Paint = p.GroundPaint, Water = p.Water, Basement = p.Basement, Storey = p.Storey };
+            var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
+            shape.SetSites(new[] { site });
+            for (int c = 0; c < 32 * 32; c++)
+            {
+                if (!p.Basement[c]) continue;
+                float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
+                foreach (var (dx, dz) in new[] { (0f, 0f), (1f, 1f), (-1f, -1f), (1f, -1f), (-1f, 1f) })
+                    Assert.Equal(1f, shape.Height(x + dx, z + dz), 0.01f);
+            }
         }
 
         [Fact]

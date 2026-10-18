@@ -21,6 +21,8 @@ Britain, Lord British's castle and Iolo's hut):
   its slopes. North Britanny's stream runs in a ditch into its pond.
 - Drawbridges: bridge planks with water at both ends are wooden decks over the river that swing
   up at night and down in the morning.
+- Basements: Lord British's castle (and Blackthorn's palace, Yew, Serpent's Hold) have their cellars
+  dug a storey down, reached by the ladders in the corner towers.
 - Beds put their headboards against the nearest wall; footlockers face away from the bed.
 - Shop fronts up to three tiles wide count as doorways, so those shops get their roofs.
 - Window arches are full arches; tables of any length; the `SpawnLocation` setting starts you

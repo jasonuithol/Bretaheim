@@ -46,6 +46,9 @@ namespace U5InValheim.WorldGen.Core
         public readonly Paint[] GroundPaint = new Paint[Size * Size];
         /// <summary>Ground cells that are water (carved below sea level).</summary>
         public readonly bool[] Water = new bool[Size * Size];
+        /// <summary>Cells carved out for the basement's rooms (its floor a storey under the ground), or none.</summary>
+        public readonly bool[] Basement = new bool[Size * Size];
+        public bool HasBasement => Basement.Any(b => b);
         /// <summary>Small water features planted as flower beds instead.</summary>
         public readonly bool[] Garden = new bool[Size * Size];
         /// <summary>Where players appear (Iolo's hut), settlement-local.</summary>
@@ -129,11 +132,13 @@ namespace U5InValheim.WorldGen.Core
             var levels = Levels(loc);
 
             var ctx = new Ctx(plan, geo);
-            Ground(ctx, levels[0]);
+            var ground = levels.First(l => l.Z == 0);
+            Ground(ctx, ground);
+            Basement(ctx, levels, style);
             for (int i = 0; i < levels.Count; i++)
             {
                 var lv = levels[i];
-                Floors(ctx, lv, i > 0 ? levels[i - 1] : null, style);
+                if (lv.Z > 0) Floors(ctx, lv, levels[i - 1], style);
                 Walls(ctx, lv, style, tiles.Cobble);
                 Battlements(ctx, lv, style);
                 Furniture(ctx, lv, levels, biome, Cottages(lv));
@@ -142,8 +147,8 @@ namespace U5InValheim.WorldGen.Core
             Roofs(ctx, levels, tiles.Roofs[materials.roof], tiles.Roofs[tiles.CottageRoof]);
             Signs(ctx, loc, levels);
             ArmouryWall(ctx, loc, levels);
-            Spawn(plan, levels[0]);
-            if (loc.Number == 13) IolosHut(ctx, levels[0]);
+            Spawn(plan, ground);
+            if (loc.Number == 13) IolosHut(ctx, ground);
             return plan;
         }
 
@@ -185,6 +190,23 @@ namespace U5InValheim.WorldGen.Core
                 levels.Add(Analyse(raws[i], z0 + i, i > 0 ? levels[i - 1] : null, hint, walked));
             }
 
+            // the basement (floor −1): what is walked to down the ground floor's ladders and stairs
+            if (loc.MinZ < 0 && z0 == 0)
+            {
+                var raw = data.Maps.Floor(loc, -1);
+                var walked = WalkDown(raw, raws[0], levels[0]);
+                if (walked != null)
+                {
+                    var basement = Analyse(raw, -1, null, null, walked);
+                    // all of it is indoors, however big (the castle's cellars run under the whole keep)
+                    for (int c = 0; c < N * N; c++)
+                    {
+                        basement.Interior[c] = walked[c] && !basement.Barrier[c] && !basement.Doorway[c];
+                        basement.Covered[c] = basement.Interior[c] || basement.Doorway[c] || basement.Built[c];
+                    }
+                    levels.Insert(0, basement);
+                }
+            }
             return levels;
         }
 
@@ -249,6 +271,39 @@ namespace U5InValheim.WorldGen.Core
                 return below.Built[c] || below.Covered[c] || (below.Walked != null && below.Walked[c])
                        || (!rb.IsBarrier && !rb.IsOutdoor && rb.Kind != TileKind.Roof)
                        || (rb.Kind == TileKind.Water && !below.Exterior[c]);
+            }
+            var walked = new bool[N * N];
+            var q = new Queue<int>();
+            for (int c = 0; c < N * N; c++)
+                if (Arrives(c)) { walked[c] = true; q.Enqueue(c); }
+            if (q.Count == 0) return null;
+            while (q.Count > 0)
+            {
+                int c = q.Dequeue();
+                foreach (int n in Neighbours4(c))
+                    if (!walked[n] && Passable(n)) { walked[n] = true; q.Enqueue(n); }
+            }
+            return walked;
+        }
+
+        /// <summary>
+        /// The tiles of a basement a player can walk to: from the ladders up and stairs under the
+        /// ground floor's ladders down and stairs, through floor tiles, doors, secret doors and
+        /// archways (not the open ground the maps draw around the cellars). Null when nothing
+        /// leads down.
+        /// </summary>
+        bool[] WalkDown(byte[] raw, byte[] aboveRaw, Level above)
+        {
+            bool Arrives(int c)
+            {
+                var ka = tiles[aboveRaw[c]].Kind;
+                var k = tiles[raw[c]].Kind;
+                return (ka == TileKind.LadderDown || ka == TileKind.Stairs) && (k == TileKind.LadderUp || k == TileKind.Stairs);
+            }
+            bool Passable(int c)
+            {
+                var r = tiles[raw[c]];
+                return !(r.IsBarrier && r.Kind != TileKind.Door && r.Kind != TileKind.Arch && !r.Secret) && !r.IsOutdoor && r.Kind != TileKind.Roof;
             }
             var walked = new bool[N * N];
             var q = new Queue<int>();
@@ -739,6 +794,27 @@ namespace U5InValheim.WorldGen.Core
         /// top is the top of the wall zone below. Rooms, doorways, openings and wall-walks get one
         /// unless they stand on a solid wall block of the floor below.
         /// </summary>
+        /// <summary>
+        /// The basement: its rooms are carved out of the ground a storey deep (the terrain follows
+        /// Plan.Basement), floored with paving, and roofed at street level with the ground floor's
+        /// stone, on which whatever stands above them stands. Its walls fill the rest of the
+        /// storey and hide the cut's slopes.
+        /// </summary>
+        void Basement(Ctx ctx, List<Level> levels, TownStyle style)
+        {
+            var b = levels.FirstOrDefault(l => l.Z < 0);
+            if (b == null) return;
+            var p = ctx.Plan;
+            for (int c = 0; c < N * N; c++)
+            {
+                if (!(b.Interior[c] || b.Doorway[c]) || b.Barrier[c]) continue;
+                p.Basement[c] = true;
+                p.GroundPaint[c] = Paint.Paved;
+                p.Water[c] = false;
+                ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
+            }
+        }
+
         void Floors(Ctx ctx, Level lv, Level below, TownStyle style)
         {
             if (lv.Z == 0 || below == null) return;
@@ -1001,6 +1077,7 @@ namespace U5InValheim.WorldGen.Core
             for (int i = 0; i < levels.Count; i++)
             {
                 var lv = levels[i];
+                if (lv.Z < 0) continue; // the basement's roof is the ground floor
                 var above = i + 1 < levels.Count ? levels[i + 1] : null;
                 bool Parapet(int c) => above != null && above.Built[c] && above.Rule[c].Kind == TileKind.Battlement;
                 var cells = new bool[N * N];
@@ -1190,7 +1267,7 @@ namespace U5InValheim.WorldGen.Core
             for (int c = 0; c < N * N; c++)
             {
                 if (done[c] || lv.Barrier[c]) continue;
-                if (lv.Z > 0 && !(lv.Walked != null ? lv.Walked[c] : lv.Interior[c])) continue; // upper maps repeat the ground below
+                if (lv.Z != 0 && !(lv.Walked != null ? lv.Walked[c] : lv.Interior[c])) continue; // upper maps repeat the ground below
                 var r = lv.Rule[c];
                 int tx = c % N, ty = c / N;
                 float x = CellX(p, c), z = CellZ(p, c);
@@ -1330,7 +1407,7 @@ namespace U5InValheim.WorldGen.Core
                       (levels[idx + 1].Rule[c].Kind == TileKind.Stairs || levels[idx + 1].Interior[c]));
             int target = idx + (up ? 1 : -1);
             ctx.Stand("wood_pole2", x, y, z, 0);
-            if (target < 0 || target >= levels.Count) return; // basements come later (interiors)
+            if (target < 0 || target >= levels.Count) return;
             var p = ctx.Plan;
             int last = p.Pieces.Count - 1;
             var pl = p.Pieces[last];
@@ -1547,7 +1624,7 @@ namespace U5InValheim.WorldGen.Core
             for (int c = 0; c < N * N; c++)
             {
                 if (lv.Rule[c].Kind != TileKind.BedHead || lv.Barrier[c] || used[c]) continue;
-                if (lv.Z > 0 && !(lv.Walked != null ? lv.Walked[c] : lv.Interior[c])) continue;
+                if (lv.Z != 0 && !(lv.Walked != null ? lv.Walked[c] : lv.Interior[c])) continue;
                 int foot = Neighbours4(c).Where(n => lv.Rule[n].Kind == TileKind.BedFoot && !used[n]).DefaultIfEmpty(-1).First();
                 used[c] = true;
                 if (foot < 0) { beds.Add((c, c)); continue; }
