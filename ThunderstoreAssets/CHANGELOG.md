@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+Settlements (built from TOWNE/DWELLING/CASTLE/KEEP.DAT, setting `BuildSettlements`; tried in-game on
+Britain, Lord British's castle and Iolo's hut):
+- 2 m × 2 m tiles, 4 m storeys. Walls are solid brick courses (or a cobblestone frame for cottages),
+  wood floors upstairs, hip roofs of thatch, shingle or grausten over buildings only (bounded rooms
+  entered by a door, archway or ladder), none under parapets except where the map draws roof tiles.
+- Upper floors hold only what their ladders and stairs reach.
+- Doors are 3 m tall; double doors are two frameless leaves that open from the middle.
+- Lit wall torches, braziers (raised clear of the floor) and lantern poles that never burn out;
+  white marble drinking fountains; candles on candelabra tables; tables of any length laid end to end.
+- Shop signs: each guild icon is read from the player's TILES.16 and printed on a banner hung from
+  its signpost (or on the shop wall indoors).
+- Smithies: bellows facing the forge brazier, anvils, quenching buckets standing in the troughs the
+  map draws as river water indoors.
+- Armourers show what they sell on the wall behind the counter (Iolo's Bows: a wall of bows),
+  staggered so long items don't overlap.
+- Britain's plaza water is a flower bed of bushes, flowers and thistles.
+- Randotron: dead-end hallways may get a banner or a mounted animal head.
+- Iolo's hut is the spawn point, with its tool chest, workbench and barley plot.
+- Building shells can be merged into one object per zone (`CombinedShells`) to cut piece counts.
+
+Overworld:
+- Calmer mountains; gentle planted river banks with water lilies; soft, irregular biome borders.
+- Sand beaches 0–20 m wide on Plains, Meadows and Ashlands coasts, with dunes and a seabed deep
+  enough for waves; bushes, rocks and trees along coasts, rivers and paths.
+- Roads are rustic 4 m dirt tracks that wander a little, level the ground across and clear their way.
+- Overland signposts are glowing rune stones in a clearing.
+
+Tools: `u5 dump`/U5Dump `town <loc> floors|probe|json`, `preview`, `slopes`, `dressing`, `banners`.
+
 ## 0.2.0
 - Phase 1: new worlds are Britannia. A world is Britannia when its seed starts with "Britannia";
   new worlds get such a seed (setting `NewWorldsAreBritannia`), other seeds stay vanilla.

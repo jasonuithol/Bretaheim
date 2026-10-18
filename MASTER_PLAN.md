@@ -427,6 +427,12 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   its tool chest, crafting table and barley plot.
 - Exit: Britain, the castle and the hut are walkable and look like the mapping says; new players
   spawn in the hut.
+- Status (2026-10-18): built and walked in-game: Britain, Lord British's castle and Iolo's hut,
+  plus the overworld pass (beaches, river banks, paths, edge dressing, biome borders). Every
+  decision is in `docs/MAPPING_DECISIONS.md`; the changes are in `ThunderstoreAssets/CHANGELOG.md`
+  (Unreleased). Still open: basements (Lord British's armourer works in one), real stairs and
+  beam ladders, bridges/drawbridges, cliffs at waterfalls, the telescope and other one-off props,
+  merged meshes for FPS, and gardens/ponds for the other towns' small water features.
 
 **Phase 3 — People (3–4 weeks)**
 - NPC prefabs, schedules, pathing, sleep/work, guards; conversation panel + TLK interpreter;
