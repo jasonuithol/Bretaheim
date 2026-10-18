@@ -69,7 +69,6 @@ namespace U5InValheim.WorldGen
         /// <summary>The shop's choices: Buy, Sell (armourers), the healer's services, Bye.</summary>
         static void ShopButtons()
         {
-            ClearList();
             var who = npc;
             var shop = visit;
             var shops = Plugin.U5.Shops;
@@ -81,93 +80,29 @@ namespace U5InValheim.WorldGen
                 choices.Add(($"Heal ({heal} gp)", () => Heal(heal, false)));
                 choices.Add(($"Cure ({cure} gp)", () => Heal(cure, true)));
             }
-            if (shop.Trade == ShopTrade.Armoury) choices.Add(("Sell", () => SellList(true)));
+            if (shop.Trade == ShopTrade.Armoury) choices.Add(("Sell", Sell));
             choices.Add(("Bye", () => Close()));
             SetButtons(choices.ToArray());
         }
 
         // ── selling to an armourer ──────────────────────────────────────────────────────────
 
-        static int Intelligence => Player.m_localPlayer != null && Player.m_localPlayer.m_customData.TryGetValue("u5_int", out var v) && int.TryParse(v, out int i) ? i : Shops.DefaultIntelligence;
+        public static int Intelligence => Player.m_localPlayer != null && Player.m_localPlayer.m_customData.TryGetValue("u5_int", out var v) && int.TryParse(v, out int i) ? i : Shops.DefaultIntelligence;
 
-        /// <summary>"What dost thou wish to sell?" and the arms the player carries (not what they wear or hold).</summary>
-        static void SellList(bool first)
+        /// <summary>"What dost thou wish to sell?" in the trade window (the arms carried, at the armourer's offers), or "Thou hast nothing to sell!".</summary>
+        static void Sell()
         {
-            var me = Player.m_localPlayer;
-            var wares = new List<(ItemDrop.ItemData item, int id)>();
-            if (me != null)
-                foreach (var item in me.GetInventory().GetAllItems())
-                {
-                    int id = item.m_equipped || item.m_dropPrefab == null ? -1 : ShopTrading.Items.EquipmentOf(item.m_dropPrefab.name);
-                    if (id >= 0) wares.Add((item, id));
-                }
-            if (wares.Count == 0)
+            var who = npc;
+            var trader = who.SellTrader();
+            if (!ShopTrading.FillSell(trader, visit, Intelligence))
             {
                 Show(Plugin.U5.Shops.NoWares(visit, TownNpc.Hour()));
-                ShopButtons();
                 return;
             }
-            Show(first ? Plugin.U5.Shops.SellPrompt(random) : Plugin.U5.Shops.SellMore(random));
-            ShowList(wares.Take(ListMax).Select(w => (Localization.instance.Localize(w.item.m_shared.m_name) + (w.item.m_stack > 1 ? $" x{w.item.m_stack}" : ""), (Action)(() => Offer(w.item, w.id)))).ToArray());
-            SetButtons(("Back", () => ShopButtons()), ("Bye", () => Close()));
-        }
-
-        static void Offer(ItemDrop.ItemData item, int id)
-        {
-            ClearList();
-            var shops = Plugin.U5.Shops;
-            int hour = TownNpc.Hour();
-            int price = Shops.IsAmmo(id) ? 0 : shops.SellOffer(id, Intelligence);
-            if (price == 0)
-            {
-                Show(shops.WillNotBuy(visit, id, hour));
-                SellList(false);
-                return;
-            }
-            Show(shops.Offer(visit, id, price, hour, random));
-            SetButtons(("Deal", () =>
-            {
-                var me = Player.m_localPlayer;
-                if (me != null && me.GetInventory().ContainsItem(item))
-                {
-                    me.GetInventory().RemoveItem(item, 1);
-                    var coins = ObjectDB.instance.GetItemPrefab("Coins");
-                    if (coins != null) me.GetInventory().AddItem(coins, price);
-                    Show(shops.Sold(visit, hour));
-                }
-                SellList(false);
-            }), ("No", () => { Show("No"); SellList(false); }));
-        }
-
-        const int ListMax = 12;
-        static readonly List<GameObject> listed = new List<GameObject>();
-
-        /// <summary>A column of choices over the log (the log shows its newest lines above them).</summary>
-        static void ShowList((string text, Action click)[] items)
-        {
-            ClearList();
-            var g = GUIManager.Instance;
-            // the newest two lines (the question) at the top, the choices in two columns below
-            log.alignment = TextAnchor.UpperLeft;
-            log.text = string.Join("\n", lines.Where(l => l.Trim().Length > 0).Reverse().Take(2).Reverse());
-            for (int i = 0; i < items.Length; i++)
-            {
-                var click = items[i].click;
-                var b = g.CreateButton(items[i].text, panel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(i % 2 == 0 ? -155 : 155, -140 - (i / 2) * 42), 300, 36);
-                b.GetComponent<Button>().onClick.AddListener(() => click());
-                listed.Add(b);
-            }
-        }
-
-        static void ClearList()
-        {
-            foreach (var b in listed) Object.Destroy(b);
-            listed.Clear();
-            if (log != null)
-            {
-                log.alignment = TextAnchor.LowerLeft;
-                log.text = string.Join("\n", lines);
-            }
+            var prompt = LastQuote(Plugin.U5.Shops.SellPrompt(random));
+            Close(farewell: false, keepTalking: true);
+            if (prompt != null) Chat.instance?.SetNpcText(who.gameObject, Vector3.up * 2.1f, 20f, 6f, "", prompt, false);
+            StoreGui.instance?.Show(trader);
         }
 
         static readonly System.Random random = new System.Random();
@@ -235,7 +170,6 @@ namespace U5InValheim.WorldGen
                 var said = LastQuote(Plugin.U5.Shops.Farewell(visit, bought, TownNpc.Hour(), random));
                 if (said != null) Chat.instance.SetNpcText(npc.gameObject, Vector3.up * 2.1f, 20f, 8f, "", said, false);
             }
-            ClearList();
             panel.SetActive(false);
             GUIManager.BlockInput(false);
             // (buying: they wait at the counter while the trade window is open)

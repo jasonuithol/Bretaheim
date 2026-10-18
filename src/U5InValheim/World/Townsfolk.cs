@@ -244,7 +244,19 @@ namespace U5InValheim.WorldGen
             return true;
         }
 
-        Trader trader;
+        Trader trader, sellTrader;
+
+        /// <summary>The armourer's buying side for the trade window (filled with the player's arms when opened).</summary>
+        public Trader SellTrader()
+        {
+            if (sellTrader != null) return sellTrader;
+            var go = new GameObject("u5_shop_sell");
+            go.transform.SetParent(transform, false);
+            sellTrader = go.AddComponent<Trader>();
+            sellTrader.enabled = false;
+            sellTrader.m_name = label;
+            return sellTrader;
+        }
 
         // ── guards ──────────────────────────────────────────────────────────────────────────
 
@@ -375,7 +387,7 @@ namespace U5InValheim.WorldGen
         void Update()
         {
             if (!ready || nview.GetZDO() == null) return;
-            if (talking && TalkPanel.With != this && !ShopTrading.IsTrading(trader)) talking = false;
+            if (talking && TalkPanel.With != this && !ShopTrading.IsTrading(trader) && !ShopTrading.IsTrading(sellTrader)) talking = false;
             if (nview.IsOwner()) Live(Time.deltaTime);
             else if (walker != null)
             {
