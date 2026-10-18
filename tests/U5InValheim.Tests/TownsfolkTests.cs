@@ -118,6 +118,33 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void GuardsRunDownWhatComesIntoTown()
+        {
+            var loc = Env.Data.Location(2);
+            var plan = planner.Value.Plan(loc, "towne", VBiome.Meadows);
+            var guard = Env.Data.NpcsOf(loc).First(n => n.Slot > 0 && n.CreatureType == 12);
+            var s = guard.Schedule;
+            int p = s.PlaceAt(12), post = s.Y[p] * 32 + s.X[p];
+            var (x, _, z) = plan.TilePos(s.Z[p], post);
+            var w = new TownWalker(plan, s, s.Z[p], x, z, 1);
+            for (int i = 0; i < 40; i++) w.Tick(0.25f, 12);
+            // a monster on the street at the other side of town
+            int far = Enumerable.Range(0, 1024).Where(c => TownPath.Walkable(plan, 0, c))
+                .OrderByDescending(c => Math.Abs(c % 32 - post % 32) + Math.Abs(c / 32 - post / 32)).First();
+            for (int i = 0; i < 400 && w.Cell != far; i++)
+            {
+                w.Chase(0, far);
+                w.Tick(0.1f, 12);
+                Assert.True(TownPath.Walkable(plan, w.Floor, w.Cell) || plan.Squeeze[w.Floor][w.Cell] || w.Cell == far, $"through a wall at {w.Cell % 32},{w.Cell / 32}");
+            }
+            Assert.Equal(far, w.Cell);
+            // the monster gone, back to the post
+            w.StopChase();
+            for (int i = 0; i < 600; i++) w.Tick(0.25f, 12);
+            Assert.True(Math.Max(Math.Abs(w.Cell % 32 - post % 32), Math.Abs(w.Cell / 32 - post / 32)) <= 9, $"back near the post: {w.Cell % 32},{w.Cell / 32} vs {post % 32},{post / 32}");
+        }
+
+        [U5Fact]
         public void LabelsAreNamesOrRoles()
         {
             var loc = Env.Data.Location(2);

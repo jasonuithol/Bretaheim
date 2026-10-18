@@ -61,9 +61,42 @@ namespace U5InValheim.WorldGen.Core
 
         public int Cell => plan.CellAt(X, Z);
 
+        int chaseFloor, chaseCell = -1;
+
+        /// <summary>Chasing (a guard after a monster): running to that tile by the floor's paths, not the schedule.</summary>
+        public bool Chasing => chaseCell >= 0;
+
+        /// <summary>Runs after something on that tile (the path is found again when it moves).</summary>
+        public void Chase(int floor, int cell)
+        {
+            if (Chasing && floor == chaseFloor && cell == chaseCell && Moving) return;
+            Leave();
+            chaseFloor = floor;
+            chaseCell = cell;
+            path = TownPath.Find(plan, Floor, Cell, floor, cell);
+            pace = Hurry;
+        }
+
+        /// <summary>Stops where they are (close enough to strike).</summary>
+        public void Halt() => path = null;
+
+        /// <summary>Back to the day's schedule (from wherever the chase ended).</summary>
+        public void StopChase()
+        {
+            if (!Chasing) return;
+            chaseCell = -1;
+            goalPlace = -1;
+            path = null;
+        }
+
         /// <summary>Advances dt seconds at the given hour of the day (0..23).</summary>
         public void Tick(float dt, int hour)
         {
+            if (Chasing)
+            {
+                Walk(dt);
+                return;
+            }
             int place = schedule.PlaceAt(hour);
             int post = schedule.Y[place] * N + schedule.X[place];
             int ai = schedule.Ai[place];

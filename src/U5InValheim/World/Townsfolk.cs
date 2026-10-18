@@ -21,7 +21,7 @@ namespace U5InValheim.WorldGen
     public static class TownsfolkSpawner
     {
         public const string PrefabName = "u5_townsperson";
-        public const string LocKey = "u5_npc_loc", SlotKey = "u5_npc_slot", FloorKey = "u5_npc_z", PoseKey = "u5_npc_pose";
+        public const string LocKey = "u5_npc_loc", SlotKey = "u5_npc_slot", FloorKey = "u5_npc_z", PoseKey = "u5_npc_pose", SwingKey = "u5_npc_swing";
 
         static Dictionary<int, PersonLook> looks;
 
@@ -205,6 +205,7 @@ namespace U5InValheim.WorldGen
             if (home == null || slot <= 0 || slot >= NpcFile.NpcsPerSettlement) return;
             npc = Plugin.U5.NpcsOf(home.Location)[slot];
             label = Townsfolk.Label(Plugin.U5, home.Location, npc);
+            swingsSeen = zdo.GetInt(TownsfolkSpawner.SwingKey);
             ready = true;
         }
 
@@ -244,6 +245,96 @@ namespace U5InValheim.WorldGen
         }
 
         Trader trader;
+
+        // ── guards ──────────────────────────────────────────────────────────────────────────
+
+        const float ScanEvery = 0.5f, Reach = 2.2f, SwingEvery = 1.4f, Sight = 48f, Beyond = 6f, GuardStrength = 1.5f;
+        Character foe;
+        float scanAt, swingAt;
+        int swingsSeen;
+
+        bool IsGuard => npc != null && (npc.IsGuard || npc.CreatureType == 12);
+
+        /// <summary>
+        /// Guards keep the peace: a monster (anything hostile to players, untamed) in the town
+        /// square or just outside it is run down along the streets and struck with the guard's
+        /// weapon, its own attack, half again as hard (Britannia's guards are formidable); when
+        /// it is dead or gone they go back to their post. Only guards on the ground floor.
+        /// </summary>
+        void Guard()
+        {
+            if (Time.time >= scanAt)
+            {
+                scanAt = Time.time + ScanEvery;
+                foe = walker.Floor == 0 ? FindFoe() : null;
+            }
+            if (foe == null || foe.IsDead())
+            {
+                foe = null;
+                walker.StopChase();
+                return;
+            }
+            var to = foe.transform.position - transform.position;
+            to.y = 0;
+            if (to.magnitude > Reach)
+            {
+                var local = foe.transform.position - home.Origin;
+                walker.Chase(0, home.Plan.CellAt(local.x, local.z));
+                return;
+            }
+            walker.Chase(0, walker.Cell);
+            walker.Halt();
+            transform.rotation = Quaternion.LookRotation(to);
+            if (Time.time >= swingAt)
+            {
+                swingAt = Time.time + SwingEvery;
+                Strike(foe, to.normalized);
+            }
+        }
+
+        Character FindFoe()
+        {
+            var someone = Player.m_localPlayer ?? (Player.GetAllPlayers().Count > 0 ? Player.GetAllPlayers()[0] : null);
+            Character best = null;
+            float bestDist = Sight;
+            foreach (var c in Character.GetAllCharacters())
+            {
+                if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || c.GetBaseAI() == null) continue;
+                if (someone != null ? !BaseAI.IsEnemy(c, someone) : c.GetFaction() == Character.Faction.Players) continue;
+                var local = c.transform.position - home.Origin;
+                // in (or at the edge of) the town square, on the ground
+                if (Mathf.Max(Mathf.Abs(local.x), Mathf.Abs(local.z)) > home.Site.Half + Beyond || Mathf.Abs(local.y) > 3f) continue;
+                float d = Vector3.Distance(c.transform.position, transform.position);
+                if (d < bestDist) { bestDist = d; best = c; }
+            }
+            return best;
+        }
+
+        void Strike(Character target, Vector3 dir)
+        {
+            var weapon = ObjectDB.instance?.GetItemPrefab(nview.GetZDO().GetInt(ZDOVars.s_rightItem))?.GetComponent<ItemDrop>()?.m_itemData.m_shared;
+            var hit = new HitData();
+            if (weapon != null)
+            {
+                hit.m_damage = weapon.m_damages;
+                hit.m_damage.Modify(GuardStrength);
+                hit.m_pushForce = weapon.m_attackForce;
+            }
+            else hit.m_damage.m_blunt = 20f;
+            hit.m_point = target.GetCenterPoint();
+            hit.m_dir = dir;
+            target.Damage(hit);
+            // every peer plays the thrust
+            var zdo = nview.GetZDO();
+            zdo.Set(TownsfolkSpawner.SwingKey, zdo.GetInt(TownsfolkSpawner.SwingKey) + 1);
+        }
+
+        /// <summary>The attack animation of what they hold (a guard's spear thrust).</summary>
+        string SwingAnimation()
+        {
+            var weapon = ObjectDB.instance?.GetItemPrefab(nview.GetZDO().GetInt(ZDOVars.s_rightItem))?.GetComponent<ItemDrop>()?.m_itemData.m_shared;
+            return weapon?.m_attack?.m_attackAnimation;
+        }
 
         /// <summary>
         /// The shop's stock for Valheim's trade window (a disabled Trader on a child, so the
@@ -310,6 +401,7 @@ namespace U5InValheim.WorldGen
                 }
                 return;
             }
+            if (IsGuard) Guard();
             int floor = walker.Floor;
             walker.Tick(dt, Hour());
             if (walker.Floor != floor) zdo.Set(TownsfolkSpawner.FloorKey, walker.Floor);
@@ -339,6 +431,13 @@ namespace U5InValheim.WorldGen
             int pose = nview.GetZDO().GetInt(TownsfolkSpawner.PoseKey);
             // getting into or out of a chair or bed is not walking
             speed = pose != 0 ? 0 : Mathf.Lerp(speed, now > 6f ? 0 : now, Mathf.Clamp01(dt * 8f));
+            int swings = nview.GetZDO().GetInt(TownsfolkSpawner.SwingKey);
+            if (swings != swingsSeen)
+            {
+                swingsSeen = swings;
+                var anim = SwingAnimation();
+                if (!string.IsNullOrEmpty(anim)) animator.SetTrigger(anim);
+            }
             animator.SetBool(AttachChair, pose == (int)Pose.Sit);
             animator.SetBool(AttachBed, pose == (int)Pose.Lie);
             animator.SetFloat(ForwardSpeed, speed);

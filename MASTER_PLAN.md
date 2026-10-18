@@ -443,7 +443,9 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
 - Status (2026-10-18): townsfolk of the built settlements spawn dressed (npcs.json) and walk their
   schedules across storeys (Core/TownWalker, TownPath; simulated over a day in TownsfolkTests).
   They sit and sleep, keep one to a tile, and talk (E: panel + Data/TalkSession, TALK.OVL ported).
-  Next: shops, guards (challenge, patrols, alarm), doors, work poses, gifts (with the item set).
+  Shops sell (arms, reagents, guild, tavern rations; healers heal/cure) through Valheim's trade
+  window; guards fight monsters in town. Next: selling, inn/stables/shipwright, tavern meals and
+  rumours, the guards' challenge and alarm, doors, work poses, gifts (with the item set).
 
 **Phase 4 — All settlements (2 weeks)**
 - Generalise builders to all 26 towns/dwellings/keeps/castles (type-specific materials), all NPCs.

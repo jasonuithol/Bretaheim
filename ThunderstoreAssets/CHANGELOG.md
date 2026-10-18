@@ -26,6 +26,9 @@ Britain, Lord British's castle and Iolo's hut):
 - Townsfolk: the people of the built towns live their day from the original schedules, dressed
   by their kind (guards in iron with spears, mages in robes, villagers and merchants in Hildir's
   clothes); hover over them for their name.
+- Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at
+  the original prices in Valheim's trade window; healers heal and cure. Guards run down and kill
+  monsters that come into town.
 - Talk to townsfolk (E): their original conversations, typed keywords and Name/Job/Bye, with
   their words over their heads. They sit on chairs, sleep in beds and keep to one tile each.
 - Ladders look like ladders (rails and rungs) and, as in Ultima, you walk through them; use any
