@@ -69,7 +69,7 @@ namespace U5InValheim.Tests
             var p = Plan(17, "castle");
             Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("piece_grausten_roof")) > 200);
             Assert.True(p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && Math.Abs((x.Y % 4 + 4) % 4 - 1.5f) < 0.01f) > 20, "merlons");
-            Assert.Contains(p.Pieces, x => x.Prefab == "wood_door" && x.Lock != null);
+            Assert.Contains(p.Pieces, x => x.Prefab == "ashwood_door" && x.Lock != null);
         }
 
         [U5Theory]
@@ -185,6 +185,86 @@ namespace U5InValheim.Tests
                 // the icons are pictures, not blank tiles
                 Assert.True(Env.Data.Tiles.Pixels(tile).Distinct().Count() >= 3, $"tile {tile:x2}");
             }
+        }
+
+        [U5Fact]
+        public void RiverWaterIndoorsIsATroughOutdoorsShallowForLilies()
+        {
+            var tt = TownTiles.Parse(Mapping("town_tiles.json"));
+            int troughs = 0, shallow = 0;
+            foreach (int location in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10 })
+            {
+                var loc = Env.Data.Location(location);
+                var raw = Env.Data.Maps.Floor(loc, Math.Max(0, loc.MinZ));
+                var p = Plan(location, "towne");
+                var site = new SettlementSite { CentreX = 0, CentreZ = 0, Half = p.HalfSize, Tile = p.Tile, Base = 1.5f, Paint = p.GroundPaint, Water = p.Water, Shallow = p.Shallow };
+                var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
+                for (int c = 0; c < 32 * 32; c++)
+                {
+                    if (!tt[raw[c]].River) continue;
+                    float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
+                    bool bucket = p.Pieces.Any(pc => pc.Prefab == "forge_ext5" && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f);
+                    if (p.Water[c])
+                    {
+                        Assert.True(p.Shallow[c]);
+                        Assert.False(bucket);
+                        shallow++;
+                    }
+                    else
+                    {
+                        Assert.True(bucket, $"{loc.Name} ({c % 32}, {c / 32}): a quenching bucket in the trough");
+                        troughs++;
+                    }
+                }
+                if (location == 2)
+                    // Britain's smithy: three trough tiles inside, floored and roofed like the rest of it
+                    Assert.Equal(3, p.Pieces.Count(pc => pc.Prefab == "forge_ext5"));
+            }
+            Assert.True(troughs >= 3 && shallow > 20, $"{troughs} troughs, {shallow} shallow river tiles");
+            // the lilies grow 0.25..1.6 m under the surface
+            var s2 = new SettlementSite { Half = 32, Tile = 2, Base = 1.5f, Paint = new Paint[1024], Water = Enumerable.Repeat(true, 1024).ToArray(), Shallow = Enumerable.Repeat(true, 1024).ToArray() };
+            Assert.InRange(s2.Base - 2.4f, -1.6f, -0.25f);
+        }
+
+        [U5Fact]
+        public void DoorsAreTallLeavesAndDoubleDoorsOpenFromTheMiddle()
+        {
+            var p = Plan(2, "towne");
+            Assert.DoesNotContain(p.Pieces, pc => pc.Prefab == "wood_door");
+            // Britain's smithy: the double door (0xba 0xba) at (3, 25) and (4, 25) hinges on its outer edges
+            float z = p.LocalZ(25);
+            var leaves = p.Pieces.Where(pc => pc.Prefab == "ashwood_door" && Math.Abs(pc.Z - z) < 0.1f && pc.Y < 1).OrderBy(pc => pc.X).ToList();
+            Assert.Equal(2, leaves.Count);
+            Assert.Equal(p.LocalX(3) - 1, leaves[0].X, 0.01f);
+            Assert.Equal(p.LocalX(4) + 1, leaves[1].X, 0.01f);
+            Assert.Equal(180f, Math.Abs(leaves[0].Yaw - leaves[1].Yaw) % 360, 0.1f);
+        }
+
+        [U5Theory]
+        [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(24)] [InlineData(26)] [InlineData(32)]
+        public void ArmourersDisplayTheirWaresBehindTheCounter(int location)
+        {
+            var p = Plan(location, "towne");
+            var shown = p.Pieces.Where(pc => pc.Prefab == "itemstand" && pc.StandItem != null && !pc.StandItem.StartsWith("Trophy")).ToList();
+            Assert.True(shown.Count >= 6, $"{shown.Count} items on the wall");
+            // one wall: all at the same distance along it from the room
+            Assert.True(shown.Select(pc => pc.Yaw % 360).Distinct().Count() == 1);
+            if (location == 2)
+            {
+                // Iolo's Bows: a wall of different bows behind the counter (the north wall of row 17)
+                Assert.True(shown.Count(pc => pc.StandItem.StartsWith("Bow") || pc.StandItem.StartsWith("Crossbow")) >= 8);
+                Assert.True(shown.Select(pc => pc.StandItem).Distinct().Count() >= 8);
+                Assert.All(shown, pc => Assert.Equal(p.LocalZ(18) + 0.94f, pc.Z, 0.01f));
+            }
+        }
+
+        [U5Fact]
+        public void SmithiesHaveBellowsAndRaisedBraziers()
+        {
+            var p = Plan(2, "towne");
+            Assert.Contains(p.Pieces, pc => pc.Prefab == "forge_ext1");
+            Assert.DoesNotContain(p.Pieces, pc => pc.Prefab == "forge_ext6");
+            Assert.All(p.Pieces.Where(pc => pc.Prefab == "piece_brazierfloor01"), pc => Assert.True(pc.Y % p.Storey >= 0.9f));
         }
 
         [Fact]

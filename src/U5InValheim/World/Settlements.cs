@@ -81,7 +81,7 @@ namespace U5InValheim.WorldGen
                 var site = new SettlementSite
                 {
                     Location = loc.Number, CentreX = cx, CentreZ = cz, Half = plan.HalfSize, Tile = plan.Tile,
-                    Base = SiteBase(shape, cx, cz, plan), Paint = plan.GroundPaint, Water = plan.Water,
+                    Base = SiteBase(shape, cx, cz, plan), Paint = plan.GroundPaint, Water = plan.Water, Shallow = plan.Shallow,
                 };
                 sites.Add(site);
                 var built = new Built { Location = loc, Plan = plan, Site = site, Origin = new Vector3(cx, Britannia.SeaLevel + site.Base, cz) };

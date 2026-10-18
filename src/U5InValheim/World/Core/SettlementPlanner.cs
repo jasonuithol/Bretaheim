@@ -46,6 +46,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Paint[] GroundPaint = new Paint[Size * Size];
         /// <summary>Ground cells that are water (carved below sea level).</summary>
         public readonly bool[] Water = new bool[Size * Size];
+        /// <summary>Water cells that are shallow (river water in the open: lilies grow there).</summary>
+        public readonly bool[] Shallow = new bool[Size * Size];
         /// <summary>Where players appear (Iolo's hut), settlement-local.</summary>
         public float SpawnX, SpawnZ;
         public bool HasSpawn;
@@ -102,6 +104,8 @@ namespace U5InValheim.WorldGen.Core
             public bool[] Doorway = new bool[N * N];
             /// <summary>Upper floors: the tiles a player can walk to from the ladders and stairs (all floored), else null.</summary>
             public bool[] Walked;
+            /// <summary>River water inside a building: a trough, floored round its quenching buckets.</summary>
+            public bool[] Trough = new bool[N * N];
         }
 
         /// <summary>A tile that is not on this floor: open air.</summary>
@@ -130,6 +134,7 @@ namespace U5InValheim.WorldGen.Core
             }
             Roofs(ctx, levels, tiles.Roofs[materials.roof], tiles.Roofs[tiles.CottageRoof]);
             Signs(ctx, loc, levels);
+            ArmouryWall(ctx, loc, levels);
             Spawn(plan, levels[0]);
             if (loc.Number == 13) IolosHut(ctx, levels[0]);
             return plan;
@@ -286,10 +291,11 @@ namespace U5InValheim.WorldGen.Core
             var building = Buildings(lv);
             for (int i = 0; i < N * N; i++)
             {
+                lv.Trough[i] = building[i] && lv.Rule[i].River;
                 // inside: a building's floor; plank floors are always a building (Iolo's barn is
                 // open on one side), and so is anything under a room of the floor above
-                lv.Interior[i] = !lv.Barrier[i] && !lv.Doorway[i] && !lv.Rule[i].IsOutdoor && lv.Rule[i].Kind != TileKind.Roof
-                                 && (building[i] || lv.Rule[i].Paint == Paint.Planks || (indoorAbove != null && indoorAbove[i]));
+                lv.Interior[i] = lv.Trough[i] || (!lv.Barrier[i] && !lv.Doorway[i] && !lv.Rule[i].IsOutdoor && lv.Rule[i].Kind != TileKind.Roof
+                                 && (building[i] || lv.Rule[i].Paint == Paint.Planks || (indoorAbove != null && indoorAbove[i])));
                 // an upper floor only exists above something built on the floor below
                 if (below != null && lv.Interior[i] && !below.Covered[i] && !below.Built[i]) lv.Interior[i] = false;
                 if (walked != null && !walked[i]) lv.Interior[i] = false;
@@ -347,7 +353,8 @@ namespace U5InValheim.WorldGen.Core
                     int x = c % N, y = c / N;
                     if (x == 0 || y == 0 || x == N - 1 || y == N - 1) border = true;
                     var k = lv.Rule[c].Kind;
-                    if (lv.Rule[c].IsOutdoor && lv.Rule[c].Paint != Paint.Planks) outdoor = true;
+                    // river water indoors is a trough (Britain's smithy), not the open air
+                    if (lv.Rule[c].IsOutdoor && lv.Rule[c].Paint != Paint.Planks && !lv.Rule[c].River) outdoor = true;
                     if (k == TileKind.LadderUp || k == TileKind.LadderDown || k == TileKind.Stairs) entrance = true;
                     foreach (int n in Neighbours4(c))
                     {
@@ -416,6 +423,7 @@ namespace U5InValheim.WorldGen.Core
 
             public float Height(string prefab) => geo[prefab].SizeY;
             public bool Known(string prefab) => prefab != null && geo.Has(prefab);
+            public bool Geo(string prefab, out PieceGeometry.Box b) => geo.TryGet(prefab, out b);
 
             /// <summary>
             /// Ground-floor cells covered by the footprint of a placed object other than the
@@ -533,7 +541,9 @@ namespace U5InValheim.WorldGen.Core
             for (int c = 0; c < N * N; c++)
             {
                 var r = g.Rule[c];
-                if (r.Kind == TileKind.Water) { p.Water[c] = true; continue; }
+                if (g.Trough[c]) { p.GroundPaint[c] = Paint.Paved; continue; }
+                // river water in the open is shallow, for water lilies
+                if (r.Kind == TileKind.Water) { p.Water[c] = true; p.Shallow[c] = r.River; continue; }
                 if (r.Paint == Paint.Planks)
                 {
                     ctx.Top("wood_floor", CellX(p, c), 0.05f, CellZ(p, c), 0);
@@ -682,13 +692,43 @@ namespace U5InValheim.WorldGen.Core
                         break;
                     case TileKind.Door:
                         if (r.Gate && ctx.Known(style.Gate)) ctx.Centre(style.Gate, cx, y0 + 1.5f, cz, yaw);
-                        else if (r.Viewport) ctx.Centre(style.Door, cx, y0 + 1, cz, yaw);
-                        else ctx.Centre(style.Door, cx, y0 + 1.5f, cz, yaw, 1, 1.5f, 1);
+                        else Door(ctx, lv, style, c, along[c], y0);
                         if (r.Lock != null) ctx.Last(pl => { pl.Lock = r.Lock; return pl; });
                         break;
                 }
             }
         }
+
+        /// <summary>
+        /// A door: one 2 m × 3 m leaf filling its tile (a viewport door too; Valheim's 2 m × 2 m
+        /// door is never used), its pivot the hinge on one side of the tile. Of a double door (two
+        /// door tiles side by side in the wall) each leaf hinges on the side away from the other,
+        /// so the pair opens from the middle.
+        /// </summary>
+        static void Door(Ctx ctx, Level lv, TownStyle style, int c, bool alongX, float y0)
+        {
+            var p = ctx.Plan;
+            float cx = CellX(p, c), cz = CellZ(p, c), yaw = alongX ? 0 : 90;
+            int x = c % N;
+            int partner = alongX ? (x + 1 < N && IsDoor(lv, c + 1) ? c + 1 : x > 0 && IsDoor(lv, c - 1) ? c - 1 : -1)
+                                 : (c + N < N * N && IsDoor(lv, c + N) ? c + N : c >= N && IsDoor(lv, c - N) ? c - N : -1);
+            // the leaf reaches from its pivot along its local −x: the hinge is the tile's local +x edge
+            Ctx.Rotate(1, 0, yaw, out float ux, out float uz);
+            if (partner >= 0 && (CellX(p, partner) - cx) * ux + (CellZ(p, partner) - cz) * uz > 0)
+            {
+                yaw += 180;
+                ux = -ux; uz = -uz;
+            }
+            if (!ctx.Known(style.Door) || !ctx.Geo(style.Door, out var b) || b.MaxX - b.MinX < 1.5f)
+            {
+                ctx.Centre(style.Door, cx, y0 + 1.5f, cz, yaw % 360, 1, 1.5f, 1);
+                return;
+            }
+            float half = p.Tile / 2;
+            ctx.Pivot(style.Door, cx + ux * half, y0, cz + uz * half, yaw % 360);
+        }
+
+        static bool IsDoor(Level lv, int c) => lv.Built[c] && lv.Rule[c].Kind == TileKind.Door && !lv.Rule[c].Gate;
 
         /// <summary>
         /// A cobblestone wall tile: two rows of stone fence, a storey high, in a frame of posts on
@@ -969,6 +1009,11 @@ namespace U5InValheim.WorldGen.Core
                 var r = lv.Rule[c];
                 int tx = c % N, ty = c / N;
                 float x = CellX(p, c), z = CellZ(p, c);
+                if (lv.Trough[c])
+                {
+                    if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, Hash(tx, ty, 13) % 4 * 90);
+                    continue;
+                }
                 switch (r.Kind)
                 {
                     case TileKind.Prop:
@@ -1113,6 +1158,104 @@ namespace U5InValheim.WorldGen.Core
                 case VBiome.Plains: return h % 2 == 0 ? "Oak1" : "Birch1";
                 default: return h % 3 == 0 ? "Oak1" : "Beech1";
             }
+        }
+
+        // ── armourers' display walls ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The armourer's wall: item stands along the wall behind where the armourer works by day
+        /// (away from the counter they stand at), showing the families of what the shop sells
+        /// (DATA.OVL), in proportion, each family cycling through its Valheim models.
+        /// </summary>
+        void ArmouryWall(Ctx ctx, Data.Location loc, List<Level> levels)
+        {
+            var disp = tiles.Armoury;
+            if (disp.Stand == null || disp.Rows.Length == 0) return;
+            var stock = data.Ovl.ArmouryStock(loc.Number);
+            var npc = data.NpcsOf(loc).FirstOrDefault(n => n.Exists && n.IsShopkeeper && n.Trade == ShopTrade.Armoury);
+            if (stock.Count == 0 || npc == null) return;
+            const int place = 1; // the day's place (shop hours: from the 2nd hour, and back after the 3rd)
+            var lv = levels.FirstOrDefault(l => l.Z == npc.Schedule.Z[place]);
+            if (lv == null) return;
+            int m = npc.Schedule.Y[place] * N + npc.Schedule.X[place];
+
+            // away from the counter (a table tile beside them), else towards the nearest wall
+            var dirs = new[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+            int Step(int c, (int dx, int dy) d)
+            {
+                int x = c % N + d.dx, y = c / N + d.dy;
+                return x < 0 || y < 0 || x >= N || y >= N ? -1 : y * N + x;
+            }
+            int WallBehind((int, int) d)
+            {
+                int c = m;
+                for (int i = 0; i < 6; i++)
+                {
+                    int n = Step(c, d);
+                    if (n < 0) return -1;
+                    if (lv.Barrier[n]) return Solid(lv, n) ? n : -1;
+                    c = n;
+                }
+                return -1;
+            }
+            (int dx, int dy) back = (0, 0);
+            int wall = -1;
+            foreach (var d in dirs)
+            {
+                int counter = Step(m, (-d.Item1, -d.Item2));
+                if (counter >= 0 && lv.Rule[counter].Kind == TileKind.Table && (wall = WallBehind(d)) >= 0) { back = d; break; }
+            }
+            if (wall < 0)
+                foreach (var d in dirs.OrderBy(d => { int c = m, k = 0; while ((c = Step(c, d)) >= 0 && !lv.Barrier[c]) k++; return k; }))
+                    if ((wall = WallBehind(d)) >= 0) { back = d; break; }
+            if (wall < 0) return;
+
+            // the run of wall facing the room, Reach tiles either side
+            var run = new List<int> { wall };
+            foreach (int sgn in new[] { -1, 1 })
+            {
+                var along = (back.dy * sgn, back.dx * sgn);
+                int c = wall;
+                for (int i = 0; i < disp.Reach; i++)
+                {
+                    int n = Step(c, along);
+                    int front = n < 0 ? -1 : Step(n, (-back.dx, -back.dy));
+                    if (n < 0 || front < 0 || !Solid(lv, n) || lv.Barrier[front]) break;
+                    if (sgn < 0) run.Insert(0, n); else run.Add(n);
+                    c = n;
+                }
+            }
+
+            // what is shown: the families sold, in proportion
+            var weights = disp.Families.Select(f => (f.models, w: stock.Count(id => f.u5.Contains(id)))).Where(f => f.w > 0).ToList();
+            if (weights.Count == 0) return;
+            int slots = run.Count * disp.Rows.Length, total = weights.Sum(f => f.w);
+            var items = new List<string>();
+            int salt = loc.Number * 31;
+            for (int f = 0; f < weights.Count; f++)
+            {
+                int n = f == weights.Count - 1 ? slots - items.Count : Math.Max(1, (int)Math.Round((double)slots * weights[f].w / total));
+                var models = weights[f].models;
+                for (int k = 0; k < n && items.Count < slots; k++) items.Add(models[(k + Hash(salt, f, 21)) % models.Length]);
+            }
+            // spread the families over the wall rather than in blocks
+            items = items.Select((it, i) => (it, key: Hash(salt, i, 22))).OrderBy(t => t.key).Select(t => t.it).ToList();
+
+            var p = ctx.Plan;
+            float side = back.dx > 0 ? 90 : back.dx < 0 ? 270 : back.dy > 0 ? 180 : 0; // yaw of the wall's direction
+            float y0 = p.Storey * lv.Z;
+            int slot = 0;
+            foreach (float row in disp.Rows)
+                foreach (int c in run)
+                {
+                    if (slot >= items.Count) break;
+                    // in front of the wall: the tile before it, its far edge (the stand's front is its local +z)
+                    int front = Step(c, (-back.dx, -back.dy));
+                    float x = CellX(p, front) + back.dx * 0.94f, z = CellZ(p, front) - back.dy * 0.94f;
+                    ctx.Pivot(disp.Stand, x, y0 + row, z, side + 180);
+                    string item = items[slot++];
+                    ctx.Last(pl => { pl.StandItem = item; return pl; });
+                }
         }
 
         // ── shop signs ───────────────────────────────────────────────────────────────────────

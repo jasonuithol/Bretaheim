@@ -55,6 +55,8 @@ namespace U5InValheim.WorldGen.Core
         public bool Merlons = true;
         /// <summary>Part of a shop signpost: "post" (its foot, 0xe0) or "top" (0xe1/0xe2, beside the guild icon), else null.</summary>
         public string SignPost;
+        /// <summary>River water: a trough (Prefab standing in it) inside a building, shallow lily water outside.</summary>
+        public bool River;
 
         public bool IsBarrier => Kind == TileKind.Wall || Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch || Kind == TileKind.Battlement;
         public bool IsOpening => Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch;
@@ -95,6 +97,17 @@ namespace U5InValheim.WorldGen.Core
         public string TrophyStand;
     }
 
+    /// <summary>Armourers' display walls: item stands of the families of what each one sells.</summary>
+    public class ArmouryDisplay
+    {
+        public string Stand;
+        public float[] Rows = new float[0];
+        /// <summary>How many tiles the display runs along the wall either side of the one behind the armourer.</summary>
+        public int Reach = 3;
+        /// <summary>Family name → the U5 item ids in it and the Valheim item prefabs shown for it.</summary>
+        public readonly List<(string name, int[] u5, string[] models)> Families = new List<(string, int[], string[])>();
+    }
+
     /// <summary>assets/mappings/town_tiles.json: tile rules, materials, materials per settlement kind.</summary>
     public class TownTiles
     {
@@ -106,6 +119,7 @@ namespace U5InValheim.WorldGen.Core
         public string CottageRoof = "thatch";
         public readonly Dictionary<string, (string walls, string roof)> Settlements = new Dictionary<string, (string, string)>();
         public Randotron Randotron = new Randotron();
+        public ArmouryDisplay Armoury = new ArmouryDisplay();
 
         public TileRule this[int tile] => rules[tile & 0xff];
 
@@ -130,6 +144,7 @@ namespace U5InValheim.WorldGen.Core
                     Secret = Json.Bool(o, "secret"),
                     Candles = Json.Get(o, "candles") is double candles ? (int)candles : 0,
                     SignPost = Json.Str(o, "signpost"),
+                    River = Json.Bool(o, "river"),
                 };
                 if (Json.Str(o, "wall") is string side) r.WallSide = FacingYaw(side);
                 if (Json.Get(o, "choices") is List<object> choices) r.Choices = choices.ConvertAll(c => (string)c).ToArray();
@@ -187,6 +202,19 @@ namespace U5InValheim.WorldGen.Core
                     HallwayEnd = Json.Get(o, "chance") is double ch ? (float)ch : 0,
                     Banners = List("banners"), Trophies = List("trophies"), TrophyStand = Json.Str(o, "trophy_stand"),
                 };
+            }
+            if (root.TryGetValue("armoury", out var arm))
+            {
+                var o = Json.Obj(arm);
+                t.Armoury.Stand = Json.Str(o, "stand");
+                if (Json.Get(o, "rows") is List<object> rows) t.Armoury.Rows = rows.ConvertAll(x => (float)(double)x).ToArray();
+                if (Json.Get(o, "reach") is double reach) t.Armoury.Reach = (int)reach;
+                foreach (var kv in Json.Obj(o["families"]))
+                {
+                    var f = Json.Obj(kv.Value);
+                    t.Armoury.Families.Add((kv.Key, Json.Arr(f["u5"]).ConvertAll(x => (int)(double)x).ToArray(),
+                                            Json.Arr(f["models"]).ConvertAll(x => (string)x).ToArray()));
+                }
             }
             return t;
         }

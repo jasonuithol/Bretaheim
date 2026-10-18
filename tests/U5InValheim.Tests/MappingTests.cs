@@ -20,7 +20,7 @@ namespace U5InValheim.Tests
             "prefab", "extra", "outfit", "prefab_by_circle", "choices",
             "floor", "door", "gate", "merlon", "brick", "brick_small", "sill", "arch",
             "slope", "ocorner", "icorner", "top", "corner", "corner2", "fence", "post", "post_short", "beam",
-            "banners", "trophies", "trophy_stand", "prefabs",
+            "banners", "trophies", "trophy_stand", "prefabs", "stand", "models",
         };
 
         /// <summary>Every string anywhere inside a named value (prefab lists keyed by biome …).</summary>

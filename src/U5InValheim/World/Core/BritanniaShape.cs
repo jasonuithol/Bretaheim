@@ -166,7 +166,9 @@ namespace U5InValheim.WorldGen.Core
                 if (d <= 0)
                 {
                     int cell = site.Cell(wx, wz);
-                    return cell >= 0 && site.Water[cell] ? site.Base - 3.1f : site.Base;
+                    if (cell < 0 || !site.Water[cell]) return site.Base;
+                    // shallow water sits where the river lilies grow (−1.6 .. −0.25 m)
+                    return site.Shallow != null && site.Shallow[cell] ? site.Base - 2.4f : site.Base - 3.1f;
                 }
                 h = (float)Lerp(site.Base, h, SmoothStep(d / site.Blend));
             }
@@ -826,6 +828,8 @@ namespace U5InValheim.WorldGen.Core
         public float Blend = 14f;
         public Paint[] Paint;
         public bool[] Water;
+        /// <summary>Water cells that are shallow, or null.</summary>
+        public bool[] Shallow;
 
         /// <summary>Cell index (row-major, y south) of a world position inside the square, else −1.</summary>
         public int Cell(float wx, float wz)

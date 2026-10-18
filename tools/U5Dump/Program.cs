@@ -130,7 +130,7 @@ if (argv.Count > 0 && argv[0] == "town")
     }
     if (outPath.EndsWith(".json"))
         File.WriteAllText(outPath, "[" + string.Join(",\n", plan.Pieces.Select(p =>
-            System.FormattableString.Invariant($"{{\"p\":\"{p.Prefab}\",\"x\":{p.X},\"y\":{p.Y},\"z\":{p.Z},\"yaw\":{p.Yaw},\"s\":[{(p.Scaled ? p.SX : 1)},{(p.Scaled ? p.SY : 1)},{(p.Scaled ? p.SZ : 1)}]}}"))) + "]");
+            System.FormattableString.Invariant($"{{\"p\":\"{p.Prefab}\",\"x\":{p.X},\"y\":{p.Y},\"z\":{p.Z},\"yaw\":{p.Yaw},\"s\":[{(p.Scaled ? p.SX : 1)},{(p.Scaled ? p.SY : 1)},{(p.Scaled ? p.SZ : 1)}]{(p.StandItem != null ? $",\"item\":\"{p.StandItem}\"" : "")}{(p.Look != null ? $",\"look\":\"{p.Look}\"" : "")}}}"))) + "]");
     else TownPreview.Render(plan, geo, outPath);
     Console.WriteLine($"{loc.Name} ({kind}): {plan.Pieces.Count} pieces, spawn {(plan.HasSpawn ? $"({plan.SpawnX}, {plan.SpawnZ})" : "none")}");
     foreach (var g in plan.Pieces.GroupBy(p => p.Prefab).OrderByDescending(g => g.Count())) Console.Write($"{g.Key}x{g.Count()} ");

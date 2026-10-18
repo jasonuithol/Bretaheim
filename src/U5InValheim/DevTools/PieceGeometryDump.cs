@@ -89,6 +89,13 @@ namespace U5InValheim.DevTools
             {
                 foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin" })
                     LogHierarchy(__instance.GetPrefab(n));
+                foreach (var n in new[] { "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_brazierfloor01", "piece_brazierfloor02", "piece_brazierceiling01", "itemstand", "itemstandh" })
+                {
+                    var piece = __instance.GetPrefab(n)?.GetComponent<Piece>();
+                    var stand = __instance.GetPrefab(n)?.GetComponent<ItemStand>();
+                    Plugin.Log.LogInfo($"piece name {n}: {piece?.m_name} = {(piece != null ? Localization.instance?.Localize(piece.m_name) : null)}"
+                        + (stand != null ? $" stand types {string.Join(",", stand.m_supportedTypes)} orientation {stand.m_orientationType}" : ""));
+                }
                 TestLook(__instance.GetPrefab("piece_bathtub"), "fountain");
                 TestLook(__instance.GetPrefab("blackmarble_column_2"), "white_marble");
                 TestLook(__instance.GetPrefab("piece_banner01"), "icon:f6");

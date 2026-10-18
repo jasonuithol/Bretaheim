@@ -1,5 +1,5 @@
 {
-  "_doc": "Settlement map tile (hex; Constructing world assets.txt numbers them in decimal) -> what the settlement builder makes of it. Kinds: ground (paint: grass|paved|dirt|cultivated|planks), wall (build: brick|cobble|shelf), window (narrow = arrow slit), door (viewport, lock key|magic, gate = iron gate), arch (walk-through archway), roof, battlement (merlons), tree, fruittree, crop, water, fence_ew, fence_ns, stairs, ladder_up, ladder_down, bed_head, bed_foot, table (candles: how many of prefab stand on that tile of the table), chair (facing), prop (prefab | choices | parts), sign (a guild icon: prefab is the banner its TILES.16 picture is printed on; signpost post|top marks the posts it hangs from). Parts are tile-local (x east, z north, y up from the floor); place: centre (default, the middle of the bounds) | stand (furniture, on y) | top (top at y) | pivot (the prefab's own origin); look: white_marble | fountain (changed in game). A wall-mounted prop names its wall side (wall: n/e/s/w). Unlisted tiles are ground/grass.",
+  "_doc": "Settlement map tile (hex; Constructing world assets.txt numbers them in decimal) -> what the settlement builder makes of it. Kinds: ground (paint: grass|paved|dirt|cultivated|planks), wall (build: brick|cobble|shelf), window (narrow = arrow slit), door (viewport, lock key|magic, gate = iron gate), arch (walk-through archway), roof, battlement (merlons), tree, fruittree, crop, water, fence_ew, fence_ns, stairs, ladder_up, ladder_down, bed_head, bed_foot, table (candles: how many of prefab stand on that tile of the table), chair (facing), prop (prefab | choices | parts), sign (a guild icon: prefab is the banner its TILES.16 picture is printed on; signpost post|top marks the posts it hangs from). Parts are tile-local (x east, z north, y up from the floor); place: centre (default, the middle of the bounds) | stand (furniture, on y) | top (top at y) | pivot (the prefab's own origin); look: white_marble | fountain (changed in game). A wall-mounted prop names its wall side (wall: n/e/s/w). River water (river: true) inside a building is a trough: floored, with its prefab (a quenching bucket) standing in it; outside it is shallow water for lilies. Unlisted tiles are ground/grass.",
   "tiles": {
     "01": {"kind": "water"},
     "02": {"kind": "water"},
@@ -20,7 +20,7 @@
     "27": {"kind": "roof"},
     "28": {"kind": "roof"},
     "29": {"kind": "prop", "prefab": "piece_table_round"},
-    "2a": {"kind": "prop", "prefab": "piece_brazierfloor01"},
+    "2a": {"kind": "prop", "parts": [{"prefab": "piece_brazierfloor01", "y": 1, "place": "stand"}]},
     "2b": {"kind": "prop", "parts": [{"prefab": "SwampTree1", "scale": [0.25, 0.25, 0.25], "place": "pivot"}]},
     "2c": {"kind": "ground", "paint": "cultivated"},
     "2d": {"kind": "crop", "paint": "cultivated", "prefab": "Pickable_Barley"},
@@ -58,20 +58,20 @@
     "5b": {"kind": "prop", "prefab": "piece_pot1_red"},
     "5c": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "x": -0.85, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole2", "x": 0.85, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole2", "x": -0.85, "z": 0.85, "place": "stand"}, {"prefab": "wood_pole2", "x": 0.85, "z": 0.85, "place": "stand"}, {"prefab": "wood_pole", "x": -0.85, "y": 2, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole", "x": 0.85, "y": 2, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole", "x": -0.85, "y": 2, "z": 0.85, "place": "stand"}, {"prefab": "wood_pole", "x": 0.85, "y": 2, "z": 0.85, "place": "stand"}, {"prefab": "wood_floor", "y": 1, "place": "top"}, {"prefab": "wood_floor", "y": 2, "place": "top"}]},
     "5d": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "x": -0.85, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole2", "x": 0.85, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole2", "x": -0.85, "z": 0.85, "place": "stand"}, {"prefab": "wood_pole2", "x": 0.85, "z": 0.85, "place": "stand"}, {"prefab": "wood_pole", "x": -0.85, "y": 2, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole", "x": 0.85, "y": 2, "z": -0.85, "place": "stand"}, {"prefab": "wood_pole", "x": -0.85, "y": 2, "z": 0.85, "place": "stand"}, {"prefab": "wood_pole", "x": 0.85, "y": 2, "z": 0.85, "place": "stand"}, {"prefab": "wood_floor", "y": 1, "place": "top"}, {"prefab": "wood_floor", "y": 2, "place": "top"}]},
-    "60": {"kind": "water"},
-    "61": {"kind": "water"},
-    "62": {"kind": "water"},
-    "63": {"kind": "water"},
-    "64": {"kind": "water"},
-    "65": {"kind": "water"},
-    "66": {"kind": "water"},
-    "67": {"kind": "water"},
-    "68": {"kind": "water"},
-    "69": {"kind": "water"},
-    "6c": {"kind": "water"},
-    "6d": {"kind": "water"},
-    "6e": {"kind": "water"},
-    "6f": {"kind": "water"},
+    "60": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "61": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "62": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "63": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "64": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "65": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "66": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "67": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "68": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "69": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "6c": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "6d": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "6e": {"kind": "water", "river": true, "prefab": "forge_ext5"},
+    "6f": {"kind": "water", "river": true, "prefab": "forge_ext5"},
     "84": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "x": -0.9, "place": "stand"}, {"prefab": "wood_pole2", "x": 0.9, "place": "stand"}, {"prefab": "wood_beam", "y": 1.0}, {"prefab": "wood_beam_26", "y": 1.5}]},
     "86": {"kind": "prop", "parts": [{"prefab": "iron_floor_2x2", "y": 0.02, "place": "top"}]},
     "87": {"kind": "arch"},
@@ -113,7 +113,7 @@
     "af": {"kind": "prop", "prefab": "piece_chest_wood"},
     "b0": {"kind": "prop", "prefab": "piece_walltorch", "wall": "w"},
     "b1": {"kind": "prop", "prefab": "piece_walltorch", "wall": "e"},
-    "b2": {"kind": "prop", "prefab": "piece_brazierfloor01"},
+    "b2": {"kind": "prop", "parts": [{"prefab": "piece_brazierfloor01", "y": 1, "place": "stand"}]},
     "b3": {"kind": "prop", "parts": [{"prefab": "fire_pit", "place": "stand"}, {"prefab": "piece_cookingstation", "place": "stand"}]},
     "b4": {"kind": "prop", "prefab": "piece_turret", "facing": "n"},
     "b5": {"kind": "prop", "prefab": "piece_turret", "facing": "e"},
@@ -161,13 +161,14 @@
     "f9": {"kind": "sign", "prefab": "piece_banner01"},
     "fa": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "place": "stand"}]},
     "fb": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "place": "stand"}]},
-    "fc": {"kind": "prop", "parts": [{"prefab": "forge_ext6", "y": 2.2, "z": -0.88}]},
+    "fc": {"kind": "prop", "prefab": "forge_ext1"},
+    "fd": {"kind": "prop", "prefab": "forge_ext1"},
     "fe": {"kind": "wall"}
   },
   "styles": {
     "_doc": "Wall materials. Wall tiles are solid 2 m x 2 m x 4 m: four courses of 2x1x1 bricks, each course 1 m out of phase with the one below (1x1x1 at run ends). Inter-level floors are wood.",
-    "stone": {"brick": "stone_wall_2x1", "brick_small": "stone_wall_1x1", "sill": "stone_floor_2x2", "arch": "stone_arch", "floor": "wood_floor", "door": "wood_door", "gate": "iron_grate", "merlon": "stone_wall_1x1"},
-    "marble": {"brick": "blackmarble_2x1x1", "brick_small": "blackmarble_1x1", "sill": "blackmarble_floor", "arch": "stone_arch", "floor": "wood_floor", "door": "wood_door", "gate": "iron_grate", "merlon": "blackmarble_1x1"}
+    "stone": {"brick": "stone_wall_2x1", "brick_small": "stone_wall_1x1", "sill": "stone_floor_2x2", "arch": "stone_arch", "floor": "wood_floor", "door": "ashwood_door", "gate": "iron_grate", "merlon": "stone_wall_1x1"},
+    "marble": {"brick": "blackmarble_2x1x1", "brick_small": "blackmarble_1x1", "sill": "blackmarble_floor", "arch": "stone_arch", "floor": "wood_floor", "door": "ashwood_door", "gate": "iron_grate", "merlon": "blackmarble_1x1"}
   },
   "roofs": {
     "_doc": "Hip roofs. Thatch and shingle are 26 deg (1 m rise per 2 m cell); grausten 45 deg (2 m) with corners made of its triangular pieces, half-size slopes on one-cell crests.",
@@ -181,6 +182,20 @@
     "hallway_end": {"_doc": "The dead end of a one-tile hallway: a banner or a mounted animal head on its end wall.", "chance": 0.6,
       "banners": ["piece_banner01", "piece_banner02", "piece_banner03", "piece_banner04", "piece_banner05", "piece_banner06", "piece_banner07", "piece_banner08", "piece_banner09", "piece_banner10", "piece_banner11"],
       "trophy_stand": "itemstand", "trophies": ["TrophyDeer", "TrophyBoar", "TrophyWolf", "TrophyLox", "TrophyBjorn", "TrophyNeck", "TrophyHare", "TrophyFenring", "TrophySerpent"]}
+  },
+  "armoury": {
+    "_doc": "Armourers' display wall: item stands on the wall behind where the armourer works (the counter in front of them), 2 m apart, rows at these heights above the floor. Each shop shows the families of what it sells (DATA.OVL armoury stock, U5 item ids), in proportion, cycling through each family's Valheim models.",
+    "stand": "itemstand", "rows": [1.3, 2.8], "reach": 3,
+    "families": {
+      "bow": {"u5": [17, 26, 27, 28, 29, 36], "models": ["Bow", "BowFineWood", "BowHuntsman", "BowDraugrFang", "BowSpineSnap", "CrossbowArbalest", "BowAshlands", "CrossbowRipper", "BowAshlandsStorm", "BowAshlandsBlood", "BowAshlandsRoot", "CrossbowRipperLightning"]},
+      "knife": {"u5": [16, 20], "models": ["KnifeFlint", "KnifeCopper", "KnifeSilver", "KnifeBlackMetal", "KnifeChitin", "KnifeSkollAndHati"]},
+      "sword": {"u5": [23, 30, 33, 35, 37, 39, 40, 41], "models": ["SwordBronze", "SwordIron", "SwordSilver", "SwordBlackmetal", "THSwordKrom", "SwordMistwalker", "SwordNiedhogg", "SwordDyrnwyn"]},
+      "axe": {"u5": [22, 32, 38], "models": ["AxeBronze", "AxeIron", "Battleaxe", "AxeBlackMetal", "AxeJotunBane", "BattleaxeCrystal", "AxeBerzerkr"]},
+      "mace": {"u5": [18, 24, 25, 31], "models": ["Club", "MaceBronze", "MaceIron", "MaceSilver", "MaceNeedle", "SledgeIron", "SledgeDemolisher"]},
+      "polearm": {"u5": [21, 34], "models": ["SpearFlint", "SpearBronze", "AtgeirBronze", "SpearElderbark", "AtgeirIron", "SpearWolfFang", "AtgeirBlackmetal", "SpearChitin"]},
+      "shield": {"u5": [4, 5, 6, 7, 8], "models": ["ShieldWood", "ShieldBronzeBuckler", "ShieldBanded", "ShieldIronBuckler", "ShieldSilver", "ShieldIronTower", "ShieldSerpentscale", "ShieldBlackmetal", "ShieldBoneTower", "ShieldKnight"]},
+      "helmet": {"u5": [0, 1, 2, 3], "models": ["HelmetLeather", "HelmetBronze", "HelmetIron", "HelmetPadded", "HelmetDrake", "HelmetTrollLeather", "HelmetRoot"]}
+    }
   },
   "settlements": {
     "_doc": "Wall material and roof per settlement kind (cottages of cobblestone wall get the cobble roof).",

@@ -126,6 +126,30 @@ namespace U5InValheim.Data
         public byte ItemRange(int itemId) => U8(Dg.ItemRange + itemId);
         public ushort ItemPrice(int itemId) => U16(Dg.ItemPrices + 2 * itemId);
 
+        /// <summary>Location numbers with a shop of this trade, in the order of its tables (g_shop_towns).</summary>
+        public List<int> ShopTowns(ShopTrade trade)
+        {
+            var r = new List<int>();
+            for (int i = 0; i < 16; i++)
+            {
+                byte loc = U8(Dg.ShopTowns + 16 * (int)trade + i);
+                if (loc == 0) break;
+                r.Add(loc);
+            }
+            return r;
+        }
+
+        /// <summary>Equipment item ids (1..47) sold by the armourer of a location, or none (rows end in 0 or 0xff padding).</summary>
+        public List<int> ArmouryStock(int location)
+        {
+            var r = new List<int>();
+            int shop = ShopTowns(ShopTrade.Armoury).IndexOf(location);
+            if (shop < 0) return r;
+            foreach (byte id in Bytes(Dg.ArmouryStock + 8 * shop, 8))
+                if (id > 0 && id < 48) r.Add(id);
+            return r;
+        }
+
         /// <summary>The 8 raw stat bytes of creature type 0..47 (g_monster_stats).</summary>
         public byte[] MonsterStats(int type) => Bytes(Dg.MonsterStats + 8 * type, 8);
         public ushort MonsterFlags(int type) => U16(Dg.MonsterFlags + 2 * type);
