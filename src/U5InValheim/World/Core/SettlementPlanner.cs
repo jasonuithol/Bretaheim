@@ -615,7 +615,7 @@ namespace U5InValheim.WorldGen.Core
         /// water at both ends is crossed north–south (along a column, east–west); the lines that
         /// touch make one bridge, hinged on its edge facing the middle of the map (the town or
         /// castle side, or as town_tiles.json "drawbridge_hinge" says), so the whole deck swings
-        /// up about that edge. The deck is a metre longer than its tiles, half a metre onto each bank.
+        /// up about that edge. The deck is 2 m longer than its tiles: 1.5 m onto the hinge's bank, 0.5 m onto the other.
         /// </summary>
         void Drawbridges(Level lv)
         {
@@ -653,8 +653,8 @@ namespace U5InValheim.WorldGen.Core
                     foreach (int n in Neighbours4(c))
                         if (!seen[n] && across[n] == across[s0]) { seen[n] = true; q.Enqueue(n); }
                 }
-                // the deck runs across the water (z for a north–south crossing, x for east–west), a
-                // metre longer than its tiles to reach over the banks, hinged on one end: the side
+                // the deck runs across the water (z for a north–south crossing, x for east–west), 2 m
+                // longer than its tiles to reach over the banks, hinged on one end: the side
                 // facing the middle of the map (the town or castle side) unless the settlement says
                 bool ns = across[s0] == 1;
                 var plan = new SettlementPlan();
@@ -664,11 +664,14 @@ namespace U5InValheim.WorldGen.Core
                 bool hingeHigh = (lo + hi) / 2 < 0; // the middle of the map is north (east) of the deck
                 if (tiles.DrawbridgeHinge.TryGetValue(planning, out string side))
                     hingeHigh = side == "n" || side == "e";
-                float stretch = (length + 1) / length, hinge = hingeHigh ? hi + 0.5f : lo - 0.5f;
+                // half a metre onto the far bank, a metre and a half onto the hinge's bank
+                const float FarBank = 0.5f, HingeBank = 1.5f;
+                float start = lo - (hingeHigh ? FarBank : HingeBank), end = hi + (hingeHigh ? HingeBank : FarBank);
+                float stretch = (end - start) / length, hinge = hingeHigh ? end : start;
                 foreach (int c in deck)
                 {
                     int i = (int)Math.Round((A(c) - (lo + 1)) / 2);
-                    float centre = lo - 0.5f + (i + 0.5f) * (length + 1) / count;
+                    float centre = start + (i + 0.5f) * (end - start) / count;
                     lv.Drawbridge[c] = true;
                     lv.Deck[c] = ns ? (CellX(plan, c), centre, 1f, stretch, 0f, hinge - centre)
                                     : (centre, CellZ(plan, c), stretch, 1f, hinge - centre, 0f);

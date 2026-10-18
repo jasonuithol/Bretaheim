@@ -413,10 +413,11 @@ namespace U5InValheim.Tests
                 Assert.True(p.Water[c], "the river runs on under the deck");
                 var deck = decks.Single(d => Math.Abs(d.X - p.LocalX(x)) < 0.2f);
                 Assert.Equal("wood_floor", deck.Prefab);
-                // 3 m long across the 2 m stream, half a metre onto each bank
-                Assert.Equal(1.5f, deck.SZ, 0.01f);
+                // 4 m long across the 2 m stream: 1.5 m onto the north (hinge) bank, 0.5 m onto the south
+                Assert.Equal(2f, deck.SZ, 0.01f);
+                Assert.Equal(p.LocalZ(10) + 0.5f, deck.Z, 0.05f);
                 // hinged on its north edge (town_tiles.json drawbridge_hinge)
-                Assert.Equal("drawbridge:0,1.5", deck.Look);
+                Assert.Equal("drawbridge:0,2", deck.Look);
                 // open to the sky
                 Assert.DoesNotContain(p.Pieces, pc => pc.Y > 1 && Math.Abs(pc.X - deck.X) < 0.9f && Math.Abs(pc.Z - deck.Z) < 0.9f);
             }
