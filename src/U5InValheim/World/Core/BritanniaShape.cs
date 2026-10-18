@@ -166,7 +166,8 @@ namespace U5InValheim.WorldGen.Core
                 if (d <= 0)
                 {
                     int cell = site.Cell(wx, wz);
-                    return cell >= 0 && site.Water[cell] ? site.Base - 3.1f : site.Base;
+                    // water is at sea level: its bed 1.6 m under it, however high the ground
+                    return cell >= 0 && site.Water[cell] ? Math.Min(site.Base - 3.1f, -1.6f) : site.Base;
                 }
                 h = (float)Lerp(site.Base, h, SmoothStep(d / site.Blend));
             }

@@ -184,10 +184,14 @@
       "trophy_stand": "itemstand", "trophies": ["TrophyDeer", "TrophyBoar", "TrophyWolf", "TrophyLox", "TrophyBjorn", "TrophyNeck", "TrophyHare", "TrophyFenring", "TrophySerpent"]}
   },
   "garden": {
-    "_doc": "In the listed settlements a small water feature (a body of water on the ground floor of at most max_tiles tiles, clear of the map's edge: Britain's water round its plaza, North Britanny's stream and pond, which stand on land well above the sea) is planted instead: grass, and per tile this many bushes and flowers picked from the lists.",
-    "locations": [2, 20], "max_tiles": 50, "bushes_per_tile": 2, "flowers_per_tile": 6,
+    "_doc": "In the listed settlements a small water feature (a body of water on the ground floor of at most max_tiles tiles, clear of the map's edge: Britain's water round its plaza) is planted instead: grass, and per tile this many bushes and flowers picked from the lists.",
+    "locations": [2], "max_tiles": 30, "bushes_per_tile": 2, "flowers_per_tile": 6,
     "bushes": ["Bush01", "Bush01_heath", "Bush02_en", "shrub_2", "shrub_2_heath", "RaspberryBush", "BlueberryBush"],
     "flowers": ["Pickable_Dandelion", "Pickable_Thistle", "Pickable_Flax_Wild", "Pickable_Dandelion", "Pickable_Thistle", "Pickable_Mushroom", "Pickable_Mushroom_yellow"]
+  },
+  "water_ground": {
+    "_doc": "Ground height (m above the sea) of a settlement with water, by location number; others with water stand at 1.5 m. The water is at sea level whatever the ground: higher ground makes its water tiles deep ditches. North Britanny sits on land 7-11 m up: its stream is a ditch running into its pond.",
+    "20": 5
   },
   "armoury": {
     "_doc": "Armourers' display wall: item stands on the wall behind where the armourer works (the counter in front of them), 2 m apart, rows at these heights above the floor. Each shop shows the families of what it sells (DATA.OVL armoury stock, U5 item ids), in proportion, cycling through each family's Valheim models.",

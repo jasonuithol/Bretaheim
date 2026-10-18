@@ -221,10 +221,16 @@ namespace U5InValheim.Tests
                 if (location == 7) Assert.True(p.Water.Count(w => w) > 100);
             }
             Assert.True(troughs >= 3, $"{troughs} troughs");
-            // North Britanny stands on land well above the sea: its stream and pond are planted, so it isn't sunk to the water
+            // North Britanny's stream and pond are real water, in ditches: its ground stands 5 m up
             var nb = Plan(20, "village");
-            Assert.False(nb.HasWater);
-            Assert.True(nb.Garden.Count(g => g) > 30);
+            Assert.True(nb.Water.Count(w => w) > 30);
+            Assert.DoesNotContain(true, nb.Garden);
+            Assert.Equal(5f, tt.WaterGround[20]);
+            var site = new SettlementSite { Half = nb.HalfSize, Tile = nb.Tile, Base = 5, Paint = nb.GroundPaint, Water = nb.Water };
+            var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
+            shape.SetSites(new[] { site });
+            for (int c = 0; c < 32 * 32; c++)
+                Assert.Equal(nb.Water[c] ? -1.6f : 5f, shape.Height(nb.LocalX(c % 32), nb.LocalZ(c / 32)), 0.01f);
         }
 
         [U5Fact]

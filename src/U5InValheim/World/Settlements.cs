@@ -97,7 +97,7 @@ namespace U5InValheim.WorldGen
                 var site = new SettlementSite
                 {
                     Location = loc.Number, CentreX = cx, CentreZ = cz, Half = plan.HalfSize, Tile = plan.Tile,
-                    Base = SiteBase(shape, cx, cz, plan), Paint = plan.GroundPaint, Water = plan.Water,
+                    Base = SiteBase(shape, cx, cz, plan, tiles), Paint = plan.GroundPaint, Water = plan.Water,
                 };
                 sites.Add(site);
                 var built = new Built { Location = loc, Plan = plan, Site = site, Origin = new Vector3(cx, Britannia.SeaLevel + site.Base, cz) };
@@ -125,8 +125,11 @@ namespace U5InValheim.WorldGen
             shape.SetSites(sites);
         }
 
-        /// <summary>Settlement ground: the average natural height of its square; low enough for its water tiles to hold water.</summary>
-        static float SiteBase(BritanniaShape shape, float cx, float cz, SettlementPlan plan)
+        /// <summary>
+        /// Settlement ground: the average natural height of its square; with water tiles, 1.5 m (or
+        /// its water_ground), so they hold the sea-level water.
+        /// </summary>
+        static float SiteBase(BritanniaShape shape, float cx, float cz, SettlementPlan plan, TownTiles tiles)
         {
             double sum = 0;
             int n = 0;
@@ -137,7 +140,8 @@ namespace U5InValheim.WorldGen
                 n++;
             }
             float avg = (float)(sum / n);
-            return plan.HasWater ? 1.5f : Mathf.Clamp(avg, 1.5f, 60f);
+            if (plan.HasWater) return tiles.WaterGround.TryGetValue(plan.Location.Number, out float g) ? g : 1.5f;
+            return Mathf.Clamp(avg, 1.5f, 60f);
         }
 
         public static bool IsBuilt(int location) => All.Any(b => b.Location.Number == location);
