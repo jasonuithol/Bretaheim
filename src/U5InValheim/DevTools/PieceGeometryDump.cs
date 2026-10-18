@@ -87,7 +87,7 @@ namespace U5InValheim.DevTools
                     "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_bathtub");
             if (Plugin.SelfTest.Value)
             {
-                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin" })
+                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin", "wood_gate", "ashwood_door", "forge_ext1" })
                     LogHierarchy(__instance.GetPrefab(n));
                 foreach (var n in new[] { "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_brazierfloor01", "piece_brazierfloor02", "piece_brazierceiling01", "itemstand", "itemstandh" })
                 {

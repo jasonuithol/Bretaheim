@@ -69,6 +69,8 @@ namespace U5InValheim.WorldGen.Core
     public class TownStyle
     {
         public string Brick, BrickSmall, Sill, Arch, Floor, Door, Gate, Merlon;
+        /// <summary>A leaf of a double door: no frame of its own, centred on its tile, hinged on its local +x side.</summary>
+        public string DoubleDoor;
     }
 
     /// <summary>A roof material: hip-roof pieces and how much a 2 m cell rises.</summary>
@@ -167,7 +169,7 @@ namespace U5InValheim.WorldGen.Core
                 t.Styles[kv.Key] = new TownStyle
                 {
                     Brick = Json.Str(o, "brick"), BrickSmall = Json.Str(o, "brick_small"), Sill = Json.Str(o, "sill"), Arch = Json.Str(o, "arch"),
-                    Floor = Json.Str(o, "floor"), Door = Json.Str(o, "door"), Gate = Json.Str(o, "gate"), Merlon = Json.Str(o, "merlon"),
+                    Floor = Json.Str(o, "floor"), Door = Json.Str(o, "door"), DoubleDoor = Json.Str(o, "double_door"), Gate = Json.Str(o, "gate"), Merlon = Json.Str(o, "merlon"),
                 };
             }
             foreach (var kv in Json.Obj(root["roofs"]))

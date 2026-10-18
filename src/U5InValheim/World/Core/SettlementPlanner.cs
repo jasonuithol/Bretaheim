@@ -423,7 +423,6 @@ namespace U5InValheim.WorldGen.Core
 
             public float Height(string prefab) => geo[prefab].SizeY;
             public bool Known(string prefab) => prefab != null && geo.Has(prefab);
-            public bool Geo(string prefab, out PieceGeometry.Box b) => geo.TryGet(prefab, out b);
 
             /// <summary>
             /// Ground-floor cells covered by the footprint of a placed object other than the
@@ -700,10 +699,11 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>
-        /// A door: one 2 m × 3 m leaf filling its tile (a viewport door too; Valheim's 2 m × 2 m
-        /// door is never used), its pivot the hinge on one side of the tile. Of a double door (two
-        /// door tiles side by side in the wall) each leaf hinges on the side away from the other,
-        /// so the pair opens from the middle.
+        /// A door: one 2 m × 3 m leaf filling its tile, its pivot the hinge on one side of the tile
+        /// (a viewport door too: Valheim's 2 m × 2 m door is never used). A double door (two door
+        /// tiles side by side in the wall) is two frameless leaves (the doors with a frame of their
+        /// own would put a post in the middle), each hinged on the side away from the other so the
+        /// pair opens from the middle.
         /// </summary>
         static void Door(Ctx ctx, Level lv, TownStyle style, int c, bool alongX, float y0)
         {
@@ -712,20 +712,22 @@ namespace U5InValheim.WorldGen.Core
             int x = c % N;
             int partner = alongX ? (x + 1 < N && IsDoor(lv, c + 1) ? c + 1 : x > 0 && IsDoor(lv, c - 1) ? c - 1 : -1)
                                  : (c + N < N * N && IsDoor(lv, c + N) ? c + N : c >= N && IsDoor(lv, c - N) ? c - N : -1);
-            // the leaf reaches from its pivot along its local −x: the hinge is the tile's local +x edge
+            // both doors hinge on their local +x side: turn it away from the other leaf
             Ctx.Rotate(1, 0, yaw, out float ux, out float uz);
             if (partner >= 0 && (CellX(p, partner) - cx) * ux + (CellZ(p, partner) - cz) * uz > 0)
             {
                 yaw += 180;
                 ux = -ux; uz = -uz;
             }
-            if (!ctx.Known(style.Door) || !ctx.Geo(style.Door, out var b) || b.MaxX - b.MinX < 1.5f)
+            yaw %= 360;
+            if (partner >= 0 && ctx.Known(style.DoubleDoor))
             {
-                ctx.Centre(style.Door, cx, y0 + 1.5f, cz, yaw % 360, 1, 1.5f, 1);
+                // the gate's pivot is the middle of its tile, 1 m up
+                ctx.Pivot(style.DoubleDoor, cx, y0 + 1, cz, yaw);
                 return;
             }
-            float half = p.Tile / 2;
-            ctx.Pivot(style.Door, cx + ux * half, y0, cz + uz * half, yaw % 360);
+            // the single door's leaf reaches from its pivot (the hinge) along its local −x
+            ctx.Pivot(style.Door, cx + ux * p.Tile / 2, y0, cz + uz * p.Tile / 2, yaw);
         }
 
         static bool IsDoor(Level lv, int c) => lv.Built[c] && lv.Rule[c].Kind == TileKind.Door && !lv.Rule[c].Gate;
@@ -1229,7 +1231,9 @@ namespace U5InValheim.WorldGen.Core
             // what is shown: the families sold, in proportion
             var weights = disp.Families.Select(f => (f.models, w: stock.Count(id => f.u5.Contains(id)))).Where(f => f.w > 0).ToList();
             if (weights.Count == 0) return;
-            int slots = run.Count * disp.Rows.Length, total = weights.Sum(f => f.w);
+            // the rows are staggered (the upper ones between the tiles of the lower) so long items don't overlap
+            int Spots(int row) => row % 2 == 0 ? run.Count : run.Count - 1;
+            int slots = Enumerable.Range(0, disp.Rows.Length).Sum(Spots), total = weights.Sum(f => f.w);
             var items = new List<string>();
             int salt = loc.Number * 31;
             for (int f = 0; f < weights.Count; f++)
@@ -1245,14 +1249,20 @@ namespace U5InValheim.WorldGen.Core
             float side = back.dx > 0 ? 90 : back.dx < 0 ? 270 : back.dy > 0 ? 180 : 0; // yaw of the wall's direction
             float y0 = p.Storey * lv.Z;
             int slot = 0;
-            foreach (float row in disp.Rows)
-                foreach (int c in run)
+            for (int row = 0; row < disp.Rows.Length; row++)
+                for (int i = 0; i < Spots(row); i++)
                 {
                     if (slot >= items.Count) break;
                     // in front of the wall: the tile before it, its far edge (the stand's front is its local +z)
-                    int front = Step(c, (-back.dx, -back.dy));
-                    float x = CellX(p, front) + back.dx * 0.94f, z = CellZ(p, front) - back.dy * 0.94f;
-                    ctx.Pivot(disp.Stand, x, y0 + row, z, side + 180);
+                    float x = 0, z = 0;
+                    foreach (int c in row % 2 == 0 ? new[] { run[i] } : new[] { run[i], run[i + 1] })
+                    {
+                        int front = Step(c, (-back.dx, -back.dy));
+                        x += CellX(p, front) + back.dx * 0.94f;
+                        z += CellZ(p, front) - back.dy * 0.94f;
+                    }
+                    int n = row % 2 == 0 ? 1 : 2;
+                    ctx.Pivot(disp.Stand, x / n, y0 + disp.Rows[row], z / n, side + 180);
                     string item = items[slot++];
                     ctx.Last(pl => { pl.StandItem = item; return pl; });
                 }

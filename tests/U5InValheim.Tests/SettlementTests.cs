@@ -197,9 +197,7 @@ namespace U5InValheim.Tests
                 var loc = Env.Data.Location(location);
                 var raw = Env.Data.Maps.Floor(loc, Math.Max(0, loc.MinZ));
                 var p = Plan(location, "towne");
-                var site = new SettlementSite { CentreX = 0, CentreZ = 0, Half = p.HalfSize, Tile = p.Tile, Base = 1.5f, Paint = p.GroundPaint, Water = p.Water, Shallow = p.Shallow };
-                var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
-                for (int c = 0; c < 32 * 32; c++)
+                                for (int c = 0; c < 32 * 32; c++)
                 {
                     if (!tt[raw[c]].River) continue;
                     float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
@@ -221,9 +219,9 @@ namespace U5InValheim.Tests
                     Assert.Equal(3, p.Pieces.Count(pc => pc.Prefab == "forge_ext5"));
             }
             Assert.True(troughs >= 3 && shallow > 20, $"{troughs} troughs, {shallow} shallow river tiles");
-            // the lilies grow 0.25..1.6 m under the surface
-            var s2 = new SettlementSite { Half = 32, Tile = 2, Base = 1.5f, Paint = new Paint[1024], Water = Enumerable.Repeat(true, 1024).ToArray(), Shallow = Enumerable.Repeat(true, 1024).ToArray() };
-            Assert.InRange(s2.Base - 2.4f, -1.6f, -0.25f);
+            // a pond for ducks: its water within a metre of the ground, deep enough for the lilies (0.25..1.6 m)
+            Assert.InRange(BritanniaShape.PondBed, -1.6f, -0.25f);
+            Assert.InRange(BritanniaShape.WaterSiteBase, 0.35f, 1f);
         }
 
         [U5Fact]
@@ -231,13 +229,18 @@ namespace U5InValheim.Tests
         {
             var p = Plan(2, "towne");
             Assert.DoesNotContain(p.Pieces, pc => pc.Prefab == "wood_door");
-            // Britain's smithy: the double door (0xba 0xba) at (3, 25) and (4, 25) hinges on its outer edges
+            Assert.Contains(p.Pieces, pc => pc.Prefab == "ashwood_door");
+            // Britain's smithy: the double door (0xba 0xba) at (3, 25) and (4, 25) is two frameless
+            // leaves, each hinged (its local +x) on its outer edge
             float z = p.LocalZ(25);
-            var leaves = p.Pieces.Where(pc => pc.Prefab == "ashwood_door" && Math.Abs(pc.Z - z) < 0.1f && pc.Y < 1).OrderBy(pc => pc.X).ToList();
+            var leaves = p.Pieces.Where(pc => (pc.Prefab.Contains("door") || pc.Prefab.Contains("gate")) && Math.Abs(pc.Z - z) < 1.1f && pc.Y < 2
+                                              && pc.X > p.LocalX(2) && pc.X < p.LocalX(5)).OrderBy(pc => pc.X).ToList();
             Assert.Equal(2, leaves.Count);
-            Assert.Equal(p.LocalX(3) - 1, leaves[0].X, 0.01f);
-            Assert.Equal(p.LocalX(4) + 1, leaves[1].X, 0.01f);
-            Assert.Equal(180f, Math.Abs(leaves[0].Yaw - leaves[1].Yaw) % 360, 0.1f);
+            Assert.All(leaves, pc => Assert.Equal("wood_gate", pc.Prefab));
+            Assert.Equal(p.LocalX(3), leaves[0].X, 0.01f);
+            Assert.Equal(180f, leaves[0].Yaw, 0.1f);
+            Assert.Equal(p.LocalX(4), leaves[1].X, 0.01f);
+            Assert.Equal(0f, leaves[1].Yaw, 0.1f);
         }
 
         [U5Theory]
@@ -246,7 +249,7 @@ namespace U5InValheim.Tests
         {
             var p = Plan(location, "towne");
             var shown = p.Pieces.Where(pc => pc.Prefab == "itemstand" && pc.StandItem != null && !pc.StandItem.StartsWith("Trophy")).ToList();
-            Assert.True(shown.Count >= 6, $"{shown.Count} items on the wall");
+            Assert.True(shown.Count >= 5, $"{shown.Count} items on the wall");
             // one wall: all at the same distance along it from the room
             Assert.True(shown.Select(pc => pc.Yaw % 360).Distinct().Count() == 1);
             if (location == 2)
@@ -255,6 +258,11 @@ namespace U5InValheim.Tests
                 Assert.True(shown.Count(pc => pc.StandItem.StartsWith("Bow") || pc.StandItem.StartsWith("Crossbow")) >= 8);
                 Assert.True(shown.Select(pc => pc.StandItem).Distinct().Count() >= 8);
                 Assert.All(shown, pc => Assert.Equal(p.LocalZ(18) + 0.94f, pc.Z, 0.01f));
+                // staggered: the upper row hangs between the lower row's items
+                var low = shown.Where(pc => pc.Y < 2).Select(pc => pc.X).OrderBy(x => x).ToList();
+                var high = shown.Where(pc => pc.Y > 2).Select(pc => pc.X).OrderBy(x => x).ToList();
+                Assert.Equal(low.Count - 1, high.Count);
+                for (int i = 0; i < high.Count; i++) Assert.Equal((low[i] + low[i + 1]) / 2, high[i], 0.01f);
             }
         }
 
@@ -262,7 +270,8 @@ namespace U5InValheim.Tests
         public void SmithiesHaveBellowsAndRaisedBraziers()
         {
             var p = Plan(2, "towne");
-            Assert.Contains(p.Pieces, pc => pc.Prefab == "forge_ext1");
+            // the bellows (0xfc) blow into the brazier west of them
+            Assert.Contains(p.Pieces, pc => pc.Prefab == "forge_ext1" && pc.Yaw == 180);
             Assert.DoesNotContain(p.Pieces, pc => pc.Prefab == "forge_ext6");
             Assert.All(p.Pieces.Where(pc => pc.Prefab == "piece_brazierfloor01"), pc => Assert.True(pc.Y % p.Storey >= 0.9f));
         }

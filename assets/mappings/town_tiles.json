@@ -161,14 +161,14 @@
     "f9": {"kind": "sign", "prefab": "piece_banner01"},
     "fa": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "place": "stand"}]},
     "fb": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "place": "stand"}]},
-    "fc": {"kind": "prop", "prefab": "forge_ext1"},
-    "fd": {"kind": "prop", "prefab": "forge_ext1"},
+    "fc": {"kind": "prop", "prefab": "forge_ext1", "facing": "s"},
+    "fd": {"kind": "prop", "prefab": "forge_ext1", "facing": "s"},
     "fe": {"kind": "wall"}
   },
   "styles": {
     "_doc": "Wall materials. Wall tiles are solid 2 m x 2 m x 4 m: four courses of 2x1x1 bricks, each course 1 m out of phase with the one below (1x1x1 at run ends). Inter-level floors are wood.",
-    "stone": {"brick": "stone_wall_2x1", "brick_small": "stone_wall_1x1", "sill": "stone_floor_2x2", "arch": "stone_arch", "floor": "wood_floor", "door": "ashwood_door", "gate": "iron_grate", "merlon": "stone_wall_1x1"},
-    "marble": {"brick": "blackmarble_2x1x1", "brick_small": "blackmarble_1x1", "sill": "blackmarble_floor", "arch": "stone_arch", "floor": "wood_floor", "door": "ashwood_door", "gate": "iron_grate", "merlon": "blackmarble_1x1"}
+    "stone": {"brick": "stone_wall_2x1", "brick_small": "stone_wall_1x1", "sill": "stone_floor_2x2", "arch": "stone_arch", "floor": "wood_floor", "door": "ashwood_door", "double_door": "wood_gate", "gate": "iron_grate", "merlon": "stone_wall_1x1"},
+    "marble": {"brick": "blackmarble_2x1x1", "brick_small": "blackmarble_1x1", "sill": "blackmarble_floor", "arch": "stone_arch", "floor": "wood_floor", "door": "ashwood_door", "double_door": "wood_gate", "gate": "iron_grate", "merlon": "blackmarble_1x1"}
   },
   "roofs": {
     "_doc": "Hip roofs. Thatch and shingle are 26 deg (1 m rise per 2 m cell); grausten 45 deg (2 m) with corners made of its triangular pieces, half-size slopes on one-cell crests.",

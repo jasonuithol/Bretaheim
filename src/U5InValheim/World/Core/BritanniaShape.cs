@@ -152,6 +152,11 @@ namespace U5InValheim.WorldGen.Core
         SettlementSite[] sites = new SettlementSite[0];
 
         /// <summary>Flattens and paints the ground of built settlements (set before the shape is used).</summary>
+        /// <summary>Ground of a settlement with water: 0.6 m above the water.</summary>
+        public const float WaterSiteBase = 0.6f;
+        /// <summary>Bed of a settlement pond: 0.4 m of water.</summary>
+        public const float PondBed = -0.4f;
+
         public void SetSites(IEnumerable<SettlementSite> list) => sites = new List<SettlementSite>(list).ToArray();
         public IReadOnlyList<SettlementSite> Sites => sites;
 
@@ -167,8 +172,8 @@ namespace U5InValheim.WorldGen.Core
                 {
                     int cell = site.Cell(wx, wz);
                     if (cell < 0 || !site.Water[cell]) return site.Base;
-                    // shallow water sits where the river lilies grow (−1.6 .. −0.25 m)
-                    return site.Shallow != null && site.Shallow[cell] ? site.Base - 2.4f : site.Base - 3.1f;
+                    // ponds are a shallow dip where the river lilies grow (−1.6 .. −0.25 m); moats are deep
+                    return site.Shallow != null && site.Shallow[cell] ? PondBed : site.Base - 3.1f;
                 }
                 h = (float)Lerp(site.Base, h, SmoothStep(d / site.Blend));
             }
