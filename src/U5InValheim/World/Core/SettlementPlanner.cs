@@ -825,6 +825,11 @@ namespace U5InValheim.WorldGen.Core
                 p.Water[c] = false;
                 ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
             }
+            // the tiles round the dug ones (the basement's walls) dip to its floor at their dug
+            // edges, under walls that stop at the slab: the slab covers them too
+            for (int c = 0; c < N * N; c++)
+                if (!p.Basement[c] && Neighbours8(c).Any(n => p.Basement[n]))
+                    ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
         }
 
         void Floors(Ctx ctx, Level lv, Level below, TownStyle style)

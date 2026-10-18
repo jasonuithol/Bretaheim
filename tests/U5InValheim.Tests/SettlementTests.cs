@@ -435,9 +435,15 @@ namespace U5InValheim.Tests
             // the doors between its corridors and rooms are dug too (not plugs of earth)
             foreach (var (x, y) in new[] { (6, 14), (22, 14), (15, 24), (8, 12), (21, 17) })
                 Assert.True(p.Basement[y * 32 + x], $"door ({x}, {y}) not dug");
-            // each dug tile is roofed at street level with stone
+            // each dug tile, and each tile beside one (whose ground dips to the dug edge), is
+            // roofed at street level with stone
+            bool NearDug(int c) => Enumerable.Range(-1, 3).Any(dy => Enumerable.Range(-1, 3).Any(dx =>
+            {
+                int x = c % 32 + dx, y = c / 32 + dy;
+                return x >= 0 && y >= 0 && x < 32 && y < 32 && p.Basement[y * 32 + x];
+            }));
             for (int c = 0; c < 32 * 32; c++)
-                if (p.Basement[c])
+                if (NearDug(c))
                     Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Math.Abs(pc.X - p.LocalX(c % 32)) < 0.1f && Math.Abs(pc.Z - p.LocalZ(c / 32)) < 0.1f);
             // the corner towers' ladders lead down and back up
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a pole's pivot is its middle)
