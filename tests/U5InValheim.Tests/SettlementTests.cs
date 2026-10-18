@@ -142,6 +142,51 @@ namespace U5InValheim.Tests
             Assert.True(walks > 100, $"{walks} wall-walk tiles");
         }
 
+        [U5Theory]
+        [InlineData(2, "towne", 3)]   // Britain: two posts each side of the street, one between two posts
+        [InlineData(4, "towne", 4)]   // Yew
+        [InlineData(30, "keep", 7)]   // the Lycaeum: indoor shops on three floors, hung on their walls
+        public void ShopSignsHangTheirGuildIcon(int location, string kind, int icons)
+        {
+            var p = Plan(location, kind);
+            var banners = p.Pieces.Where(x => x.Look != null && x.Look.StartsWith("icon:")).ToList();
+            Assert.Equal(icons, banners.Count);
+            foreach (var b in banners)
+            {
+                int tile = Convert.ToInt32(b.Look.Substring(5), 16);
+                Assert.InRange(tile, 0xf0, 0xf9);
+                Assert.NotEqual(0xf8, tile);
+                Assert.Equal("piece_banner01", b.Prefab);
+                // the cloth hangs ~2.9 m under its rod: clear of the floor it hangs over
+                float floor = (float)Math.Floor(b.Y / p.Storey + 0.01) * p.Storey;
+                Assert.InRange(b.Y - floor, 3.5f, 4f);
+                // nothing stands where it hangs (a post under a banner between two posts is left out)
+                Assert.DoesNotContain(p.Pieces, x => x.Prefab.StartsWith("wood_pole") && Math.Abs(x.X - b.X) < 0.5f && Math.Abs(x.Z - b.Z) < 0.2f);
+            }
+        }
+
+        [U5Fact]
+        public void BannersPrintTheGuildIconsFromTilesDotSixteen()
+        {
+            foreach (int tile in new[] { 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf9 })
+            {
+                var rgba = BannerArt.Render(Env.Data.Tiles, tile);
+                Assert.Equal(BannerArt.Width * BannerArt.Height * 4, rgba.Length);
+                // every pixel of the icon is on the banner, doubled
+                int left = (BannerArt.Width - 32) / 2, top = 22, same = 0;
+                for (int y = 0; y < 16; y++)
+                for (int x = 0; x < 16; x++)
+                {
+                    int rgb = Data.TileSet.EgaPalette[Env.Data.Tiles.Pixel(tile, x, y)];
+                    int o = ((top + 2 * y + 1) * BannerArt.Width + left + 2 * x + 1) * 4;
+                    if (rgba[o] == (byte)(rgb >> 16) && rgba[o + 1] == (byte)(rgb >> 8) && rgba[o + 2] == (byte)rgb) same++;
+                }
+                Assert.Equal(256, same);
+                // the icons are pictures, not blank tiles
+                Assert.True(Env.Data.Tiles.Pixels(tile).Distinct().Count() >= 3, $"tile {tile:x2}");
+            }
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {

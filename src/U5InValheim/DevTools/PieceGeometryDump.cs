@@ -68,7 +68,11 @@ namespace U5InValheim.DevTools
                 var sb = new StringBuilder($"look {look} on {prefab.name}:");
                 foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true))
                     if (mf.sharedMesh != null && mf.GetComponent<Renderer>()?.enabled == true && mf.gameObject.activeInHierarchy)
-                        sb.Append($" {mf.name}={mf.sharedMesh.triangles.Length / 3}tris z>={mf.sharedMesh.bounds.min.z:0.00} y<={mf.sharedMesh.bounds.max.y:0.00} mat={mf.GetComponent<Renderer>().sharedMaterial?.name}");
+                    {
+                        var mat = mf.GetComponent<Renderer>().sharedMaterial;
+                        sb.Append($" {mf.name}={mf.sharedMesh.triangles.Length / 3}tris z>={mf.sharedMesh.bounds.min.z:0.00} y<={mf.sharedMesh.bounds.max.y:0.00} mat={mat?.name}");
+                        if (mat != null) sb.Append($" tex[{string.Join(",", mat.GetTexturePropertyNames().Select(t => $"{t}={mat.GetTexture(t)?.name}"))}]");
+                    }
                 sb.Append($" smelter={go.GetComponent<Smelter>() != null} drink={go.GetComponent<WorldGen.FountainDrink>() != null}");
                 Plugin.Log.LogInfo(sb.ToString());
             }
@@ -87,6 +91,15 @@ namespace U5InValheim.DevTools
                     LogHierarchy(__instance.GetPrefab(n));
                 TestLook(__instance.GetPrefab("piece_bathtub"), "fountain");
                 TestLook(__instance.GetPrefab("blackmarble_column_2"), "white_marble");
+                TestLook(__instance.GetPrefab("piece_banner01"), "icon:f6");
+                var cloth = __instance.GetPrefab("piece_banner01")?.transform.Find("default")?.GetComponent<MeshFilter>()?.sharedMesh;
+                if (cloth != null && cloth.isReadable)
+                {
+                    var v = cloth.vertices; var uv = cloth.uv;
+                    var line = new StringBuilder($"banner cloth uv: {v.Length} verts, colours {cloth.colors.Length}, uv2 {cloth.uv2.Length}:");
+                    for (int i = 0; i < v.Length; i += Math.Max(1, v.Length / 12)) line.Append($" ({v[i].z:0.00},{v[i].y:0.00})->({uv[i].x:0.00},{uv[i].y:0.00})");
+                    Plugin.Log.LogInfo(line.ToString());
+                }
             }
             var names = Plugin.DumpPieceGeometry.Value.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
             if (names.Count == 0) return;

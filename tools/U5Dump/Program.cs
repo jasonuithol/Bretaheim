@@ -32,6 +32,37 @@ if (argv.Count > 0 && argv[0] == "preview")
     Console.WriteLine($"wrote {outPath}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "banners")
+{
+    // banners <out.ppm> [tile ...]: the shop banner cloths (default: the guild icons 0xf0-0xf9 but 0xf8), side by side, doubled
+    string outPath = argv.Count > 1 ? argv[1] : "banners.ppm";
+    var tiles = argv.Count > 2 ? argv.Skip(2).Select(t => Convert.ToInt32(t, 16)).ToList()
+        : Enumerable.Range(0xf0, 10).Where(t => t != 0xf8).ToList();
+    const int s = 2, gap = 4;
+    int bw = U5InValheim.WorldGen.Core.BannerArt.Width, bh = U5InValheim.WorldGen.Core.BannerArt.Height;
+    int w = tiles.Count * (bw + gap) * s, h = bh * s;
+    var img = new byte[w * h * 3];
+    for (int k = 0; k < img.Length; k++) img[k] = 96;
+    for (int n = 0; n < tiles.Count; n++)
+    {
+        var rgba = U5InValheim.WorldGen.Core.BannerArt.Render(data.Tiles, tiles[n]);
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < bw * s; x++)
+        {
+            int src = ((y / s) * bw + x / s) * 4;
+            int dst = (y * w + n * (bw + gap) * s + x) * 3;
+            img[dst] = rgba[src]; img[dst + 1] = rgba[src + 1]; img[dst + 2] = rgba[src + 2];
+        }
+    }
+    using (var f = File.Create(outPath))
+    {
+        var header = System.Text.Encoding.ASCII.GetBytes($"P6\n{w} {h}\n255\n");
+        f.Write(header, 0, header.Length);
+        f.Write(img, 0, img.Length);
+    }
+    Console.WriteLine($"wrote {outPath}: {string.Join(" ", tiles.Select(t => $"{t:x2} {data.TileNames[t]}"))}");
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "dressing")
 {
     // dressing: how many of each prefab dressing.json scatters over the whole overworld

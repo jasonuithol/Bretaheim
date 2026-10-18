@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
+using U5InValheim.WorldGen.Core;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace U5InValheim.WorldGen
 {
@@ -13,6 +16,8 @@ namespace U5InValheim.WorldGen
         static readonly Color MarbleWhite = new Color(0.93f, 0.92f, 0.88f);
         static readonly Dictionary<Material, Material> whitened = new Dictionary<Material, Material>();
         static readonly Dictionary<Mesh, Mesh> trimmed = new Dictionary<Mesh, Mesh>();
+        static readonly Dictionary<Mesh, Mesh> unwrapped = new Dictionary<Mesh, Mesh>();
+        static readonly Dictionary<(Material, int), Material> printed = new Dictionary<(Material, int), Material>();
 
         public static void Apply(GameObject go, string look)
         {
@@ -22,6 +27,9 @@ namespace U5InValheim.WorldGen
             {
                 case "white_marble": Whiten(go.transform); break;
                 case "fountain": Fountain(go); break;
+                default:
+                    if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
+                    break;
             }
         }
 
@@ -87,6 +95,67 @@ namespace U5InValheim.WorldGen
             }
             copy.RecalculateBounds();
             return trimmed[mesh] = copy;
+        }
+
+        /// <summary>
+        /// A shop banner printed with a guild icon from the player's TILES.16 (BannerArt): the
+        /// cloth gets its own UVs spanning the whole banner (flat in its local y–z plane, u along
+        /// +z, v up) and a pixel-art texture; the rod and the wind sway stay Valheim's.
+        /// </summary>
+        static void Icon(GameObject go, int tile)
+        {
+            var tiles = Plugin.U5?.Tiles;
+            if (tiles == null) return;
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var r = mf.GetComponent<Renderer>();
+                if (mf.sharedMesh == null || r == null || mf.name.IndexOf("beam", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                var cloth = Unwrapped(mf.sharedMesh);
+                if (cloth == null) continue;
+                mf.sharedMesh = cloth;
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                    if (mats[i] != null) mats[i] = Printed(mats[i], tiles, tile);
+                r.sharedMaterials = mats;
+            }
+        }
+
+        /// <summary>A copy of a flat banner cloth with UVs from its own y–z extent, or null if it isn't one.</summary>
+        static Mesh Unwrapped(Mesh mesh)
+        {
+            if (unwrapped.TryGetValue(mesh, out var done)) return done;
+            var b = mesh.bounds;
+            if (!mesh.isReadable || b.size.x > 0.05f || b.size.y < 0.5f || b.size.z < 0.3f) return unwrapped[mesh] = null;
+            var copy = Object.Instantiate(mesh);
+            var v = copy.vertices;
+            var uv = new Vector2[v.Length];
+            for (int i = 0; i < v.Length; i++)
+                uv[i] = new Vector2((v[i].z - b.min.z) / b.size.z, (v[i].y - b.min.y) / b.size.y);
+            copy.uv = uv;
+            return unwrapped[mesh] = copy;
+        }
+
+        static Material Printed(Material cloth, Data.TileSet tiles, int tile)
+        {
+            if (printed.TryGetValue((cloth, tile), out var done)) return done;
+            var rgba = BannerArt.Render(tiles, tile);
+            var tex = new Texture2D(BannerArt.Width, BannerArt.Height, TextureFormat.RGBA32, false)
+            {
+                name = $"u5_banner_{tile:x2}", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp,
+            };
+            var px = new Color32[BannerArt.Width * BannerArt.Height];
+            for (int y = 0; y < BannerArt.Height; y++)
+            for (int x = 0; x < BannerArt.Width; x++)
+            {
+                int o = (y * BannerArt.Width + x) * 4; // BannerArt rows run from the top, Unity's from the bottom
+                px[(BannerArt.Height - 1 - y) * BannerArt.Width + x] = new Color32(rgba[o], rgba[o + 1], rgba[o + 2], rgba[o + 3]);
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            // set whether or not the shader reports the property (a dedicated server's shaders are stubs)
+            var m = new Material(cloth) { name = $"{cloth.name}_u5icon_{tile:x2}", mainTexture = tex };
+            m.SetColor("_Color", Color.white);
+            return printed[(cloth, tile)] = m;
         }
 
         static void Whiten(Transform root)

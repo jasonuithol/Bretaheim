@@ -8,7 +8,7 @@ namespace U5InValheim.WorldGen.Core
     public enum TileKind
     {
         Ground, Wall, Window, Door, Arch, Roof, Battlement, Tree, FruitTree, Crop, Water, FenceEW, FenceNS,
-        Stairs, LadderUp, LadderDown, BedHead, BedFoot, Table, Chair, Prop,
+        Stairs, LadderUp, LadderDown, BedHead, BedFoot, Table, Chair, Prop, Sign,
     }
 
     public enum Paint { None, Dirt, Cultivated, Paved, Planks }
@@ -53,6 +53,8 @@ namespace U5InValheim.WorldGen.Core
         public int Candles;
         /// <summary>Battlements: with merlons (the "no vertical projections" parapets have none).</summary>
         public bool Merlons = true;
+        /// <summary>Part of a shop signpost: "post" (its foot, 0xe0) or "top" (0xe1/0xe2, beside the guild icon), else null.</summary>
+        public string SignPost;
 
         public bool IsBarrier => Kind == TileKind.Wall || Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch || Kind == TileKind.Battlement;
         public bool IsOpening => Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch;
@@ -127,6 +129,7 @@ namespace U5InValheim.WorldGen.Core
                     Merlons = !o.ContainsKey("merlons") || Json.Bool(o, "merlons"),
                     Secret = Json.Bool(o, "secret"),
                     Candles = Json.Get(o, "candles") is double candles ? (int)candles : 0,
+                    SignPost = Json.Str(o, "signpost"),
                 };
                 if (Json.Str(o, "wall") is string side) r.WallSide = FacingYaw(side);
                 if (Json.Get(o, "choices") is List<object> choices) r.Choices = choices.ConvertAll(c => (string)c).ToArray();

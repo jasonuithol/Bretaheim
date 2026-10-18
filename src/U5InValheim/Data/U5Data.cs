@@ -17,7 +17,7 @@ namespace U5InValheim.Data
         {
             "DATA.OVL", "BRIT.DAT", "UNDER.DAT", "TOWNE.DAT", "DWELLING.DAT", "CASTLE.DAT", "KEEP.DAT",
             "TOWNE.NPC", "DWELLING.NPC", "CASTLE.NPC", "KEEP.NPC", "TOWNE.TLK", "DWELLING.TLK", "CASTLE.TLK",
-            "KEEP.TLK", "DUNGEON.DAT", "DUNGEON.CBT", "BRIT.CBT", "LOOK2.DAT", "SIGNS.DAT", "INIT.GAM",
+            "KEEP.TLK", "DUNGEON.DAT", "DUNGEON.CBT", "BRIT.CBT", "LOOK2.DAT", "SIGNS.DAT", "INIT.GAM", "TILES.16",
         };
 
         public string Directory { get; private set; }
@@ -34,6 +34,7 @@ namespace U5InValheim.Data
         public TileNames TileNames { get; private set; }
         public List<Sign>[] Signs { get; private set; }
         public SaveGame InitialGame { get; private set; }
+        public TileSet Tiles { get; private set; }
 
         /// <summary>Returns the missing required files (empty when the directory is usable).</summary>
         public static List<string> Validate(string dir)
@@ -64,6 +65,7 @@ namespace U5InValheim.Data
             d.TileNames = new TileNames(Read("LOOK2.DAT"));
             d.Signs = SignsFile.Read(Read("SIGNS.DAT"));
             d.InitialGame = new SaveGame(Read("INIT.GAM"));
+            d.Tiles = new TileSet(Read("TILES.16"));
             return d;
         }
 

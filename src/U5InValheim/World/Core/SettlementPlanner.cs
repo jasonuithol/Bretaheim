@@ -972,6 +972,7 @@ namespace U5InValheim.WorldGen.Core
                 switch (r.Kind)
                 {
                     case TileKind.Prop:
+                        if (r.SignPost == "post" && UnderBanner(lv, c)) break;
                         if (r.Parts != null) ctx.Parts(r.Parts, x, y, z, r.Yaw);
                         else if (r.Choices != null) ctx.Stand(r.Choices[Hash(tx, ty, 8) % r.Choices.Length], x, y, z, Hash(tx, ty, 9) % 4 * 90);
                         else if (r.Prefab != null && r.WallSide is float side)
@@ -982,6 +983,9 @@ namespace U5InValheim.WorldGen.Core
                             ctx.Centre(r.Prefab, x + ox, y + 1.8f, z + oz, side + 270);
                         }
                         else if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, r.Yaw);
+                        break;
+                    case TileKind.Sign:
+                        ShopSign(ctx, lv, c, y);
                         break;
                     case TileKind.Chair:
                         ctx.Stand("piece_chair", x, y, z, r.Yaw);
@@ -1109,6 +1113,69 @@ namespace U5InValheim.WorldGen.Core
                 case VBiome.Plains: return h % 2 == 0 ? "Oak1" : "Birch1";
                 default: return h % 3 == 0 ? "Oak1" : "Beech1";
             }
+        }
+
+        // ── shop signs ───────────────────────────────────────────────────────────────────────
+
+        static bool SignTop(Level lv, int c) => c >= 0 && c < N * N && lv.Rule[c].SignPost == "top";
+        static bool SignFoot(Level lv, int c) => c >= 0 && c < N * N && lv.Rule[c].SignPost == "post";
+
+        /// <summary>Signpost tops beside a guild icon, each standing on its post: the sides (−1 west, +1 east) the banner hangs from.</summary>
+        static IEnumerable<int> SignArms(Level lv, int icon)
+        {
+            int tx = icon % N, ty = icon / N;
+            if (ty + 1 >= N) yield break;
+            if (tx > 0 && SignTop(lv, icon - 1) && SignFoot(lv, icon - 1 + N)) yield return -1;
+            if (tx + 1 < N && SignTop(lv, icon + 1) && SignFoot(lv, icon + 1 + N)) yield return 1;
+        }
+
+        /// <summary>A post foot under a guild icon that hangs between posts: the banner hangs there instead.</summary>
+        static bool UnderBanner(Level lv, int c) => c >= N && lv.Rule[c - N].Kind == TileKind.Sign && SignArms(lv, c - N).Any();
+
+        /// <summary>
+        /// A guild icon (Constructing world assets 224-249): a banner printed with the icon's
+        /// TILES.16 picture (look "icon:&lt;tile&gt;"). The maps draw a signpost side-on: its foot
+        /// (0xe0) on the ground, its top (0xe1/0xe2) a tile up the screen and the icon beside the
+        /// top. In Valheim the posts stand at their feet and the banner hangs at the same height
+        /// between or beside them, from beams off the post tops, facing south as the map is seen.
+        /// An icon over a lone post hangs on the post's face; one with no post at all hangs on a
+        /// wall next to it (an indoor shop) or, failing that, on a post of its own.
+        /// </summary>
+        void ShopSign(Ctx ctx, Level lv, int c, float y)
+        {
+            var p = ctx.Plan;
+            var r = lv.Rule[c];
+            string look = $"icon:{lv.Raw[c]:x2}";
+            const float Rod = 3.9f; // the banner's rod, just under the 4 m post tops
+            float x = CellX(p, c), z = CellZ(p, c);
+            var arms = SignArms(lv, c).ToList();
+            if (arms.Count > 0)
+            {
+                float bz = CellZ(p, c + N);
+                foreach (int side in arms) ctx.Centre("wood_beam", x + side * p.Tile / 2, y + Rod + 0.05f, bz, 0);
+                ctx.Pivot(r.Prefab, x, y + Rod, bz, 90);
+            }
+            else if (c + N < N * N && SignFoot(lv, c + N))
+                ctx.Pivot(r.Prefab, x, y + Rod, CellZ(p, c + N) - 0.3f, 90);
+            else
+            {
+                // a wall beside it (north first, as the map shows the icon above the wall), else its own post
+                int wall = new[] { c - N, c + 1, c + N, c - 1 }.Where(n => n >= 0 && n < N * N && Math.Abs(n % N - c % N) <= 1 && Solid(lv, n))
+                    .DefaultIfEmpty(-1).First();
+                if (wall >= 0)
+                {
+                    int sx = wall % N - c % N, sy = wall / N - c / N;
+                    float side = sx > 0 ? 90 : sx < 0 ? 270 : sy > 0 ? 180 : 0;
+                    ctx.Pivot(r.Prefab, x + sx * 0.88f, y + p.Storey - 0.2f, z - sy * 0.88f, side + 90);
+                }
+                else
+                {
+                    ctx.Stand("wood_pole2", x, y, z, 0);
+                    ctx.Stand("wood_pole2", x, y + 2, z, 0);
+                    ctx.Pivot(r.Prefab, x, y + Rod, z - 0.3f, 90);
+                }
+            }
+            ctx.Last(pl => { pl.Look = look; return pl; });
         }
 
         /// <summary>
