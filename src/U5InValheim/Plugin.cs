@@ -90,6 +90,7 @@ namespace U5InValheim
                 Settlements.Install(harmony);
                 Structures.Register();
                 TownsfolkSpawner.Register();
+                TalkPanel.Install(harmony);
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);
                 RiverBanks.Install(harmony);

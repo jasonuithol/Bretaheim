@@ -165,7 +165,7 @@ namespace U5InValheim.WorldGen
     /// every peer animates it from how it moves, and sits or lies it down (Valheim's
     /// attach_chair / attach_bed, as for a player) as the owner says.
     /// </summary>
-    public class TownNpc : MonoBehaviour, Hoverable
+    public class TownNpc : MonoBehaviour, Hoverable, Interactable
     {
         const float TurnSpeed = 360f;
         static readonly int ForwardSpeed = ZSyncAnimation.GetHash("forward_speed"), OnGround = ZSyncAnimation.GetHash("onGround"), InWater = ZSyncAnimation.GetHash("inWater"),
@@ -206,9 +206,36 @@ namespace U5InValheim.WorldGen
             ready = true;
         }
 
+        public int Location => home?.Location.Number ?? 0;
+        public int Slot => npc?.Slot ?? 0;
+        /// <summary>Their conversation (.TLK), or null for shopkeepers, guards and the silent.</summary>
+        public TlkScript Script => npc != null ? Plugin.U5.ScriptOf(home.Location, npc) : null;
+        /// <summary>What the panel says for those without a conversation.</summary>
+        public string NoConversation =>
+            npc == null ? "" :
+            npc.IsShopkeeper ? $"You see the {label.ToLowerInvariant()}.\n\n(Their shop opens in a later version.)" :
+            npc.IsGuard ? "You see a guard.\n\n(Guards have nothing to say to you yet.)" :
+            "No response.";
+
+        bool talking;
+
+        public bool Interact(Humanoid user, bool hold, bool alt)
+        {
+            if (hold || !ready || user != Player.m_localPlayer) return false;
+            // the one talking moves them (they stop and turn to you)
+            nview.ClaimOwnership();
+            talking = true;
+            TalkPanel.Open(this);
+            return true;
+        }
+
+        public void EndTalk() => talking = false;
+        public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
+
         void Update()
         {
             if (!ready || nview.GetZDO() == null) return;
+            if (talking && TalkPanel.With != this) talking = false;
             if (nview.IsOwner()) Live(Time.deltaTime);
             else if (walker != null)
             {
@@ -226,6 +253,18 @@ namespace U5InValheim.WorldGen
             {
                 var local = transform.position - home.Origin;
                 walker = new TownWalker(home.Plan, npc.Schedule, zdo.GetInt(TownsfolkSpawner.FloorKey), local.x, local.z, home.Location.Number * 32 + npc.Slot, home.Crowd);
+            }
+            if (talking)
+            {
+                // stopped, turned to the one they talk to (in a chair or bed they stay put)
+                var me = Player.m_localPlayer;
+                if (walker.Pose == Pose.Stand && me != null)
+                {
+                    var to = me.transform.position - transform.position;
+                    to.y = 0;
+                    if (to.sqrMagnitude > 0.01f) transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(to), TurnSpeed * dt);
+                }
+                return;
             }
             int floor = walker.Floor;
             walker.Tick(dt, Hour());
@@ -266,7 +305,7 @@ namespace U5InValheim.WorldGen
             if (walker != null) home?.Crowd.Leave(walker);
         }
 
-        public string GetHoverText() => label;
+        public string GetHoverText() => Localization.instance.Localize($"{label}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
         public string GetHoverName() => label;
         public float GetHoverOffset() => 0f;
     }

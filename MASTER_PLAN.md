@@ -442,7 +442,8 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
 - Exit: talk to everyone in Britain, buy and sell, watch the town live through a day.
 - Status (2026-10-18): townsfolk of the built settlements spawn dressed (npcs.json) and walk their
   schedules across storeys (Core/TownWalker, TownPath; simulated over a day in TownsfolkTests).
-  Next: conversation (E, panel, TLK interpreter), then sleep/sit/work poses, doors, guards, shops.
+  They sit and sleep, keep one to a tile, and talk (E: panel + Data/TalkSession, TALK.OVL ported).
+  Next: shops, guards (challenge, patrols, alarm), doors, work poses, gifts (with the item set).
 
 **Phase 4 — All settlements (2 weeks)**
 - Generalise builders to all 26 towns/dwellings/keeps/castles (type-specific materials), all NPCs.

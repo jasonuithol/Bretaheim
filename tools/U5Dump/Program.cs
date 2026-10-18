@@ -125,6 +125,22 @@ if (argv.Count > 0 && argv[0] == "slopes")
     }
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "converse")
+{
+    // converse <location> <name> [line ...]: a conversation as the in-game panel shows it
+    var loc = data.FindLocation(argv[1]);
+    var npc = data.NpcsOf(loc).First(n => string.Equals(data.NpcName(loc, n), argv[2], StringComparison.OrdinalIgnoreCase));
+    var t = new U5InValheim.Data.TalkSession(data.ScriptOf(loc, npc), data.Ovl, new DumpTalkWorld());
+    Console.Write(t.TakeOutput());
+    foreach (var line in argv.Skip(3))
+    {
+        if (t.Over) break;
+        t.Respond(line);
+        Console.Write(t.TakeOutput());
+    }
+    Console.WriteLine(t.Over ? "\n[over]" : $"\n[waiting: {t.Prompt.Replace("\n", " ")}]");
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "town")
 {
     // town <location> <out.ppm>
@@ -159,3 +175,17 @@ if (argv.Count > 0 && argv[0] == "town")
 }
 Console.WriteLine(Dump.Run(data, argv.ToArray()));
 return 0;
+
+class DumpTalkWorld : U5InValheim.Data.ITalkWorld
+{
+    public string AvatarName => "Avatar";
+    public System.Collections.Generic.IEnumerable<string> PartyNames => new[] { "Avatar" };
+    public bool Met { get; set; }
+    public int Karma { get; set; } = 50;
+    public int Gold { get; set; } = 100;
+    public void TakeGold(int amount) { Gold -= amount; Console.Write($"[pays {amount}]"); }
+    public void Give(int item) => Console.Write($"[gives 0x{item:x2}]");
+    public bool Join() => false;
+    public void Alarm() => Console.Write("[guards!]");
+    public bool Coin() => true;
+}
