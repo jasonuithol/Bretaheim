@@ -19,12 +19,12 @@
     {"name": "river trees", "edge": "river", "from": 12, "to": 38, "chance": 0.035, "min_height": 0.6, "prefabs": {
       "Meadows": ["Beech1", "Oak1", "Birch1"], "BlackForest": ["FirTree", "Pinetree_01", "Birch1"], "Swamp": ["SwampTree2"],
       "Plains": ["Birch1", "Birch2"], "Mountain": ["FirTree_small"]}},
-    {"name": "path bushes", "edge": "path", "from": 1.5, "to": 6, "chance": 0.03, "min_height": 0.3, "prefabs": {
+    {"name": "path bushes", "edge": "path", "from": 2.5, "to": 7, "chance": 0.03, "min_height": 0.3, "prefabs": {
       "Meadows": ["Bush01", "shrub_2", "RaspberryBush"], "BlackForest": ["Bush01", "shrub_2", "BlueberryBush"], "Swamp": ["shrub_2"],
       "Plains": ["shrub_2_heath", "Bush01_heath"], "Mountain": ["shrub_2_heath"], "AshLands": ["AshlandsBush1"]}},
-    {"name": "path rocks", "edge": "path", "from": 1, "to": 6, "chance": 0.012, "min_height": 0.3, "prefabs": {
+    {"name": "path rocks", "edge": "path", "from": 3.5, "to": 8, "chance": 0.012, "min_height": 0.3, "prefabs": {
       "*": ["Rock_7", "Rock_3"], "BlackForest": ["rock4_forest", "Rock_3"], "Plains": ["Rock_4_plains", "rock4_heath"], "Mountain": ["rock3_mountain"], "Mistlands": ["rock_mistlands1"]}},
-    {"name": "path trees", "edge": "path", "from": 4, "to": 10, "chance": 0.012, "min_height": 0.6, "prefabs": {
+    {"name": "path trees", "edge": "path", "from": 5, "to": 11, "chance": 0.012, "min_height": 0.6, "prefabs": {
       "Meadows": ["Beech1", "Oak1", "Birch1"], "BlackForest": ["FirTree", "Pinetree_01"], "Plains": ["Birch1", "Birch2"], "Mountain": ["FirTree_small"]}}
   ]
 }

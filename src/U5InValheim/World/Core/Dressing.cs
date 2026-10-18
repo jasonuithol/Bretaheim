@@ -65,7 +65,7 @@ namespace U5InValheim.WorldGen.Core
             z = (cz + ((h >> 8) & 0xff) / 256f) * Cell;
             yaw = (h >> 16) % 360;
             height = 0;
-            float path = shape.PathDistance(x, z) - BritanniaShape.PathWidth / 2;
+            float path = shape.PathEdgeDistance(x, z);
             if (path < 0.5f) return null;
             float coast = shape.CoastDistance(x, z, out float beach), river = float.NaN;
             VBiome biome = VBiome.None;

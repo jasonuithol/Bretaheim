@@ -71,7 +71,10 @@ namespace U5InValheim.Tests
         }
 
         /// <summary>Slope angles (degrees) sampled every 4 m across the tiles of the named classes.</summary>
-        static float[] Slopes(params string[] classes)
+        static float[] Slopes(params string[] classes) => Slopes(false, classes);
+
+        /// <summary>As above; landOnly skips points under water (the seabed shelves steeply on purpose).</summary>
+        static float[] Slopes(bool landOnly, params string[] classes)
         {
             var s = shape.Value; var m = Env.Data.Britannia; var t = terrain.Value;
             var r = new System.Collections.Generic.List<float>();
@@ -84,6 +87,7 @@ namespace U5InValheim.Tests
                 for (float dx = -14; dx <= 14; dx += 4)
                 {
                     float h = s.NaturalHeight(cx + dx, cz + dz);
+                    if (landOnly && h < 0) continue;
                     float gx = s.NaturalHeight(cx + dx + 4, cz + dz) - h, gz = s.NaturalHeight(cx + dx, cz + dz + 4) - h;
                     r.Add(MathF.Atan(MathF.Sqrt(gx * gx + gz * gz) / 4) * 180 / MathF.PI);
                 }
@@ -127,7 +131,7 @@ namespace U5InValheim.Tests
         public void CoastsHaveBeaches()
         {
             // shorelines ease into the sea instead of stepping down into it (90 % were under 53°)
-            var a = Slopes("shore", "shore_nw", "shore_ne", "shore_se", "shore_sw");
+            var a = Slopes(true, "shore", "shore_nw", "shore_ne", "shore_se", "shore_sw");
             Assert.InRange(a[a.Length / 2], 0, 6);
             Assert.InRange(a[a.Length * 9 / 10], 0, 32);
         }
@@ -150,6 +154,50 @@ namespace U5InValheim.Tests
             }
             Assert.True(beach > 1000, $"{beach} beach samples");
             Assert.True(sand > beach * 0.8, $"{sand} of {beach} beach samples are low enough for sand");
+        }
+
+        [U5Fact]
+        public void BeachesVaryAndOnlyLineTheBeachBiomes()
+        {
+            var s = shape.Value;
+            int coasts = 0, none = 0, wide = 0, offBiomeSand = 0, offBiome = 0;
+            for (float z = -4000; z < 4000; z += 8)
+            for (float x = -4000; x < 4000; x += 8)
+            {
+                float coast = s.CoastDistance(x, z, out float width);
+                if (coast <= 0 || coast > 3) continue;
+                coasts++;
+                if (width < 1) none++;
+                if (width > 15) wide++;
+                var b = s.Biome(x, z);
+                if (b == VBiome.Plains || b == VBiome.Meadows || b == VBiome.AshLands) continue;
+                offBiome++;
+                float h = s.Height(x, z);
+                if (h >= 0 && h <= 0.2f && width < 0.5f) offBiomeSand++;
+            }
+            Assert.True(none > coasts / 10 && wide > coasts / 20, $"{coasts} coast samples: {none} without beach, {wide} over 15 m");
+            Assert.True(offBiomeSand < offBiome / 10, $"{offBiomeSand} of {offBiome} coast samples off the beach biomes are sand");
+        }
+
+        [U5Fact]
+        public void PathsAreLevelAcross()
+        {
+            var s = shape.Value; var m = Env.Data.Britannia;
+            int checkedRoads = 0, level = 0;
+            for (int y = 1; y < 255; y++)
+            for (int x = 1; x < 255; x++)
+            {
+                bool ew = m[x, y] == 33 && m[x - 1, y] == 33 && m[x + 1, y] == 33;
+                if (!ew) continue;
+                s.TileCentre(x, y, out float cx, out float cz);
+                var on = Enumerable.Range(-60, 121).Select(i => cz + i * 0.25f).Where(z => s.PaintAt(cx, z) == Paint.Dirt).ToList();
+                if (on.Count < 4 || s.Height(cx, on[0]) < 0.5f) continue;
+                checkedRoads++;
+                var hs = on.Select(z => s.Height(cx, z)).ToList();
+                if (hs.Max() - hs.Min() < 0.25f) level++;
+            }
+            Assert.True(checkedRoads > 5, $"{checkedRoads} roads checked");
+            Assert.True(level > checkedRoads * 0.8, $"{level} of {checkedRoads} paths are level across");
         }
 
         [U5Fact]
@@ -177,24 +225,30 @@ namespace U5InValheim.Tests
         [U5Fact]
         public void PathsAreANarrowDirtTrack()
         {
-            var s = shape.Value; var m = Env.Data.Britannia; var t = terrain.Value;
-            int roads = 0, onCentre = 0, offSide = 0;
+            // across a straight road tile the dirt is one band 2.5-6 m wide (it wanders and varies)
+            var s = shape.Value; var m = Env.Data.Britannia;
+            int roads = 0, good = 0;
             for (int y = 1; y < 255; y++)
             for (int x = 1; x < 255; x++)
             {
-                // straight road tiles between two more of them: east-west (33) or north-south (32)
                 bool ew = m[x, y] == 33 && m[x - 1, y] == 33 && m[x + 1, y] == 33;
                 bool ns = m[x, y] == 32 && m[x, y - 1] == 32 && m[x, y + 1] == 32;
                 if (!ew && !ns) continue;
                 roads++;
                 s.TileCentre(x, y, out float cx, out float cz);
-                float sx = ns ? 8 : 0, sz = ew ? 8 : 0;
-                if (s.PaintAt(cx, cz) == Paint.Dirt) onCentre++;
-                if (s.PaintAt(cx + sx, cz + sz) == Paint.Dirt || s.PaintAt(cx - sx, cz - sz) == Paint.Dirt) offSide++;
+                int dirt = 0, runs = 0; bool last = false;
+                for (float o = -15; o <= 15; o += 0.25f)
+                {
+                    bool d = s.PaintAt(cx + (ns ? o : 0), cz + (ew ? o : 0)) == Paint.Dirt;
+                    if (d) dirt++;
+                    if (d && !last) runs++;
+                    last = d;
+                }
+                float width = dirt * 0.25f;
+                if (runs == 1 && width >= 2.5f && width <= 6) good++;
             }
             Assert.True(roads > 10, $"{roads} straight roads");
-            Assert.True(onCentre > roads * 0.9, $"{onCentre} of {roads} road centres are dirt");
-            Assert.True(offSide < roads * 0.1, $"{offSide} of {roads} roads are dirt 8 m to the side");
+            Assert.True(good > roads * 0.8, $"{good} of {roads} straight roads are a single 2.5-6 m track");
         }
 
         [U5Fact]

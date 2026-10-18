@@ -73,18 +73,26 @@ namespace U5InValheim.WorldGen
         static Dressing dressing;
 
         /// <summary>Dresses the coasts, river banks and paths of a zone being generated (dressing.json).</summary>
-        static void PlaceLocations_Postfix(Vector2s zoneID, ZoneSystem.SpawnMode mode, List<GameObject> spawnedObjects)
+        static Type clearAreaType;
+
+        static void PlaceLocations_Postfix(Vector2s zoneID, System.Collections.IList clearAreas, ZoneSystem.SpawnMode mode, List<GameObject> spawnedObjects)
         {
             var shape = Britannia.Active;
             if (shape == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
+            // paths clear their way: no vanilla trees, rocks or bushes on them (vegetation is placed
+            // after this, and skips clear areas)
+            clearAreaType = clearAreaType ?? AccessTools.Inner(typeof(ZoneSystem), "ClearArea");
+            var zc = ZoneSystem.GetZonePos(zoneID);
+            float zh = ZoneSystem.c_ZoneSize / 2f;
+            if (clearAreaType != null)
+                foreach (var (px, pz, phalf) in shape.PathPoints(zc.x - zh, zc.z - zh, zc.x + zh, zc.z + zh))
+                    clearAreas.Add(Activator.CreateInstance(clearAreaType, new Vector3(px, 0, pz), phalf + 2.5f));
             if (dressing == null)
             {
                 try { dressing = Dressing.Parse(File.ReadAllText(Path.Combine(Plugin.PluginDirectory, "mappings", "dressing.json"))); }
                 catch (Exception e) { Plugin.Log.LogError($"dressing.json: {e.Message}"); dressing = new Dressing(); }
             }
-            var centre = ZoneSystem.GetZonePos(zoneID);
-            float half = ZoneSystem.c_ZoneSize / 2f;
-            float x0 = centre.x - half, z0 = centre.z - half, x1 = centre.x + half, z1 = centre.z + half;
+            float x0 = zc.x - zh, z0 = zc.z - zh, x1 = zc.x + zh, z1 = zc.z + zh;
             int spawned = 0;
             // a cell belongs to the zone its (jittered) point falls in, so nothing is placed twice
             for (int cz = Mathf.FloorToInt(z0 / Dressing.Cell) - 1; cz <= Mathf.FloorToInt(z1 / Dressing.Cell); cz++)

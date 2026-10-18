@@ -43,7 +43,9 @@ namespace U5InValheim.WorldGen.Core
         readonly float[] sea = new float[N * N];
         readonly float[] river = new float[N * N];
         readonly float[] riverWide = new float[N * N];
-        /// <summary>Metres from each sample to the coastline (land samples: to the sea; sea samples: to land).</summary>
+        /// <summary>1 where the coast's biome has beaches (Plains, Meadows, Ashlands), blurred so they fade out.</summary>
+        readonly float[] beachBiome = new float[N * N];
+        /// <summary>Signed metres from each sample to the coastline: positive inland, negative out to sea.</summary>
         readonly float[] coastDist = new float[N * N];
         /// <summary>Rivers blurred over about 40 m: how near the water a bank is.</summary>
         readonly float[] riverBank = new float[N * N];
@@ -104,6 +106,13 @@ namespace U5InValheim.WorldGen.Core
             Array.Copy(Blur(tForest, 2f), forest, forest.Length);
 
             ResolveLandBiomes();
+            var tBeach = new float[N * N];
+            for (int i = 0; i < tBeach.Length; i++)
+            {
+                var lb = landBiome[(i / N / SamplesPerTile) * MapTiles + (i % N) / SamplesPerTile];
+                tBeach[i] = lb == VBiome.Plains || lb == VBiome.Meadows || lb == VBiome.AshLands ? 1f : 0f;
+            }
+            Array.Copy(Blur(tBeach, 2f), beachBiome, beachBiome.Length);
             LinkPaths();
         }
 
@@ -177,40 +186,100 @@ namespace U5InValheim.WorldGen.Core
             return OnPath(u, v) ? Paint.Dirt : Paint.None;
         }
 
-        /// <summary>
-        /// On a dirt path: within PathWidth/2 of the smoothed path lines (tile coordinates), which
-        /// wobble a little so they aren't ruled.
-        /// </summary>
-        bool OnPath(double u, double v) => PathDistanceTiles(u, v) < PathWidth / 2 / TileMetres;
+        /// <summary>On a dirt path: within the path's (varying) half width of its wandering centre line.</summary>
+        bool OnPath(double u, double v) => PathQuery(u, v, out _, out _, out double half) < half;
 
         /// <summary>Metres from a world position to the nearest path's centre line (∞ when none passes near).</summary>
         public float PathDistance(float wx, float wz)
         {
             ToTile(wx, wz, out double u, out double v);
-            return (float)(PathDistanceTiles(u, v) * TileMetres);
+            return (float)(PathQuery(u, v, out _, out _, out _) * TileMetres);
         }
 
-        double PathDistanceTiles(double u, double v)
+        /// <summary>Metres from a world position to the nearest path's edge (negative on the path).</summary>
+        public float PathEdgeDistance(float wx, float wz)
+        {
+            ToTile(wx, wz, out double u, out double v);
+            return (float)((PathQuery(u, v, out _, out _, out double half) - half) * TileMetres);
+        }
+
+        /// <summary>
+        /// The path's wander (tile units) at a point: broad bends of ~5 m over ~60 m and a ~1.5 m
+        /// wiggle over ~15 m. A path is drawn where the point moved by its wander lands on a line.
+        /// </summary>
+        void PathWander(double u, double v, out double du, out double dv)
         {
             double mu = u / MapTiles, mv = v / MapTiles;
-            double wobble = 2.0 / TileMetres;
-            u += wobble * PeriodicFbm(mu, mv, 64, 2, 808) * 2;
-            v += wobble * PeriodicFbm(mu, mv, 64, 2, 909) * 2;
-            int tx = (int)Math.Floor(u), ty = (int)Math.Floor(v);
-            var bucket = pathBuckets[Wrap(ty) * MapTiles + Wrap(tx)];
+            du = (12 * PeriodicFbm(mu, mv, 128, 2, 808) + 3.5 * PeriodicFbm(mu, mv, 512, 1, 1501)) / TileMetres;
+            dv = (12 * PeriodicFbm(mu, mv, 128, 2, 909) + 3.5 * PeriodicFbm(mu, mv, 512, 1, 1601)) / TileMetres;
+        }
+
+        /// <summary>Half the path's width (tile units) at a point: 1.3-2.8 m, varying along the path.</summary>
+        double PathHalfWidth(double u, double v)
+            => Math.Max(1.3, Math.Min(2.8, 2.0 + 2.2 * PeriodicFbm(u / MapTiles, v / MapTiles, 256, 2, 1401))) / TileMetres;
+
+        /// <summary>
+        /// Distance (tile units) from (u, v) to the nearest path centre line, the real position of
+        /// that centre point (cu, cv), and the path's half width there.
+        /// </summary>
+        double PathQuery(double u, double v, out double cu, out double cv, out double half)
+        {
+            half = PathHalfWidth(u, v);
+            PathWander(u, v, out double du, out double dv);
+            double wu = u + du, wv = v + dv;
+            cu = u; cv = v;
+            var bucket = pathBuckets[Wrap((int)Math.Floor(wv)) * MapTiles + Wrap((int)Math.Floor(wu))];
             if (bucket == null) return double.PositiveInfinity;
             // segments are stored near their own copy of the map; bring the point next to them
             double best = double.PositiveInfinity;
             foreach (int k in bucket)
             {
                 var (ax, ay, bx, by) = pathSegments[k];
-                double pu = u - Math.Floor((u - ax) / MapTiles + 0.5) * MapTiles, pv = v - Math.Floor((v - ay) / MapTiles + 0.5) * MapTiles;
+                double su = Math.Floor((wu - ax) / MapTiles + 0.5) * MapTiles, sv = Math.Floor((wv - ay) / MapTiles + 0.5) * MapTiles;
+                double pu = wu - su, pv = wv - sv;
                 double ex = bx - ax, ey = by - ay, len2 = ex * ex + ey * ey;
                 double t = len2 > 0 ? Math.Max(0, Math.Min(1, ((pu - ax) * ex + (pv - ay) * ey) / len2)) : 0;
-                double dx = pu - (ax + ex * t), dy = pv - (ay + ey * t);
-                best = Math.Min(best, dx * dx + dy * dy);
+                double nx = ax + ex * t, ny = ay + ey * t, dx = pu - nx, dy = pv - ny, d2 = dx * dx + dy * dy;
+                if (d2 >= best) continue;
+                best = d2;
+                cu = nx + su - du; cv = ny + sv - dv; // back from the wandered space (the wander barely changes over a few metres)
             }
             return Math.Sqrt(best);
+        }
+
+        /// <summary>
+        /// Points every ~2 m along the paths drawn inside a world rectangle, with the path's half
+        /// width there (metres): where the paths clear the vegetation.
+        /// </summary>
+        public IEnumerable<(float x, float z, float half)> PathPoints(float x0, float z0, float x1, float z1)
+        {
+            ToTile(x0, z1, out double u0, out double v0);
+            ToTile(x1, z0, out double u1, out double v1);
+            var seen = new HashSet<int>();
+            for (int ty = (int)Math.Floor(v0) - 1; ty <= (int)Math.Floor(v1) + 1; ty++)
+            for (int tx = (int)Math.Floor(u0) - 1; tx <= (int)Math.Floor(u1) + 1; tx++)
+            {
+                var bucket = pathBuckets[Wrap(ty) * MapTiles + Wrap(tx)];
+                if (bucket == null) continue;
+                foreach (int k in bucket)
+                {
+                    if (!seen.Add(k)) continue;
+                    var (ax, ay, bx, by) = pathSegments[k];
+                    // the copy of the segment nearest the rectangle
+                    double su = Math.Floor((u0 - ax) / MapTiles + 0.5) * MapTiles, sv = Math.Floor((v0 - ay) / MapTiles + 0.5) * MapTiles;
+                    double len = Math.Sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay)) * TileMetres;
+                    int n = Math.Max(1, (int)Math.Ceiling(len / 2));
+                    for (int i = 0; i <= n; i++)
+                    {
+                        double pu = ax + (bx - ax) * i / n + su, pv = ay + (by - ay) * i / n + sv;
+                        PathWander(pu, pv, out double du, out double dv);
+                        pu -= du; pv -= dv;
+                        float x = (float)((pu - MapTiles / 2) * TileMetres + OriginX), z = (float)((MapTiles / 2 - pv) * TileMetres + OriginZ);
+                        if (x < x0 - 4 || x > x1 + 4 || z < z0 - 4 || z > z1 + 4) continue;
+                        yield return (x, z, (float)(PathHalfWidth(pu, pv) * TileMetres));
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -299,7 +368,7 @@ namespace U5InValheim.WorldGen.Core
                 sm.Add(pts[pts.Count - 1]);
                 pts = sm;
             }
-            double pad = 12.0 / TileMetres; // PathDistance is answered up to ~12 m away (path edges are dressed)
+            double pad = 24.0 / TileMetres; // the wander (up to ~8 m) plus ~12 m of verge, where edges are dressed
             for (int i = 0; i < Math.Max(1, pts.Count - 1); i++)
             {
                 var (ax, ay) = pts[i]; var (bx, by) = pts[Math.Min(i + 1, pts.Count - 1)];
@@ -317,6 +386,22 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>Ground height without settlements.</summary>
         public float NaturalHeight(float wx, float wz)
         {
+            float h = RawHeight(wx, wz);
+            // paths are levelled across: the ground within and just beside a path takes the height
+            // of the path's centre line (not over water: fords and bridges keep their river)
+            if (h <= 0.3f) return h;
+            ToTile(wx, wz, out double u, out double v);
+            if (OutsideTiles(u, v) > 0) return h;
+            double d = PathQuery(u, v, out double cu, out double cv, out double half);
+            if (d >= half + 3 / TileMetres) return h;
+            float hc = RawHeight((float)((cu - MapTiles / 2) * TileMetres + OriginX), (float)((MapTiles / 2 - cv) * TileMetres + OriginZ));
+            if (hc <= 0.3f) return h;
+            return (float)Lerp(h, hc, 1 - SmoothStep((d - half) * TileMetres / 3));
+        }
+
+        /// <summary>Ground height without settlements or path levelling.</summary>
+        float RawHeight(float wx, float wz)
+        {
             ToTile(wx, wz, out double u, out double v);
             double outside = OutsideTiles(u, v);
             if (outside >= MarginTiles + FadeTiles) return DeepOcean;
@@ -332,27 +417,30 @@ namespace U5InValheim.WorldGen.Core
             double ridged = 1 - Math.Abs(PeriodicFbm(mu, mv, 6, 3, 101));
             double h = b + a * (0.6 * n + 0.6 * (ridged - 0.5));
 
-            float coast = Sample(coastDist, gx, gy);
+            float coastSigned = Sample(coastDist, gx, gy);
+            float coast = Math.Abs(coastSigned);
             if (s >= 0.5f)
             {
-                // the seabed shelves gently out from the beach (about 7°) before the open sea
-                h = Math.Min(-0.15, Math.Max(h, -0.15 - 0.12 * coast));
+                // the seabed shelves out from the shore and is ~10 m deep 30 m out, where Valheim's
+                // waves reach full height (they grow with depth up to 10 m)
+                h = Math.Min(-0.15, Math.Max(h, -0.15 - 0.2 * coast - 0.006 * coast * coast));
             }
             else
             {
                 h = Math.Max(h, 0.8);
                 h += 0.6 * PeriodicFbm(mu, mv, 256, 2, 202);
-                // Beaches on low coasts. Valheim's terrain shader draws sand only within ~0.15 m of
-                // the water level (on flat ground), so the beach is a flat sand strip that wide
-                // above the sea, 8-35 m deep (broad sand flats in places), then low dunes and a
-                // rise back to the natural ground; high ground (mountain lakes, sea cliffs) keeps
-                // its rocky shore.
-                double beach = BeachWidth(mu, mv);
+                // Beaches on low Plains, Meadows and Ashlands coasts. Valheim's terrain shader draws
+                // sand only within ~0.15 m of the water level (on flat ground), so a beach is a flat
+                // sand strip that high, 0-20 m deep along the coast, then low dunes and a rise back
+                // to the natural ground. Other coasts come down to just above the sand band; high
+                // ground (mountain lakes, sea cliffs) keeps its rocky shore.
+                double beach = BeachWidth(mu, mv, gx, gy);
                 if (coast < beach + 60)
                 {
-                    double t = coast - beach, ceiling;
+                    double t = coast - beach, ceiling, sandy = SmoothStep(beach / 2.5);
+                    double shore = Lerp(0.45, SandHeight, sandy);
                     if (t < 0) ceiling = SandHeight + 0.05 * PeriodicFbm(mu, mv, 512, 1, 1201);
-                    else ceiling = SandHeight + 0.05 * t + 0.006 * t * t + 1.5 * Ridges(mu, mv, 1101) * SmoothStep(t / 6) * (1 - SmoothStep((t - 20) / 15));
+                    else ceiling = shore + 0.05 * t + 0.006 * t * t + 1.5 * sandy * Ridges(mu, mv, 1101) * SmoothStep(t / 6) * (1 - SmoothStep((t - 20) / 15));
                     double w = (1 - SmoothStep((t - 35) / 25)) * (1 - SmoothStep((h - 5) / 10));
                     h = Lerp(h, Math.Min(h, ceiling), w);
                 }
@@ -387,8 +475,9 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>Height of beach sand above the water (the terrain shader's sand band is ~0.1-0.3 m).</summary>
         public const double SandHeight = 0.1;
 
-        /// <summary>Metres of flat sand behind the waterline: 8-35 m, varying along the coast.</summary>
-        double BeachWidth(double mu, double mv) => 8 + 27 * SmoothStep(PeriodicFbm(mu, mv, 48, 2, 1001) * 1.6 + 0.5);
+        /// <summary>Metres of flat sand behind the waterline: 0-20 m along the coast, none off the beach biomes.</summary>
+        double BeachWidth(double mu, double mv, double gx, double gy)
+            => 20 * SmoothStep(PeriodicFbm(mu, mv, 48, 2, 1001) * 1.8 + 0.45) * Sample(beachBiome, gx, gy);
 
         /// <summary>Ridged noise 0..1 at ~20 m: dunes and hummocks.</summary>
         double Ridges(double mu, double mv, int salt) => Math.Max(0, 1 - Math.Abs(PeriodicFbm(mu, mv, 384, 2, salt) * 2.2));
@@ -398,8 +487,8 @@ namespace U5InValheim.WorldGen.Core
         {
             ToTile(wx, wz, out double u, out double v);
             double gx = u * SamplesPerTile - 0.5, gy = v * SamplesPerTile - 0.5;
-            beachWidth = (float)BeachWidth(u / MapTiles, v / MapTiles);
-            return Sample(sea, gx, gy) >= 0.5f || OutsideTiles(u, v) > 0 ? 0 : Sample(coastDist, gx, gy);
+            beachWidth = (float)BeachWidth(u / MapTiles, v / MapTiles, gx, gy);
+            return Sample(sea, gx, gy) >= 0.5f || OutsideTiles(u, v) > 0 ? 0 : Math.Max(0, Sample(coastDist, gx, gy));
         }
 
         /// <summary>Approximate metres from a river's water's edge (0 in the water, ∞ more than ~40 m away).</summary>
@@ -477,8 +566,9 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>
-        /// Distance in metres from every sample to the nearest sample on the other side of the
-        /// coastline (sea = blurred sea ≥ ½), less half a sample so both sides meet at ~0: a
+        /// Signed distance in metres from every sample to the nearest sample on the other side of
+        /// the coastline (sea = blurred sea ≥ ½), less half a sample, negative at sea, so it passes
+        /// through 0 at the shore: a
         /// two-pass chamfer transform on the torus, repeated so it carries across the map edge.
         /// </summary>
         void CoastDistances()
@@ -496,7 +586,7 @@ namespace U5InValheim.WorldGen.Core
             Chamfer(land, spacing);
             Chamfer(water, spacing);
             for (int i = 0; i < N * N; i++)
-                coastDist[i] = Math.Max(0, (sea[i] >= 0.5f ? water[i] : land[i]) - spacing / 2);
+                coastDist[i] = sea[i] >= 0.5f ? -Math.Max(0, water[i] - spacing / 2) : Math.Max(0, land[i] - spacing / 2);
         }
 
         static void Chamfer(float[] d, float step)
