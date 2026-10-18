@@ -432,6 +432,9 @@ namespace U5InValheim.Tests
             Assert.True(p.HasBasement);
             int dug = p.Basement.Count(b => b);
             Assert.True(dug > 250, $"{dug} basement tiles");
+            // the doors between its corridors and rooms are dug too (not plugs of earth)
+            foreach (var (x, y) in new[] { (6, 14), (22, 14), (15, 24), (8, 12), (21, 17) })
+                Assert.True(p.Basement[y * 32 + x], $"door ({x}, {y}) not dug");
             // each dug tile is roofed at street level with stone
             for (int c = 0; c < 32 * 32; c++)
                 if (p.Basement[c])

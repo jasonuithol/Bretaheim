@@ -807,7 +807,10 @@ namespace U5InValheim.WorldGen.Core
             var p = ctx.Plan;
             for (int c = 0; c < N * N; c++)
             {
-                if (!(b.Interior[c] || b.Doorway[c]) || b.Barrier[c]) continue;
+                // the rooms, and the doors, arches and secret walls walked through between them
+                var k = b.Rule[c].Kind;
+                bool passage = b.Walked != null && b.Walked[c] && (k == TileKind.Door || k == TileKind.Arch || b.Rule[c].Secret);
+                if (!passage && (!(b.Interior[c] || b.Doorway[c]) || b.Barrier[c])) continue;
                 p.Basement[c] = true;
                 p.GroundPaint[c] = Paint.Paved;
                 p.Water[c] = false;
