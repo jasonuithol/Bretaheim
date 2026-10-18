@@ -80,6 +80,7 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
 | 2026-10-18 | Talking: asleep, silent | nobody is talked to asleep (hover shows "(asleep)"); townsfolk without a conversation (no .TLK, not a shop) give "No response." as a message, with no panel | User: you could talk to sleepers; "No response" should not open a conversation. |
 | 2026-10-18 | Guards fight monsters | a ground-floor guard (type 12 / dialogue 0xff) runs down anything hostile to players (BaseAI.IsEnemy, untamed) in the town square or within 6 m of it, along the streets (TownWalker chase, the floor's paths, at a jog), and strikes it with their weapon's own attack (bronze spear: spear_poke) at 1.5× its damage every 1.4 s; when it is dead or gone they return to their post. Guards are not creatures, so monsters cannot hurt them | User: guards should attack any monsters that come into town. Self-test: a greyling 4 m from a Britain guard dies to one thrust within 3 s. |
 | 2026-10-18 | Children seated | Valheim's sitting pose is for a full-size body: smaller bodies sit (1 − scale) × 1.6 m higher (a 0.7 child, 0.48 m) | User: children sank about 0.5 m into chairs. |
+| 2026-10-18 | Starting gold | 150 gold (Valheim coins) the first time a character spawns in a Britannia world, once per character per world (custom data key u5_start_gold_<world uid>) | User: start me with 150 gold. |
 
 ## Open (need a decision)
 
