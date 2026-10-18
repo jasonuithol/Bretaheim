@@ -26,7 +26,7 @@ namespace U5InValheim.WorldGen.Core
         public float X { get; private set; }
         public float Y { get; private set; }
         public float Z { get; private set; }
-        /// <summary>Direction of the last step (unit, in x/z), for facing.</summary>
+        /// <summary>Which way they face (unit, in x/z): where they walk, and once there, <see cref="Settle"/>.</summary>
         public float HeadingX { get; private set; }
         public float HeadingZ { get; private set; } = 1;
         public bool Moving => path != null && path.Count > 0;
@@ -73,14 +73,53 @@ namespace U5InValheim.WorldGen.Core
                 {
                     path = way;
                     pace = Speed;
+                    settled = false;
                 }
             }
             Walk(dt);
+            if (!Moving && !settled) Settle();
         }
+
+        bool settled;
+
+        /// <summary>
+        /// Standing still they face the furniture beside them (a counter, table, anvil, stove), else
+        /// the most open way (the longest line of floor), never a wall.
+        /// </summary>
+        void Settle()
+        {
+            settled = true;
+            int c = Cell, x = c % N, y = c / N;
+            plan.Squeeze.TryGetValue(Floor, out var furniture);
+            // east, west, north (map y − 1), south
+            var dirs = new[] { (1, 0), (-1, 0), (0, -1), (0, 1) };
+            int best = -1, bestRun = 0;
+            for (int i = 0; i < 4; i++)
+            {
+                int nx = x + dirs[i].Item1, ny = y + dirs[i].Item2;
+                if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+                if (furniture != null && furniture[ny * N + nx]) { best = i; break; }
+                int run = 0;
+                while (run < 6 && nx >= 0 && ny >= 0 && nx < N && ny < N && TownPath.Walkable(plan, Floor, ny * N + nx))
+                {
+                    run++;
+                    nx += dirs[i].Item1;
+                    ny += dirs[i].Item2;
+                }
+                if (run > bestRun) { bestRun = run; best = i; }
+            }
+            if (best < 0) return;
+            HeadingX = dirs[best].Item1;
+            HeadingZ = -dirs[best].Item2;
+        }
+
+        /// <summary>The tile they face when standing still (for tests).</summary>
+        public int Facing => plan.CellAt(X + HeadingX * plan.Tile, Z + HeadingZ * plan.Tile);
 
         void Head(int z, int cell)
         {
             path = TownPath.Find(plan, Floor, Cell, z, cell);
+            settled = false;
             if (path == null) Place(z, cell);
             pace = path == null ? Speed : Math.Max(Speed, Math.Min(Hurry, path.Count * plan.Tile / TripTime));
         }

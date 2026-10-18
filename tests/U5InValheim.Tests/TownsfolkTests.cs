@@ -78,6 +78,14 @@ namespace U5InValheim.Tests
                             break;
                         }
                     }
+                    if (!w.Moving)
+                    {
+                        // standing still, nobody stares at a wall
+                        int f = w.Facing, here = w.Cell;
+                        bool open = TownPath.Walkable(plan, w.Floor, f) || plan.Squeeze[w.Floor][f];
+                        bool anyOpen = new[] { here - 1, here + 1, here - 32, here + 32 }.Any(n => n >= 0 && n < 1024 && Math.Abs(n % 32 - here % 32) <= 1 && (TownPath.Walkable(plan, w.Floor, n) || plan.Squeeze[w.Floor][n]));
+                        if (!open && anyOpen) wrong.Add($"{who} hour {hour}: at ({here % 32},{here / 32},{w.Floor}) faces ({f % 32},{f / 32})");
+                    }
                     int place = s.PlaceAt(hour), post = s.Y[place] * 32 + s.X[place];
                     int reach = s.Ai[place] == 1 ? 3 : s.Ai[place] == 2 ? 6 : 0;
                     int cell = w.Cell;

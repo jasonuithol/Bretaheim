@@ -223,8 +223,7 @@ namespace U5InValheim.WorldGen
             walker.Tick(dt, Hour());
             if (walker.Floor != floor) zdo.Set(TownsfolkSpawner.FloorKey, walker.Floor);
             transform.position = home.Origin + new Vector3(walker.X, walker.Y, walker.Z);
-            if (walker.Moving)
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(new Vector3(walker.HeadingX, 0, walker.HeadingZ)), TurnSpeed * dt);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(new Vector3(walker.HeadingX, 0, walker.HeadingZ)), TurnSpeed * dt);
         }
 
         void Animate(float dt)
