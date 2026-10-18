@@ -106,16 +106,20 @@ namespace U5InValheim.WorldGen.Core
             public bool[] Walked;
             /// <summary>River water inside a building: a trough, floored round its quenching buckets.</summary>
             public bool[] Trough = new bool[N * N];
-            /// <summary>Drawbridge decks (ground floor), with the offset (dx, dz, metres) from each deck's middle to its hinge.</summary>
+            /// <summary>Drawbridge decks (ground floor): each tile's deck piece (middle, scale along x and z) and the offset from its middle to the hinge.</summary>
             public bool[] Drawbridge = new bool[N * N];
-            public (float dx, float dz)[] Hinge = new (float, float)[N * N];
+            public (float x, float z, float sx, float sz, float hx, float hz)[] Deck = new (float, float, float, float, float, float)[N * N];
         }
 
         /// <summary>A tile that is not on this floor: open air.</summary>
         static readonly TileRule Nothing = new TileRule();
 
+        /// <summary>Location number of the settlement being planned.</summary>
+        int planning;
+
         public SettlementPlan Plan(Data.Location loc, string kind, VBiome biome)
         {
+            planning = loc.Number;
             var plan = new SettlementPlan { Location = loc, Kind = kind };
             string styleKey = kind;
             if (loc.Number == 18) styleKey = "evil"; // Blackthorn's palace
@@ -589,8 +593,8 @@ namespace U5InValheim.WorldGen.Core
                 {
                     // the river runs on under the deck, which is lowered by day and raised at night
                     p.Water[c] = true;
-                    var (hx, hz) = g.Hinge[c];
-                    ctx.Top("wood_floor", CellX(p, c), 0.05f, CellZ(p, c), 0);
+                    var (dx, dz, sx, sz, hx, hz) = g.Deck[c];
+                    ctx.Top("wood_floor", dx, 0.05f, dz, 0, sx, 1, sz);
                     string look = FormattableString.Invariant($"drawbridge:{hx:0.##},{hz:0.##}");
                     ctx.Last(pl => { pl.Look = look; return pl; });
                     continue;
@@ -610,7 +614,8 @@ namespace U5InValheim.WorldGen.Core
         /// Drawbridges (Constructing world assets 72, 73): a line of bridge tiles along a row with
         /// water at both ends is crossed north–south (along a column, east–west); the lines that
         /// touch make one bridge, hinged on its edge facing the middle of the map (the town or
-        /// castle side), so the whole deck swings up about that edge.
+        /// castle side, or as town_tiles.json "drawbridge_hinge" says), so the whole deck swings
+        /// up about that edge. The deck is a metre longer than its tiles, half a metre onto each bank.
         /// </summary>
         void Drawbridges(Level lv)
         {
@@ -648,30 +653,25 @@ namespace U5InValheim.WorldGen.Core
                     foreach (int n in Neighbours4(c))
                         if (!seen[n] && across[n] == across[s0]) { seen[n] = true; q.Enqueue(n); }
                 }
-                // crossed north–south: hinged on its north or south edge, whichever faces the middle
+                // the deck runs across the water (z for a north–south crossing, x for east–west), a
+                // metre longer than its tiles to reach over the banks, hinged on one end: the side
+                // facing the middle of the map (the town or castle side) unless the settlement says
                 bool ns = across[s0] == 1;
-                float tile = 2f;
-                if (ns)
+                var plan = new SettlementPlan();
+                float A(int c) => ns ? CellZ(plan, c) : CellX(plan, c);
+                float lo = deck.Min(A) - 1, hi = deck.Max(A) + 1, length = hi - lo;
+                int count = (int)Math.Round(length / 2);
+                bool hingeHigh = (lo + hi) / 2 < 0; // the middle of the map is north (east) of the deck
+                if (tiles.DrawbridgeHinge.TryGetValue(planning, out string side))
+                    hingeHigh = side == "n" || side == "e";
+                float stretch = (length + 1) / length, hinge = hingeHigh ? hi + 0.5f : lo - 0.5f;
+                foreach (int c in deck)
                 {
-                    int y0 = deck.Min(c => c / N), y1 = deck.Max(c => c / N);
-                    bool south = (y0 + y1) / 2.0 < N / 2.0 - 0.5; // the middle lies south (larger y)
-                    foreach (int c in deck)
-                    {
-                        int edge = south ? y1 : y0; // the hinge row (z grows north)
-                        lv.Drawbridge[c] = true;
-                        lv.Hinge[c] = (0, south ? -(edge - c / N) * tile - tile / 2 : (c / N - edge) * tile + tile / 2);
-                    }
-                }
-                else
-                {
-                    int x0 = deck.Min(c => c % N), x1 = deck.Max(c => c % N);
-                    bool east = (x0 + x1) / 2.0 < N / 2.0 - 0.5;
-                    foreach (int c in deck)
-                    {
-                        int edge = east ? x1 : x0;
-                        lv.Drawbridge[c] = true;
-                        lv.Hinge[c] = (east ? (edge - c % N) * tile + tile / 2 : -((c % N) - edge) * tile - tile / 2, 0);
-                    }
+                    int i = (int)Math.Round((A(c) - (lo + 1)) / 2);
+                    float centre = lo - 0.5f + (i + 0.5f) * (length + 1) / count;
+                    lv.Drawbridge[c] = true;
+                    lv.Deck[c] = ns ? (CellX(plan, c), centre, 1f, stretch, 0f, hinge - centre)
+                                    : (centre, CellZ(plan, c), stretch, 1f, hinge - centre, 0f);
                 }
             }
         }

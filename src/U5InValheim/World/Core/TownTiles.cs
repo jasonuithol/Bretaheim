@@ -137,6 +137,8 @@ namespace U5InValheim.WorldGen.Core
         public Garden Garden = new Garden();
         /// <summary>Ground height of settlements with water, by location number (others: 1.5 m).</summary>
         public readonly Dictionary<int, float> WaterGround = new Dictionary<int, float>();
+        /// <summary>Side (n/e/s/w) drawbridges hinge on, by location number (others: the side facing the middle of the map).</summary>
+        public readonly Dictionary<int, string> DrawbridgeHinge = new Dictionary<int, string>();
 
         public TileRule this[int tile] => rules[tile & 0xff];
 
@@ -224,6 +226,9 @@ namespace U5InValheim.WorldGen.Core
             if (root.TryGetValue("water_ground", out var wg))
                 foreach (var kv in Json.Obj(wg))
                     if (!kv.Key.StartsWith("_")) t.WaterGround[int.Parse(kv.Key)] = (float)(double)kv.Value;
+            if (root.TryGetValue("drawbridge_hinge", out var dh))
+                foreach (var kv in Json.Obj(dh))
+                    if (!kv.Key.StartsWith("_")) t.DrawbridgeHinge[int.Parse(kv.Key)] = (string)kv.Value;
             if (root.TryGetValue("garden", out var gdn))
             {
                 var o = Json.Obj(gdn);

@@ -193,6 +193,10 @@
     "_doc": "Ground height (m above the sea) of a settlement with water, by location number; others with water stand at 1.5 m. The water is at sea level whatever the ground: higher ground makes its water tiles deep ditches. North Britanny sits on land 7-11 m up: its stream is a ditch running into its pond.",
     "20": 5
   },
+  "drawbridge_hinge": {
+    "_doc": "The side (n/e/s/w) a settlement's drawbridges hinge on, by location number; elsewhere they hinge on the side facing the middle of the map (the castle side of a moat).",
+    "20": "n"
+  },
   "armoury": {
     "_doc": "Armourers' display wall: item stands on the wall behind where the armourer works (the counter in front of them), 2 m apart, rows at these heights above the floor. Each shop shows the families of what it sells (DATA.OVL armoury stock, U5 item ids), in proportion, cycling through each family's Valheim models.",
     "stand": "itemstand", "rows": [1.3, 2.8], "reach": 3,
