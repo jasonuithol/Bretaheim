@@ -430,9 +430,9 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
 - Status (2026-10-18): built and walked in-game: Britain, Lord British's castle, Iolo's hut and West/North/East Britanny,
   plus the overworld pass (beaches, river banks, paths, edge dressing, biome borders). Every
   decision is in `docs/MAPPING_DECISIONS.md`; the changes are in `ThunderstoreAssets/CHANGELOG.md`
-  (Unreleased). Basements are built (Lord British's castle, Blackthorn's palace, Yew, Serpent's Hold).
-  Still open: real stairs and
-  beam ladders, overworld bridges (town drawbridges are done), cliffs at waterfalls, the telescope and other one-off props,
+  (Unreleased). Basements are built (Lord British's castle, Blackthorn's palace, Yew, Serpent's Hold),
+  a full storey under the stone ground floor; ladders are rails and rungs you walk through and
+  climb from any part. Still open: real stairs (stairs are ladders for now), overworld bridges (town drawbridges are done), cliffs at waterfalls, the telescope and other one-off props,
   merged meshes for FPS, and gardens/ponds for the other towns' small water features.
 
 **Phase 3 — People (3–4 weeks)**
