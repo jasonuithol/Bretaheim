@@ -125,6 +125,24 @@ if (argv.Count > 0 && argv[0] == "slopes")
     }
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "shops")
+{
+    // shops <location>: its shopkeepers as the game shows them (hours, greeting, stock, farewell)
+    var loc = data.FindLocation(argv[1]);
+    var rnd = new Random(1);
+    foreach (var npc in data.NpcsOf(loc).Where(n => n.IsShopkeeper))
+    {
+        var s = data.Shops.Of(loc, npc);
+        var open = Enumerable.Range(0, 24).Where(h => U5InValheim.Data.Shops.IsOpen(npc, h)).ToList();
+        Console.WriteLine($"== {s.Trade} slot {s.Slot}: {s.Name}, kept by {s.Keeper}; open {(open.Count > 0 ? $"{open.First()}:00-{open.Last() + 1}:00" : "never")}");
+        Console.WriteLine("closed: " + data.Shops.Closed(s));
+        Console.WriteLine(data.Shops.Greeting(s, 10, rnd));
+        foreach (var w in data.Shops.Stock(s)) Console.WriteLine($"  {w.Name} x{w.Quantity}: {w.Price} gp");
+        if (s.Trade == U5InValheim.Data.ShopTrade.Healer) Console.WriteLine($"  heal {data.Shops.HealerPrices(s).heal} gp, cure {data.Shops.HealerPrices(s).cure} gp");
+        Console.WriteLine(data.Shops.Farewell(s, true, 10, rnd));
+    }
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "converse")
 {
     // converse <location> <name> [line ...]: a conversation as the in-game panel shows it

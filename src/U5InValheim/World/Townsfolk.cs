@@ -168,6 +168,8 @@ namespace U5InValheim.WorldGen
     public class TownNpc : MonoBehaviour, Hoverable, Interactable
     {
         const float TurnSpeed = 360f;
+        /// <summary>How much higher a smaller body sits, per unit of scale lost (a 0.7 child sank about 0.5 m).</summary>
+        const float ChildSeatLift = 1.6f;
         static readonly int ForwardSpeed = ZSyncAnimation.GetHash("forward_speed"), OnGround = ZSyncAnimation.GetHash("onGround"), InWater = ZSyncAnimation.GetHash("inWater"),
             AttachChair = ZSyncAnimation.GetHash("attach_chair"), AttachBed = ZSyncAnimation.GetHash("attach_bed");
 
@@ -210,23 +212,65 @@ namespace U5InValheim.WorldGen
         public int Slot => npc?.Slot ?? 0;
         /// <summary>Their conversation (.TLK), or null for shopkeepers, guards and the silent.</summary>
         public TlkScript Script => npc != null ? Plugin.U5.ScriptOf(home.Location, npc) : null;
-        /// <summary>What the panel says for those without a conversation.</summary>
-        public string NoConversation =>
-            npc == null ? "" :
-            npc.IsShopkeeper ? $"You see the {label.ToLowerInvariant()}.\n\n(Their shop opens in a later version.)" :
-            npc.IsGuard ? "You see a guard.\n\n(Guards have nothing to say to you yet.)" :
-            "No response.";
-
         bool talking;
+        bool Asleep => nview.GetZDO()?.GetInt(TownsfolkSpawner.PoseKey) == (int)Pose.Lie;
 
+        /// <summary>
+        /// Talking (TALK.OVL talk_to_npc): townsfolk with a conversation open the panel; shopkeepers
+        /// their shop while it is open, else "come see me when it's open"; the rest give no
+        /// response. Nobody talks in their sleep.
+        /// </summary>
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
-            if (hold || !ready || user != Player.m_localPlayer) return false;
+            if (hold || !ready || user != Player.m_localPlayer || Asleep) return false;
+            var me = Player.m_localPlayer;
+            ShopInfo shop = npc.IsShopkeeper ? Plugin.U5.Shops.Of(home.Location, npc) : null;
+            if (shop != null && !Shops.IsOpen(npc, Hour()))
+            {
+                me.Message(MessageHud.MessageType.Center, Plugin.U5.Shops.Closed(shop));
+                return true;
+            }
+            if (shop == null && Script == null)
+            {
+                me.Message(MessageHud.MessageType.Center, "No response.");
+                return true;
+            }
             // the one talking moves them (they stop and turn to you)
             nview.ClaimOwnership();
             talking = true;
-            TalkPanel.Open(this);
+            if (shop != null) TalkPanel.OpenShop(this, shop);
+            else TalkPanel.Open(this);
             return true;
+        }
+
+        Trader trader;
+
+        /// <summary>
+        /// The shop's stock for Valheim's trade window (a disabled Trader on a child, so the
+        /// townsperson stays the thing you point at), or null for shops that sell nothing yet.
+        /// </summary>
+        public Trader ShopTrader()
+        {
+            if (trader != null) return trader;
+            var shop = npc != null && npc.IsShopkeeper ? Plugin.U5.Shops.Of(home.Location, npc) : null;
+            if (shop == null) return null;
+            var items = new List<Trader.TradeItem>();
+            foreach (var ware in Plugin.U5.Shops.Stock(shop))
+            {
+                var map = ShopTrading.Items.Of(ware.Item);
+                var drop = map != null ? ObjectDB.instance?.GetItemPrefab(map.Value.prefab)?.GetComponent<ItemDrop>() : null;
+                if (drop == null) continue;
+                items.Add(new Trader.TradeItem { m_prefab = drop, m_stack = ware.Quantity, m_price = ware.Price, m_name = ware.Name });
+            }
+            if (items.Count == 0) return null;
+            var go = new GameObject("u5_shop");
+            go.transform.SetParent(transform, false);
+            trader = go.AddComponent<Trader>();
+            trader.enabled = false;
+            trader.m_name = shop.Keeper;
+            trader.m_items = items;
+            go.AddComponent<ShopTrading.Visit>().Shop = shop;
+            return trader;
         }
 
         public void EndTalk() => talking = false;
@@ -235,7 +279,7 @@ namespace U5InValheim.WorldGen
         void Update()
         {
             if (!ready || nview.GetZDO() == null) return;
-            if (talking && TalkPanel.With != this) talking = false;
+            if (talking && TalkPanel.With != this && !ShopTrading.IsTrading(trader)) talking = false;
             if (nview.IsOwner()) Live(Time.deltaTime);
             else if (walker != null)
             {
@@ -273,7 +317,9 @@ namespace U5InValheim.WorldGen
             if (walker.Pose != Pose.Stand)
             {
                 // on the chair or bed, turned as it is (as Valheim seats a player)
-                transform.position = home.Origin + new Vector3(walker.RestX, walker.RestY, walker.RestZ);
+                // Valheim's sitting pose is made for a full-size body: a child would sink into the seat
+                float lift = walker.Pose == Pose.Sit ? (1f - transform.localScale.y) * ChildSeatLift : 0f;
+                transform.position = home.Origin + new Vector3(walker.RestX, walker.RestY + lift, walker.RestZ);
                 transform.rotation = Quaternion.Euler(0, walker.RestYaw, 0);
                 return;
             }
@@ -305,7 +351,7 @@ namespace U5InValheim.WorldGen
             if (walker != null) home?.Crowd.Leave(walker);
         }
 
-        public string GetHoverText() => Localization.instance.Localize($"{label}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
+        public string GetHoverText() => Asleep ? $"{label} (asleep)" : Localization.instance.Localize($"{label}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
         public string GetHoverName() => label;
         public float GetHoverOffset() => 0f;
     }

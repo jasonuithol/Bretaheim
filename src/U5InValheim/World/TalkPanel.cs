@@ -43,37 +43,111 @@ namespace U5InValheim.WorldGen
 
         public static void Open(TownNpc who)
         {
-            if (IsOpen) Close();
-            if (!Build()) return;
-            npc = who;
-            lines.Clear();
-            title.text = who.GetHoverName();
-            var script = who.Script;
-            if (script != null)
-            {
-                session = new TalkSession(script, Plugin.U5.Ovl, new PlayerTalkWorld(who));
-                Show(session.TakeOutput());
-            }
-            else
-            {
-                session = null;
-                Show(who.NoConversation);
-            }
-            panel.SetActive(true);
-            openedFrame = Time.frameCount;
-            GUIManager.BlockInput(true);
+            if (!Start(who, who.GetHoverName())) return;
+            session = new TalkSession(who.Script, Plugin.U5.Ovl, new PlayerTalkWorld(who));
+            Show(session.TakeOutput());
+            SetButtons(("Name", () => Say("name")), ("Job", () => Say("job")),
+                ("Bye", () => { if (session != null && !session.Over && !session.Prompt.StartsWith("You respond")) Say(TalkSession.Bye); else Close(); }));
             Focus();
             Refresh();
         }
 
-        public static void Close()
+        /// <summary>A shop visit (SHOPPES*.OVL): the keeper's greeting, then Buy (Valheim's trade window with the shop's stock), the healer's services, Bye (their farewell).</summary>
+        public static void OpenShop(TownNpc who, ShopInfo shop)
+        {
+            if (!Start(who, shop.Name)) return;
+            session = null;
+            var shops = Plugin.U5.Shops;
+            bought = false;
+            Show(shops.Greeting(shop, TownNpc.Hour(), random));
+            var choices = new List<(string, Action)>();
+            if (who.ShopTrader() != null) choices.Add(("Buy", () => { var trader = who.ShopTrader(); Close(farewell: false, keepTalking: true); StoreGui.instance?.Show(trader); }));
+            if (shop.Trade == ShopTrade.Healer)
+            {
+                var (heal, cure) = shops.HealerPrices(shop);
+                choices.Add(($"Heal ({heal} gp)", () => Heal(heal, false)));
+                choices.Add(($"Cure ({cure} gp)", () => Heal(cure, true)));
+            }
+            else if (who.ShopTrader() == null)
+                Show("(This shop opens in a later version.)");
+            choices.Add(("Bye", () => Close()));
+            SetButtons(choices.ToArray());
+            visit = shop;
+            Refresh();
+        }
+
+        static readonly System.Random random = new System.Random();
+        static ShopInfo visit;
+        static bool bought;
+
+        /// <summary>The healer's cure (poison) or heal (to full health), paid in coins.</summary>
+        static void Heal(int price, bool cure)
+        {
+            var me = Player.m_localPlayer;
+            if (me == null) return;
+            var inv = me.GetInventory();
+            if (inv.CountItems("$item_coins") < price)
+            {
+                Show("\"" + Plugin.U5.Ovl.CStr(0x9328) + "\"");
+                return;
+            }
+            if (price > 0) inv.RemoveItem("$item_coins", price);
+            if (cure) me.GetSEMan().RemoveStatusEffect("Poison".GetStableHashCode(), true);
+            else me.Heal(me.GetMaxHealth() - me.GetHealth(), true);
+            bought = true;
+            Show(cure ? "(Thou art cured.)" : "(Thou art healed.)");
+        }
+
+        static bool Start(TownNpc who, string heading)
+        {
+            if (IsOpen) Close(farewell: false);
+            if (!Build()) return false;
+            npc = who;
+            visit = null;
+            lines.Clear();
+            title.text = heading;
+            panel.SetActive(true);
+            openedFrame = Time.frameCount;
+            GUIManager.BlockInput(true);
+            return true;
+        }
+
+        static void SetButtons(params (string text, Action click)[] choices)
+        {
+            foreach (var b in buttons) Object.Destroy(b);
+            buttons.Clear();
+            var g = GUIManager.Instance;
+            float width = Math.Min(150, 620f / choices.Length - 10);
+            for (int i = 0; i < choices.Length; i++)
+            {
+                var click = choices[i].click;
+                var b = g.CreateButton(choices[i].text, panel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    new Vector2((i - (choices.Length - 1) / 2f) * (width + 10), 35), width, 36);
+                b.GetComponent<Button>().onClick.AddListener(() => click());
+                buttons.Add(b);
+            }
+        }
+
+        static readonly List<GameObject> buttons = new List<GameObject>();
+
+        public static void Close() => Close(farewell: true);
+
+        static void Close(bool farewell, bool keepTalking = false)
         {
             if (panel == null || !panel.activeSelf) return;
+            // leaving a shop: the keeper's farewell over their head
+            if (farewell && visit != null && npc != null && Chat.instance != null)
+            {
+                var said = LastQuote(Plugin.U5.Shops.Farewell(visit, bought, TownNpc.Hour(), random));
+                if (said != null) Chat.instance.SetNpcText(npc.gameObject, Vector3.up * 2.1f, 20f, 8f, "", said, false);
+            }
             panel.SetActive(false);
             GUIManager.BlockInput(false);
-            if (npc != null) npc.EndTalk();
+            // (buying: they wait at the counter while the trade window is open)
+            if (npc != null && !keepTalking) npc.EndTalk();
             npc = null;
             session = null;
+            visit = null;
         }
 
         /// <summary>The player's line (typed, or a button).</summary>
@@ -149,18 +223,9 @@ namespace U5InValheim.WorldGen
             {
                 if (ZInput.GetKeyDown(KeyCode.Return) || ZInput.GetKeyDown(KeyCode.KeypadEnter)) Say(text);
             });
-            Button(g, "Name", -170, () => Say("name"));
-            Button(g, "Job", 0, () => Say("job"));
-            Button(g, "Bye", 170, () => { if (session != null && !session.Over && !session.Prompt.StartsWith("You respond")) Say(TalkSession.Bye); else Close(); });
             panel.AddComponent<TalkPanelWatch>();
             panel.SetActive(false);
             return true;
-        }
-
-        static void Button(GUIManager g, string text, float x, Action click)
-        {
-            var b = g.CreateButton(text, panel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(x, 35), 150, 36);
-            b.GetComponent<Button>().onClick.AddListener(() => click());
         }
 
         /// <summary>Escape, walking away or the townsperson going away ends the conversation.</summary>

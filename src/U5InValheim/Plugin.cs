@@ -91,6 +91,7 @@ namespace U5InValheim
                 Structures.Register();
                 TownsfolkSpawner.Register();
                 TalkPanel.Install(harmony);
+                ShopTrading.Install(harmony);
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);
                 RiverBanks.Install(harmony);
