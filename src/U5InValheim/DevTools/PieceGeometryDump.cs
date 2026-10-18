@@ -87,7 +87,7 @@ namespace U5InValheim.DevTools
                     "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_bathtub");
             if (Plugin.SelfTest.Value)
             {
-                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin", "wood_gate", "ashwood_door", "forge_ext1" })
+                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin", "piece_chest_wood", "piece_bed02", "bed" })
                     LogHierarchy(__instance.GetPrefab(n));
                 foreach (var n in new[] { "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_brazierfloor01", "piece_brazierfloor02", "piece_brazierceiling01", "itemstand", "itemstandh" })
                 {
@@ -99,6 +99,19 @@ namespace U5InValheim.DevTools
                 TestLook(__instance.GetPrefab("piece_bathtub"), "fountain");
                 TestLook(__instance.GetPrefab("blackmarble_column_2"), "white_marble");
                 TestLook(__instance.GetPrefab("piece_banner01"), "icon:f6");
+                foreach (var (bedName, part) in new[] { ("piece_bed02", "New/high"), ("bed", "New") })
+                {
+                    var bm = __instance.GetPrefab(bedName)?.transform.Find(part)?.GetComponent<MeshFilter>()?.sharedMesh;
+                    if (bm == null || !bm.isReadable) continue;
+                    var top = new float[8];
+                    for (int i = 0; i < 8; i++) top[i] = float.MinValue;
+                    foreach (var v in bm.vertices)
+                    {
+                        int bin = Mathf.Clamp((int)((v.z - bm.bounds.min.z) / bm.bounds.size.z * 8), 0, 7);
+                        top[bin] = Mathf.Max(top[bin], v.y);
+                    }
+                    Plugin.Log.LogInfo($"bed profile {bedName}: highest point per z eighth from -z to +z: {string.Join(" ", top.Select(t => t.ToString("0.00")))}");
+                }
                 var cloth = __instance.GetPrefab("piece_banner01")?.transform.Find("default")?.GetComponent<MeshFilter>()?.sharedMesh;
                 if (cloth != null && cloth.isReadable)
                 {

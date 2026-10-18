@@ -1057,6 +1057,8 @@ namespace U5InValheim.WorldGen.Core
             var p = ctx.Plan;
             float y = p.Storey * lv.Z;
             var done = new bool[N * N];
+            var beds = Beds(lv);
+            var footlockers = Footlockers(lv, beds);
             for (int c = 0; c < N * N; c++)
             {
                 if (done[c] || lv.Barrier[c]) continue;
@@ -1082,7 +1084,7 @@ namespace U5InValheim.WorldGen.Core
                             Ctx.Rotate(0, -0.85f, side, out float ox, out float oz);
                             ctx.Centre(r.Prefab, x + ox, y + 1.8f, z + oz, side + 270);
                         }
-                        else if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, r.Yaw);
+                        else if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, footlockers.TryGetValue(c, out float lockerYaw) ? lockerYaw : r.Yaw);
                         break;
                     case TileKind.Sign:
                         ShopSign(ctx, lv, c, y);
@@ -1094,13 +1096,14 @@ namespace U5InValheim.WorldGen.Core
                     {
                         // cottages have plain wooden beds, everyone else the fancy one
                         string bed = cottage[c] ? "bed" : "piece_bed02";
-                        int foot = Neighbours4(c).Where(n => lv.Rule[n].Kind == TileKind.BedFoot && !done[n]).DefaultIfEmpty(-1).First();
-                        if (foot < 0) { ctx.Stand(bed, x, y, z, 0); break; }
-                        done[foot] = true;
-                        float bx = (x + CellX(p, foot)) / 2, bz = (z + CellZ(p, foot)) / 2;
-                        bool horizontal = foot / N == c / N;
-                        float yaw = horizontal ? (foot > c ? 270 : 90) : (foot > c ? 0 : 180);
-                        ctx.Stand(bed, bx, y, bz, yaw);
+                        var b = beds.FirstOrDefault(t => t.head == c || t.foot == c);
+                        if (b.head == b.foot) { ctx.Stand(bed, x, y, z, 0); break; }
+                        int other = b.head == c ? b.foot : b.head;
+                        done[other] = true;
+                        float hx = CellX(p, b.head), hz = CellZ(p, b.head), fx = CellX(p, b.foot), fz = CellZ(p, b.foot);
+                        // both beds' headboards are at their local −z
+                        float yaw = (float)(Math.Atan2(-(hx - fx), -(hz - fz)) * 180 / Math.PI + 360) % 360;
+                        ctx.Stand(bed, (hx + fx) / 2, y, (hz + fz) / 2, yaw);
                         break;
                     }
                     case TileKind.Table:
@@ -1392,6 +1395,56 @@ namespace U5InValheim.WorldGen.Core
                 }
             }
             ctx.Last(pl => { pl.Look = look; return pl; });
+        }
+
+        /// <summary>
+        /// The beds of a floor as (head, foot) tiles. The maps draw a bed's head tile (0xab) and
+        /// foot tile (0xac) the same way round wherever it stands, so the head goes to the end
+        /// nearer a wall (along the bed); on a tie it stays where the map draws it. A lone head
+        /// tile is (c, c).
+        /// </summary>
+        List<(int head, int foot)> Beds(Level lv)
+        {
+            var beds = new List<(int, int)>();
+            var used = new bool[N * N];
+            int ToWall(int c, int step)
+            {
+                for (int k = 0; k < N; k++)
+                {
+                    int x = c % N + (step == 1 ? k + 1 : step == -1 ? -k - 1 : 0), y = c / N + (step == N ? k + 1 : step == -N ? -k - 1 : 0);
+                    if (x < 0 || y < 0 || x >= N || y >= N || lv.Barrier[y * N + x]) return k;
+                }
+                return N;
+            }
+            for (int c = 0; c < N * N; c++)
+            {
+                if (lv.Rule[c].Kind != TileKind.BedHead || lv.Barrier[c] || used[c]) continue;
+                if (lv.Z > 0 && !(lv.Walked != null ? lv.Walked[c] : lv.Interior[c])) continue;
+                int foot = Neighbours4(c).Where(n => lv.Rule[n].Kind == TileKind.BedFoot && !used[n]).DefaultIfEmpty(-1).First();
+                used[c] = true;
+                if (foot < 0) { beds.Add((c, c)); continue; }
+                used[foot] = true;
+                int step = foot - c;
+                beds.Add(ToWall(foot, step) < ToWall(c, -step) ? (foot, c) : (c, foot));
+            }
+            return beds;
+        }
+
+        /// <summary>Footlockers: chests beside the foot of a bed, turned to face away from it (a chest's front is its local +z).</summary>
+        Dictionary<int, float> Footlockers(Level lv, List<(int head, int foot)> beds)
+        {
+            var r = new Dictionary<int, float>();
+            foreach (var (head, foot) in beds)
+            {
+                if (head == foot) continue;
+                foreach (int n in Neighbours4(foot))
+                {
+                    if (n == head || lv.Rule[n].Prefab == null || !lv.Rule[n].Prefab.Contains("chest") || r.ContainsKey(n)) continue;
+                    int dx = n % N - foot % N, dy = n / N - foot / N; // tiles, y south
+                    r[n] = (float)((Math.Atan2(dx, -dy) * 180 / Math.PI + 360) % 360);
+                }
+            }
+            return r;
         }
 
         /// <summary>

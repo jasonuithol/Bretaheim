@@ -298,6 +298,45 @@ namespace U5InValheim.Tests
                             $"candle at ({candle.X}, {candle.Z})");
         }
 
+        [U5Theory]
+        [InlineData(2, "towne")] [InlineData(3, "towne")] [InlineData(4, "towne")] [InlineData(5, "towne")] [InlineData(13, "dwelling")] [InlineData(17, "castle")]
+        public void BedHeadsAgainstTheNearestWallFootlockersFacingAway(int location, string kind)
+        {
+            var tt = TownTiles.Parse(Mapping("town_tiles.json"));
+            var loc = Env.Data.Location(location);
+            var raw = Env.Data.Maps.Floor(loc, Math.Max(0, loc.MinZ));
+            var p = Plan(location, kind);
+            int Tx(float x) => (int)Math.Round(x / p.Tile + 15.5);
+            int Ty(float z) => (int)Math.Round(15.5 - z / p.Tile);
+            bool Wall(int x, int y) => x < 0 || y < 0 || x >= 32 || y >= 32 || tt[raw[y * 32 + x]].IsBarrier;
+            int ToWall(int x, int y, int dx, int dy) { int k = 0; while (!Wall(x + dx * (k + 1), y + dy * (k + 1))) k++; return k; }
+            int beds = 0, lockers = 0;
+            foreach (var bed in p.Pieces.Where(pc => (pc.Prefab == "bed" || pc.Prefab == "piece_bed02") && pc.Y < 1))
+            {
+                // the headboard is the local −z end
+                double r = bed.Yaw * Math.PI / 180;
+                int hdx = (int)Math.Round(-Math.Sin(r)), hdy = (int)Math.Round(Math.Cos(r)); // towards the head, tiles (y south)
+                // head and foot tiles: half a tile either side of the middle
+                int hx = Tx(bed.X + hdx), hy = Ty(bed.Z - hdy), fx = Tx(bed.X - hdx), fy = Ty(bed.Z + hdy);
+                Assert.True(ToWall(hx, hy, hdx, hdy) <= ToWall(fx, fy, -hdx, -hdy), $"{loc.Name} bed at ({hx},{hy})-({fx},{fy}): head further from a wall than its foot");
+                beds++;
+                // a chest beside the foot faces away from the bed
+                foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+                {
+                    int cx = fx + dx, cy = fy + dy;
+                    if (cx == hx && cy == hy) continue;
+                    var chest = p.Pieces.FirstOrDefault(pc => pc.Prefab == "piece_chest_wood" && pc.Y < 1 && Tx(pc.X) == cx && Ty(pc.Z) == cy && pc.Items == null);
+                    if (chest.Prefab == null) continue;
+                    double cr = chest.Yaw * Math.PI / 180;
+                    Assert.Equal(dx, (int)Math.Round(Math.Sin(cr)));
+                    Assert.Equal(-dy, (int)Math.Round(Math.Cos(cr)));
+                    lockers++;
+                }
+            }
+            Assert.True(beds > 0);
+            if (location == 2) Assert.True(lockers > 0, "Britain has footlockers");
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {
