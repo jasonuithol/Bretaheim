@@ -144,12 +144,30 @@ namespace U5InValheim.WorldGen
         public static Built Get(int location) => All.FirstOrDefault(b => b.Location.Number == location);
         public static bool ShellPieces(int location, Vector2s zone, out List<Placement> pieces) => shells.TryGetValue((location, zone), out pieces);
 
-        /// <summary>World spawn point inside Iolo's hut, if it is built.</summary>
+        /// <summary>
+        /// World spawn point: inside Iolo's hut, or (setting SpawnLocation) just outside another
+        /// built settlement, on land, at the middle of the side of its square nearest a road.
+        /// False when that place is not built.
+        /// </summary>
         public static bool TrySpawnPoint(out Vector3 pos)
         {
-            var hut = All.FirstOrDefault(b => b.Plan.HasSpawn && b.Location.Number == 13);
-            if (hut == null) { pos = default; return false; }
-            pos = hut.Origin + new Vector3(hut.Plan.SpawnX, 0.3f, hut.Plan.SpawnZ);
+            pos = default;
+            int at = Plugin.SpawnLocation.Value;
+            var site = All.FirstOrDefault(b => b.Location.Number == at);
+            if (site == null) return false;
+            if (site.Plan.HasSpawn)
+            {
+                pos = site.Origin + new Vector3(site.Plan.SpawnX, 0.3f, site.Plan.SpawnZ);
+                return true;
+            }
+            var shape = Britannia.Active;
+            float d = site.Site.Half + site.Site.Blend * 0.6f;
+            var best = new[] { (0f, -d), (0f, d), (d, 0f), (-d, 0f) }
+                .Select(o => new Vector3(site.Site.CentreX + o.Item1, 0, site.Site.CentreZ + o.Item2))
+                .Where(p => shape.Height(p.x, p.z) > 1f)
+                .OrderBy(p => shape.PathDistance(p.x, p.z))
+                .DefaultIfEmpty(new Vector3(site.Site.CentreX, 0, site.Site.CentreZ - d)).First();
+            pos = new Vector3(best.x, Britannia.SeaLevel + Mathf.Max(shape.Height(best.x, best.z), 0f) + 0.3f, best.z);
             return true;
         }
 

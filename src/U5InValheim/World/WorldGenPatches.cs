@@ -132,7 +132,8 @@ namespace U5InValheim.WorldGen
 
         /// <summary>
         /// Vanilla places (altars, crypts, traders, villages …) are not generated in Britannia.
-        /// The start temple — Valheim's spawn point — is registered at Iolo's hut instead.
+        /// The start temple — Valheim's spawn point — is registered at Iolo's hut instead (or outside the
+        /// settlement of the SpawnLocation setting).
         /// </summary>
         static bool GenerateLocation_Prefix(ZoneSystem __instance, ZoneSystem.ZoneLocation location, ZPackage iterationsPkg, ref IEnumerator __result)
         {
@@ -147,12 +148,13 @@ namespace U5InValheim.WorldGen
             var existing = new List<ZoneSystem.LocationInstance>();
             if (__instance.FindLocations(location.m_prefab.Name, ref existing) && existing.Count > 0) return false;
             var pos = Britannia.SpawnPoint();
-            // With the hut built, the temple itself is never spawned (registered as placed): its
-            // registration only marks where players appear.
-            bool hutBuilt = Settlements.IsBuilt(13);
+            // With the spawn settlement built (Iolo's hut, or the place of SpawnLocation), the temple
+            // itself is never spawned (registered as placed): its registration only marks where
+            // players appear.
+            bool hutBuilt = Settlements.IsBuilt(Plugin.SpawnLocation.Value);
             registerLocation = registerLocation ?? AccessTools.Method(typeof(ZoneSystem), "RegisterLocation");
             registerLocation.Invoke(__instance, new object[] { location, pos, hutBuilt });
-            Plugin.Log.LogInfo($"Start location placed at Iolo's hut {pos} (temple {(hutBuilt ? "not spawned" : "spawned")}, " +
+            Plugin.Log.LogInfo($"Start location placed at {(Settlements.IsBuilt(Plugin.SpawnLocation.Value) ? Plugin.U5.Location(Plugin.SpawnLocation.Value).Name : "the start tile")} {pos} (temple {(hutBuilt ? "not spawned" : "spawned")}, " +
                                $"iconAlways {location.m_iconAlways}, iconPlaced {location.m_iconPlaced})");
             return false;
         }

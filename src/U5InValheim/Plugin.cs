@@ -33,6 +33,7 @@ namespace U5InValheim
         public static ConfigEntry<bool> SelfTest { get; private set; }
         public static ConfigEntry<string> BuildSettlements { get; private set; }
         public static ConfigEntry<string> CombinedShells { get; private set; }
+        public static ConfigEntry<int> SpawnLocation { get; private set; }
 
         Harmony harmony;
 
@@ -60,6 +61,10 @@ namespace U5InValheim
             CombinedShells = Config.Bind("World", "CombinedShells", "*",
                 "Settlements whose building shells (walls, floors, roofs) are built as one combined object per " +
                 "zone instead of thousands of separate pieces (* = all of them). Must match on every peer.");
+            SpawnLocation = Config.Bind("World", "SpawnLocation", 13,
+                "Where players first appear in a new Britannia world: 13 = inside Iolo's hut (the game's start), " +
+                "or the location number of a built settlement to start just outside it (2 = Britain). " +
+                "Read by whoever creates the world (the server, or the host); existing worlds keep their spawn.");
             DumpPieceGeometry = Config.Bind("Development", "DumpPieceGeometry", "",
                 "Comma-separated prefab names (or *) whose snap points and bounds are written to " +
                 "BepInEx/u5_piece_geometry.json at start-up. Leave empty.");
