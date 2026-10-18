@@ -70,6 +70,7 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
 | 2026-10-18 | Edge dressing | `dressing.json`: bushes, berry bushes, rocks, flint and trees per biome along coasts (beach rocks and flint on the sand, bushes and rocks on the dunes, trees behind), river banks and both sides of paths; ~30,000 over the map | User: dress up the boundaries. `U5Dump dressing` counts them. |
 | 2026-10-17 | Biome borders | biome lookup warped by noise (~2 tile meanders, ~1 tile wobble); ground colour from the biome map every 4 m blurred over ~8 m instead of Valheim's 64 m chunk corners | User: no squares or straight borders. |
 | 2026-10-17 | Overland signpost (0xa4) | a rune stone of the surrounding biome (`RuneStone_*`) in a 14 m clearing | Doc. The same tile marks the moongate sites; the stones stay and the gates appear there in Phase 7. |
+| 2026-10-18 | Ladders and stairs (climb points) | a ladder of two thin rails (`wood_pole2` scaled to 0.1 m) and rungs every 0.33 m (`wood_beam_1`, 0.66 m), at the back of its tile facing the floor tile you come from; going up it reaches the ceiling, going down only its top shows (1.1 m). Every part is passable (look "passable": colliders on Valheim's `piece_nonsolid` layer, which players walk through but can point at) and climbs. `BogWitch_Ladder` is not spawnable (it lives inside the Bog Witch location) | User: ladders looked like placeholders (one pole); walk through them as in Ultima. Castle piece budget raised to 11500. |
 
 ## Open (need a decision)
 

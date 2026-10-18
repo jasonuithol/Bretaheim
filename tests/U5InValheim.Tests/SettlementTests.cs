@@ -78,7 +78,7 @@ namespace U5InValheim.Tests
         [U5Theory]
         [InlineData(13, "dwelling", 1300)]
         [InlineData(2, "towne", 6000)]
-        [InlineData(17, "castle", 11000)]
+        [InlineData(17, "castle", 11500)]
         public void PieceBudget(int location, string kind, int maxPieces)
         {
             var p = Plan(location, kind);
@@ -462,6 +462,21 @@ namespace U5InValheim.Tests
                 foreach (var (dx, dz) in new[] { (0f, 0f), (1f, 1f), (-1f, -1f), (1f, -1f), (-1f, 1f) })
                     Assert.Equal(1f, shape.Height(x + dx, z + dz), 0.01f);
             }
+        }
+
+        [Fact]
+        public void LaddersAreRailsAndRungsYouWalkThrough()
+        {
+            var p = Plan(17, "castle");
+            var climb = p.Pieces.Where(pc => pc.Climb).ToList();
+            Assert.All(climb, pc => Assert.Equal("passable", pc.Look));
+            // going up, the rails reach the ceiling; going down, only the ladder's top shows
+            var rails = climb.Where(pc => pc.Prefab == "wood_pole2").ToList();
+            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb up" && Math.Abs(pc.SY * 2 - p.Storey) < 0.01f);
+            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb down" && pc.SY * 2 < 1.5f);
+            Assert.All(rails, pc => Assert.True(pc.SX < 0.5f && pc.SZ < 0.5f, "thin rails"));
+            // rungs between each pair of rails, and every part of a ladder climbs
+            Assert.True(climb.Count(pc => pc.Prefab == "wood_beam_1") > 5 * rails.Count / 2);
         }
 
         [Fact]

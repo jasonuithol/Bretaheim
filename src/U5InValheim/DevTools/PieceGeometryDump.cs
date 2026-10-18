@@ -87,7 +87,7 @@ namespace U5InValheim.DevTools
                     "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_bathtub");
             if (Plugin.SelfTest.Value)
             {
-                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin", "piece_chest_wood", "piece_bed02", "bed" })
+                foreach (var n in new[] { "piece_bathtub", "piece_walltorch", "SwampTree1", "itemstand", "piece_banner01", "Candle_resin", "piece_chest_wood", "piece_bed02", "bed", "BogWitch_Ladder", "wood_pole2" })
                     LogHierarchy(__instance.GetPrefab(n));
                 foreach (var n in new[] { "forge_ext1", "forge_ext2", "forge_ext3", "forge_ext4", "forge_ext5", "forge_ext6", "piece_brazierfloor01", "piece_brazierfloor02", "piece_brazierceiling01", "itemstand", "itemstandh" })
                 {
@@ -96,6 +96,18 @@ namespace U5InValheim.DevTools
                     Plugin.Log.LogInfo($"piece name {n}: {piece?.m_name} = {(piece != null ? Localization.instance?.Localize(piece.m_name) : null)}"
                         + (stand != null ? $" stand types {string.Join(",", stand.m_supportedTypes)} orientation {stand.m_orientationType}" : ""));
                 }
+                foreach (var n in new[] { "wood_pole2", "wood_beam_1" })
+                {
+                    ZNetView.m_forceDisableInit = true;
+                    var go = UnityEngine.Object.Instantiate(__instance.GetPrefab(n));
+                    ZNetView.m_forceDisableInit = false;
+                    WorldGen.Looks.Apply(go, "passable");
+                    Plugin.Log.LogInfo($"look passable on {n}: colliders on {string.Join(",", go.GetComponentsInChildren<Collider>(true).Select(c => LayerMask.LayerToName(c.gameObject.layer)))}");
+                    UnityEngine.Object.Destroy(go);
+                }
+                int nonsolid = LayerMask.NameToLayer("piece_nonsolid");
+                Plugin.Log.LogInfo("piece_nonsolid collides with: " + string.Join(",", Enumerable.Range(0, 32)
+                    .Where(l => LayerMask.LayerToName(l).Length > 0 && !Physics.GetIgnoreLayerCollision(nonsolid, l)).Select(LayerMask.LayerToName)));
                 TestLook(__instance.GetPrefab("piece_bathtub"), "fountain");
                 TestLook(__instance.GetPrefab("blackmarble_column_2"), "white_marble");
                 TestLook(__instance.GetPrefab("piece_banner01"), "icon:f6");

@@ -27,11 +27,23 @@ namespace U5InValheim.WorldGen
             {
                 case "white_marble": Whiten(go.transform); break;
                 case "fountain": Fountain(go); break;
+                case "passable": Passable(go); break;
                 default:
                     if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
                     else if (look.StartsWith("drawbridge:")) Drawbridge.Add(go, look.Substring(11));
                     break;
             }
+        }
+
+        /// <summary>
+        /// Walked through, as ladders are in the original: its colliders move to Valheim's
+        /// non-solid piece layer (torches', banners'), which players pass through but can still
+        /// point at to use.
+        /// </summary>
+        static void Passable(GameObject go)
+        {
+            int layer = LayerMask.NameToLayer("piece_nonsolid");
+            foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.gameObject.layer = layer;
         }
 
         /// <summary>
