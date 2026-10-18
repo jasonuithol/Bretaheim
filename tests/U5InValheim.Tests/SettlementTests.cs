@@ -470,10 +470,19 @@ namespace U5InValheim.Tests
             var p = Plan(17, "castle");
             var climb = p.Pieces.Where(pc => pc.Climb).ToList();
             Assert.All(climb, pc => Assert.Equal("passable", pc.Look));
-            // going up, the rails reach the ceiling; going down, only the ladder's top shows
+            // both fill half the storey from the middle of the wall zone: going up into the ceiling,
+            // going down into the floor (a pole's pivot is its middle)
             var rails = climb.Where(pc => pc.Prefab == "wood_pole2").ToList();
-            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb up" && Math.Abs(pc.SY * 2 - p.Storey) < 0.01f);
-            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb down" && pc.SY * 2 < 1.5f);
+            float Floor(Placement pc) => pc.Y < 0 ? p.LevelY(-1) : (float)Math.Floor(pc.Y / p.Storey) * p.Storey;
+            Assert.All(rails, pc => Assert.InRange(pc.SY * 2, p.Storey / 2, p.Storey / 2 + 0.2f));
+            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb up");
+            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb down");
+            Assert.All(rails, pc =>
+            {
+                float bottom = pc.Y - pc.SY - Floor(pc), top = pc.Y + pc.SY - Floor(pc);
+                if (pc.ClimbVerb == "Climb up") { Assert.InRange(bottom, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); Assert.True(top > p.Storey, $"{pc} top {top}"); }
+                else { Assert.True(bottom < 0, $"{pc} bottom {bottom}"); Assert.InRange(top, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); }
+            });
             Assert.All(rails, pc => Assert.True(pc.SX < 0.5f && pc.SZ < 0.5f, "thin rails"));
             // rungs between each pair of rails, and every part of a ladder climbs
             Assert.True(climb.Count(pc => pc.Prefab == "wood_beam_1") > 5 * rails.Count / 2);

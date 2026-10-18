@@ -1417,7 +1417,8 @@ namespace U5InValheim.WorldGen.Core
         /// Stairs and ladders become a ladder you use to change floor (like the original, which
         /// changes floor on the spot): the destination is the same tile one floor up or down.
         /// The ladder is two thin rails and rungs, at the back of its tile facing the way you come
-        /// to it; going up it reaches the ceiling, going down only its top shows above the floor.
+        /// to it, filling half the storey: going up, from the middle of the wall zone into the
+        /// ceiling; going down, from the middle into the floor.
         /// You walk through it, as in the original (look "passable"), and use any part to climb.
         /// </summary>
         void ClimbPoint(Ctx ctx, Level lv, List<Level> levels, int c, TileKind kind, float x, float y, float z)
@@ -1433,13 +1434,13 @@ namespace U5InValheim.WorldGen.Core
             float dx = 0, dz = 1;
             if (from >= 0) { dx = Math.Sign(CellX(p, from) - x); dz = Math.Sign(CellZ(p, from) - z); }
             float lx = x - dx * LadderBack, lz = z - dz * LadderBack, yaw = dx != 0 ? 90 : 0;
-            float height = up ? p.Storey : LadderStub;
+            float height = p.Storey / 2 + LadderSink, bottom = y + (up ? p.Storey / 2 : -LadderSink);
             int first = p.Pieces.Count;
             Ctx.Rotate(LadderHalfWidth, 0, yaw, out float rx, out float rz);
             foreach (int side in new[] { -1, 1 })
-                ctx.Stand("wood_pole2", lx + side * rx, y, lz + side * rz, yaw, LadderRail, height / 2, LadderRail);
-            for (float h = LadderRungStep; h < height - 0.15f; h += LadderRungStep)
-                ctx.Centre("wood_beam_1", lx, y + h, lz, yaw, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
+                ctx.Stand("wood_pole2", lx + side * rx, bottom, lz + side * rz, yaw, LadderRail, height / 2, LadderRail);
+            for (float h = up ? 0.15f : LadderSink + LadderRungStep; h < height - (up ? LadderSink : 0.15f); h += LadderRungStep)
+                ctx.Centre("wood_beam_1", lx, bottom + h, lz, yaw, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
             bool climb = target >= 0 && target < levels.Count;
             // stand the arrival a step off the ladder, on a floor tile of the target level
             int land = climb ? Neighbours4(c).Where(n => levels[target].Interior[n]).DefaultIfEmpty(-1).First() : -1;
@@ -1459,8 +1460,8 @@ namespace U5InValheim.WorldGen.Core
             }
         }
 
-        /// <summary>Ladder: how far it stands back from its tile's centre, half its width, rail and rung thickness (scale of a 0.4 m pole), rung spacing, and how far a ladder down shows above the floor.</summary>
-        const float LadderBack = 0.55f, LadderHalfWidth = 0.3f, LadderRail = 0.25f, LadderRung = 0.18f, LadderRungStep = 0.33f, LadderStub = 1.1f;
+        /// <summary>Ladder: how far it stands back from its tile's centre, half its width, rail and rung thickness (scale of a 0.4 m pole), rung spacing, and how far its rails reach into the ceiling or floor.</summary>
+        const float LadderBack = 0.55f, LadderHalfWidth = 0.3f, LadderRail = 0.25f, LadderRung = 0.18f, LadderRungStep = 0.33f, LadderSink = 0.15f;
 
         static string TreeFor(VBiome biome, int h)
         {
