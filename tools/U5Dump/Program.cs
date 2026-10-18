@@ -63,6 +63,24 @@ if (argv.Count > 0 && argv[0] == "banners")
     Console.WriteLine($"wrote {outPath}: {string.Join(" ", tiles.Select(t => $"{t:x2} {data.TileNames[t]}"))}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "sites")
+{
+    // sites <loc,loc,...>: where those settlements are built (moved apart as in game) and the land there
+    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    var locs = (argv.Count > 1 ? argv[1] : "2,13,17").Split(',').Select(int.Parse).OrderBy(n => n).ToList();
+    var squares = locs.Select(n => { var l = data.Location(n); shape.TileCentre(l.X, l.Y, out float x, out float z); return (x, z, half: 32f); }).ToList();
+    U5InValheim.WorldGen.Core.SiteLayout.Separate(squares, 16, out var centres);
+    for (int k = 0; k < locs.Count; k++)
+    {
+        var (x, z) = centres[k];
+        float lo = float.MaxValue, hi = float.MinValue;
+        for (float dz = -32; dz <= 32; dz += 8) for (float dx = -32; dx <= 32; dx += 8)
+        { float h = shape.NaturalHeight(x + dx, z + dz); lo = Math.Min(lo, h); hi = Math.Max(hi, h); }
+        Console.WriteLine($"{locs[k],3} {data.Location(locs[k]).Name,-22} tile ({squares[k].x:0}, {squares[k].z:0}) built at ({x:0}, {z:0}) moved ({x - squares[k].x:0}, {z - squares[k].z:0}) land {lo:0.0}..{hi:0.0} m");
+    }
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "dressing")
 {
     // dressing: how many of each prefab dressing.json scatters over the whole overworld

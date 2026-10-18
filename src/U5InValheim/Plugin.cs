@@ -53,9 +53,9 @@ namespace U5InValheim
                 "New worlds get a seed starting with \"Britannia\", which makes them Britannia. A world is Britannia " +
                 "exactly when its seed starts with \"Britannia\"; worlds with other seeds stay vanilla.");
 
-            BuildSettlements = Config.Bind("World", "BuildSettlements", "2,13,17",
+            BuildSettlements = Config.Bind("World", "BuildSettlements", "2,13,17,19,20,21",
                 "Location numbers of the settlements built from their maps in new Britannia worlds " +
-                "(2 Britain, 13 Iolo's hut, 17 Lord British's castle; see 'u5 dump locations'). " +
+                "(2 Britain, 13 Iolo's hut, 17 Lord British's castle, 19-21 West, North and East Britanny; see 'u5 dump locations'). " +
                 "Must be the same on the server and every client.");
             CombinedShells = Config.Bind("World", "CombinedShells", "*",
                 "Settlements whose building shells (walls, floors, roofs) are built as one combined object per " +

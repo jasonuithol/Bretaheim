@@ -54,6 +54,9 @@ namespace U5InValheim.WorldGen
             harmony.Patch(place, postfix: new HarmonyMethod(typeof(Settlements), nameof(PlaceLocations_Postfix)));
         }
 
+        /// <summary>Room left between two settlement squares for their slopes.</summary>
+        const float SiteGap = 16f;
+
         /// <summary>Plans the settlements of the world being activated and gives the shape their sites.</summary>
         public static void Prepare(BritanniaShape shape, List<Poi> pois)
         {
@@ -72,11 +75,24 @@ namespace U5InValheim.WorldGen
             geo = geo ?? PieceGeometry.Parse(File.ReadAllText(Path.Combine(dir, "piece_geometry.json")));
             var planner = new SettlementPlanner(Plugin.U5, tiles, geo);
             var sites = new List<SettlementSite>();
-            foreach (var poi in pois.Where(p => p.Location > 0 && !p.Underworld && wanted.Contains(p.Location)))
+            // in order of location number (Britain and the castle before the villages crowding them),
+            // moved apart so each square has room for its slope back to the land
+            var chosen = pois.Where(p => p.Location > 0 && !p.Underworld && wanted.Contains(p.Location) && Plugin.U5.Location(p.Location).IsSettlement)
+                .OrderBy(p => p.Location).ToList();
+            var squares = chosen.Select(p =>
             {
+                var l = Plugin.U5.Location(p.Location);
+                shape.TileCentre(l.X, l.Y, out float x, out float z);
+                return (x, z, half: new SettlementPlan().HalfSize);
+            }).ToList();
+            SiteLayout.Separate(squares, SiteGap, out var centres);
+            for (int k = 0; k < chosen.Count; k++)
+            {
+                var poi = chosen[k];
                 var loc = Plugin.U5.Location(poi.Location);
-                if (!loc.IsSettlement) continue;
-                shape.TileCentre(loc.X, loc.Y, out float cx, out float cz);
+                var (cx, cz) = centres[k];
+                if (cx != squares[k].x || cz != squares[k].z)
+                    Plugin.Log.LogInfo($"{loc.Name} moved ({cx - squares[k].x:0}, {cz - squares[k].z:0}) m to make room");
                 var plan = planner.Plan(loc, poi.Kind, shape.Biome(cx, cz));
                 var site = new SettlementSite
                 {

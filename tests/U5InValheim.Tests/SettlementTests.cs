@@ -35,6 +35,9 @@ namespace U5InValheim.Tests
         [InlineData(13, "dwelling")]
         [InlineData(2, "towne")]
         [InlineData(17, "castle")]
+        [InlineData(19, "village")]
+        [InlineData(20, "village")]
+        [InlineData(21, "village")]
         public void PlansUseOnlyRealPrefabsWithinTheSquare(int location, string kind)
         {
             var p = Plan(location, kind);
@@ -218,6 +221,10 @@ namespace U5InValheim.Tests
                 if (location == 7) Assert.True(p.Water.Count(w => w) > 100);
             }
             Assert.True(troughs >= 3, $"{troughs} troughs");
+            // North Britanny stands on land well above the sea: its stream and pond are planted, so it isn't sunk to the water
+            var nb = Plan(20, "village");
+            Assert.False(nb.HasWater);
+            Assert.True(nb.Garden.Count(g => g) > 30);
         }
 
         [U5Fact]
@@ -335,6 +342,28 @@ namespace U5InValheim.Tests
             }
             Assert.True(beds > 0);
             if (location == 2) Assert.True(lockers > 0, "Britain has footlockers");
+        }
+
+        [U5Fact]
+        public void BritainsNeighboursAreMovedApartToHaveRoomForTheirSlopes()
+        {
+            // Britain, Lord British's castle and West, North and East Britanny, in the order they are built
+            var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
+            var squares = new[] { 2, 17, 19, 20, 21 }.Select(n =>
+            {
+                var l = Env.Data.Location(n);
+                shape.TileCentre(l.X, l.Y, out float x, out float z);
+                return (x, z, half: 32f);
+            }).ToList();
+            SiteLayout.Separate(squares, 16, out var centres);
+            for (int i = 0; i < centres.Length; i++)
+                for (int j = 0; j < i; j++)
+                    Assert.True(Math.Max(Math.Abs(centres[i].x - centres[j].x), Math.Abs(centres[i].z - centres[j].z)) >= 64 + 16 - 0.01f, $"{i} {j}");
+            // Britain and the castle stay; the villages move no more than they must (under a tile and a half)
+            Assert.Equal((squares[0].x, squares[0].z), centres[0]);
+            Assert.Equal((squares[1].x, squares[1].z), centres[1]);
+            for (int i = 2; i < centres.Length; i++)
+                Assert.True(Math.Abs(centres[i].x - squares[i].x) + Math.Abs(centres[i].z - squares[i].z) <= 48, $"village {i} moved too far");
         }
 
         [Fact]

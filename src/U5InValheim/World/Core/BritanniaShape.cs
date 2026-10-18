@@ -812,6 +812,38 @@ namespace U5InValheim.WorldGen.Core
         static double SmoothStep(double t) { t = Math.Max(0, Math.Min(1, t)); return t * t * (3 - 2 * t); }
     }
 
+    /// <summary>Where built settlements go.</summary>
+    public static class SiteLayout
+    {
+        /// <summary>
+        /// Moves settlement squares apart so that every two are at least <paramref name="gap"/>
+        /// metres apart (room for their slopes back to the land). The overworld puts a settlement
+        /// on one 32 m tile but its square is 64 m: Lord British's castle and the three
+        /// Britannys stand on neighbouring tiles. Earlier squares stay put; a later one moves
+        /// straight away from the one it crowds, along the axis they are furthest apart on.
+        /// </summary>
+        public static void Separate(IList<(float x, float z, float half)> squares, float gap, out (float x, float z)[] centres)
+        {
+            centres = new (float x, float z)[squares.Count];
+            for (int i = 0; i < squares.Count; i++) centres[i] = (squares[i].x, squares[i].z);
+            for (int i = 1; i < centres.Length; i++)
+                for (int pass = 0; pass < 8; pass++)
+                {
+                    bool moved = false;
+                    for (int j = 0; j < i; j++)
+                    {
+                        float dx = centres[i].x - centres[j].x, dz = centres[i].z - centres[j].z;
+                        float need = squares[i].half + squares[j].half + gap;
+                        if (Math.Abs(dx) >= need || Math.Abs(dz) >= need) continue;
+                        if (Math.Abs(dx) >= Math.Abs(dz)) centres[i].x = centres[j].x + (dx < 0 ? -need : need);
+                        else centres[i].z = centres[j].z + (dz < 0 ? -need : need);
+                        moved = true;
+                    }
+                    if (!moved) break;
+                }
+        }
+    }
+
     /// <summary>The flattened, painted square of a built settlement (32×32 town tiles).</summary>
     public class SettlementSite
     {
