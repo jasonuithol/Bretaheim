@@ -53,7 +53,7 @@ namespace U5InValheim.Tests
             Assert.True(p.Pieces.Count(x => x.Prefab == "wood_floor" && x.Y > 2.5f) > 100, "upper floors");
             Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("stone_wall")) > 1000, "solid stone walls");
             Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text.Contains("PRIVATE"));
-            Assert.True(p.HasWater, "the moat around the plaza");
+            Assert.True(p.Garden.Any(g => g), "the flower bed around the plaza");
             Assert.True(p.Pieces.Count(x => x.Climb) >= 2, "ladders between floors");
         }
 
@@ -188,40 +188,36 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
-        public void RiverWaterIndoorsIsATroughOutdoorsShallowForLilies()
+        public void RiverWaterIndoorsIsATroughAndBritainsPlazaWaterIsAFlowerBed()
         {
             var tt = TownTiles.Parse(Mapping("town_tiles.json"));
-            int troughs = 0, shallow = 0;
+            int troughs = 0;
             foreach (int location in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10 })
             {
                 var loc = Env.Data.Location(location);
                 var raw = Env.Data.Maps.Floor(loc, Math.Max(0, loc.MinZ));
                 var p = Plan(location, "towne");
-                                for (int c = 0; c < 32 * 32; c++)
+                for (int c = 0; c < 32 * 32; c++)
                 {
-                    if (!tt[raw[c]].River) continue;
+                    if (!tt[raw[c]].River || p.Water[c] || p.Garden[c]) continue;
                     float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
-                    bool bucket = p.Pieces.Any(pc => pc.Prefab == "forge_ext5" && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f);
-                    if (p.Water[c])
-                    {
-                        Assert.True(p.Shallow[c]);
-                        Assert.False(bucket);
-                        shallow++;
-                    }
-                    else
-                    {
-                        Assert.True(bucket, $"{loc.Name} ({c % 32}, {c / 32}): a quenching bucket in the trough");
-                        troughs++;
-                    }
+                    Assert.True(p.Pieces.Any(pc => pc.Prefab == "forge_ext5" && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f),
+                        $"{loc.Name} ({c % 32}, {c / 32}): a quenching bucket in the trough");
+                    troughs++;
                 }
                 if (location == 2)
+                {
                     // Britain's smithy: three trough tiles inside, floored and roofed like the rest of it
                     Assert.Equal(3, p.Pieces.Count(pc => pc.Prefab == "forge_ext5"));
+                    // the water round the plaza (shoals 0x03 and the corners 0xe4..0xe7) is a flower bed, not a pond
+                    Assert.False(p.HasWater);
+                    Assert.Equal(14, p.Garden.Count(g => g));
+                    Assert.True(p.Pieces.Count(pc => pc.Prefab.StartsWith("Pickable_")) >= 14 * 5);
+                }
+                // big water stays water (Skara Brae's river)
+                if (location == 7) Assert.True(p.Water.Count(w => w) > 100);
             }
-            Assert.True(troughs >= 3 && shallow > 20, $"{troughs} troughs, {shallow} shallow river tiles");
-            // a pond for ducks: its water within a metre of the ground, deep enough for the lilies (0.25..1.6 m)
-            Assert.InRange(BritanniaShape.PondBed, -1.6f, -0.25f);
-            Assert.InRange(BritanniaShape.WaterSiteBase, 0.35f, 1f);
+            Assert.True(troughs >= 3, $"{troughs} troughs");
         }
 
         [U5Fact]

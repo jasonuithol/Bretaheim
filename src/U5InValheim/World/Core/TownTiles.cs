@@ -110,6 +110,16 @@ namespace U5InValheim.WorldGen.Core
         public readonly List<(string name, int[] u5, string[] models)> Families = new List<(string, int[], string[])>();
     }
 
+    /// <summary>Small water features planted as flower beds.</summary>
+    public class Garden
+    {
+        /// <summary>Location numbers whose small water features are planted.</summary>
+        public int[] Locations = new int[0];
+        public int MaxTiles;
+        public int BushesPerTile, FlowersPerTile;
+        public string[] Bushes = new string[0], Flowers = new string[0];
+    }
+
     /// <summary>assets/mappings/town_tiles.json: tile rules, materials, materials per settlement kind.</summary>
     public class TownTiles
     {
@@ -122,6 +132,7 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<string, (string walls, string roof)> Settlements = new Dictionary<string, (string, string)>();
         public Randotron Randotron = new Randotron();
         public ArmouryDisplay Armoury = new ArmouryDisplay();
+        public Garden Garden = new Garden();
 
         public TileRule this[int tile] => rules[tile & 0xff];
 
@@ -204,6 +215,13 @@ namespace U5InValheim.WorldGen.Core
                     HallwayEnd = Json.Get(o, "chance") is double ch ? (float)ch : 0,
                     Banners = List("banners"), Trophies = List("trophies"), TrophyStand = Json.Str(o, "trophy_stand"),
                 };
+            }
+            if (root.TryGetValue("garden", out var gdn))
+            {
+                var o = Json.Obj(gdn);
+                int I(string k) => Json.Get(o, k) is double v ? (int)v : 0;
+                string[] L(string k) => Json.Get(o, k) is List<object> l ? l.ConvertAll(x => (string)x).ToArray() : new string[0];
+                t.Garden = new Garden { Locations = Json.Get(o, "locations") is List<object> locs ? locs.ConvertAll(x => (int)(double)x).ToArray() : new int[0], MaxTiles = I("max_tiles"), BushesPerTile = I("bushes_per_tile"), FlowersPerTile = I("flowers_per_tile"), Bushes = L("bushes"), Flowers = L("flowers") };
             }
             if (root.TryGetValue("armoury", out var arm))
             {

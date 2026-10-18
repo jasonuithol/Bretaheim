@@ -152,11 +152,6 @@ namespace U5InValheim.WorldGen.Core
         SettlementSite[] sites = new SettlementSite[0];
 
         /// <summary>Flattens and paints the ground of built settlements (set before the shape is used).</summary>
-        /// <summary>Ground of a settlement with water: 0.6 m above the water.</summary>
-        public const float WaterSiteBase = 0.6f;
-        /// <summary>Bed of a settlement pond: 0.4 m of water.</summary>
-        public const float PondBed = -0.4f;
-
         public void SetSites(IEnumerable<SettlementSite> list) => sites = new List<SettlementSite>(list).ToArray();
         public IReadOnlyList<SettlementSite> Sites => sites;
 
@@ -171,9 +166,7 @@ namespace U5InValheim.WorldGen.Core
                 if (d <= 0)
                 {
                     int cell = site.Cell(wx, wz);
-                    if (cell < 0 || !site.Water[cell]) return site.Base;
-                    // ponds are a shallow dip where the river lilies grow (−1.6 .. −0.25 m); moats are deep
-                    return site.Shallow != null && site.Shallow[cell] ? PondBed : site.Base - 3.1f;
+                    return cell >= 0 && site.Water[cell] ? site.Base - 3.1f : site.Base;
                 }
                 h = (float)Lerp(site.Base, h, SmoothStep(d / site.Blend));
             }
@@ -833,8 +826,6 @@ namespace U5InValheim.WorldGen.Core
         public float Blend = 14f;
         public Paint[] Paint;
         public bool[] Water;
-        /// <summary>Water cells that are shallow, or null.</summary>
-        public bool[] Shallow;
 
         /// <summary>Cell index (row-major, y south) of a world position inside the square, else −1.</summary>
         public int Cell(float wx, float wz)

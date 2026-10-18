@@ -46,8 +46,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Paint[] GroundPaint = new Paint[Size * Size];
         /// <summary>Ground cells that are water (carved below sea level).</summary>
         public readonly bool[] Water = new bool[Size * Size];
-        /// <summary>Water cells that are shallow (river water in the open: lilies grow there).</summary>
-        public readonly bool[] Shallow = new bool[Size * Size];
+        /// <summary>Small water features planted as flower beds instead.</summary>
+        public readonly bool[] Garden = new bool[Size * Size];
         /// <summary>Where players appear (Iolo's hut), settlement-local.</summary>
         public float SpawnX, SpawnZ;
         public bool HasSpawn;
@@ -537,12 +537,13 @@ namespace U5InValheim.WorldGen.Core
         void Ground(Ctx ctx, Level g)
         {
             var p = ctx.Plan;
+            var garden = Array.IndexOf(tiles.Garden.Locations, p.Location.Number) >= 0 ? Gardens(g) : new bool[N * N];
             for (int c = 0; c < N * N; c++)
             {
                 var r = g.Rule[c];
                 if (g.Trough[c]) { p.GroundPaint[c] = Paint.Paved; continue; }
-                // river water in the open is shallow, for water lilies
-                if (r.Kind == TileKind.Water) { p.Water[c] = true; p.Shallow[c] = r.River; continue; }
+                if (garden[c]) { p.Garden[c] = true; Plant(ctx, c); continue; }
+                if (r.Kind == TileKind.Water) { p.Water[c] = true; continue; }
                 if (r.Paint == Paint.Planks)
                 {
                     ctx.Top("wood_floor", CellX(p, c), 0.05f, CellZ(p, c), 0);
@@ -552,6 +553,58 @@ namespace U5InValheim.WorldGen.Core
                 else if (g.Interior[c]) p.GroundPaint[c] = r.Paint == Paint.None ? Paint.Paved : r.Paint; // floor continues under furniture
                 else p.GroundPaint[c] = r.Paint;
             }
+        }
+
+        /// <summary>
+        /// The small water features of the ground floor (in the settlements listed for it) (a body of water of at most Garden.MaxTiles
+        /// tiles clear of the map's edge, troughs aside): planted as flower beds, not dug as ponds.
+        /// </summary>
+        bool[] Gardens(Level g)
+        {
+            var r = new bool[N * N];
+            var seen = new bool[N * N];
+            bool Water(int c) => g.Rule[c].Kind == TileKind.Water && !g.Trough[c];
+            for (int s0 = 0; s0 < N * N; s0++)
+            {
+                if (seen[s0] || !Water(s0)) continue;
+                var body = new List<int>();
+                var q = new Queue<int>();
+                q.Enqueue(s0); seen[s0] = true;
+                bool edge = false;
+                while (q.Count > 0)
+                {
+                    int c = q.Dequeue();
+                    body.Add(c);
+                    int x = c % N, y = c / N;
+                    if (x == 0 || y == 0 || x == N - 1 || y == N - 1) edge = true;
+                    foreach (int n in Neighbours8(c))
+                        if (!seen[n] && Water(n)) { seen[n] = true; q.Enqueue(n); }
+                }
+                if (!edge && body.Count <= tiles.Garden.MaxTiles)
+                    foreach (int c in body) r[c] = true;
+            }
+            return r;
+        }
+
+        /// <summary>A flower bed tile: bushes and flowers scattered over it (picked by a hash of the tile).</summary>
+        void Plant(Ctx ctx, int c)
+        {
+            var gd = tiles.Garden;
+            var p = ctx.Plan;
+            int tx = c % N, ty = c / N;
+            float x = CellX(p, c), z = CellZ(p, c);
+            void Scatter(string[] list, int count, int salt)
+            {
+                if (list.Length == 0) return;
+                for (int k = 0; k < count; k++)
+                {
+                    float ox = (Hash(tx, ty, salt + 3 * k) % 1000 / 1000f - 0.5f) * 1.7f;
+                    float oz = (Hash(tx, ty, salt + 3 * k + 1) % 1000 / 1000f - 0.5f) * 1.7f;
+                    ctx.Stand(list[Hash(tx, ty, salt + 3 * k + 2) % list.Length], x + ox, 0, z + oz, Hash(tx, ty, salt + k) % 360);
+                }
+            }
+            Scatter(gd.Bushes, gd.BushesPerTile, 300);
+            Scatter(gd.Flowers, gd.FlowersPerTile, 400);
         }
 
         /// <summary>A solid wall block (a wall tile built on this floor).</summary>
