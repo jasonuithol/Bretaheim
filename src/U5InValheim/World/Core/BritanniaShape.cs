@@ -170,7 +170,7 @@ namespace U5InValheim.WorldGen.Core
                     if (cell >= 0 && site.Water[cell]) return Math.Min(site.Base - 3.1f, -1.6f);
                     // the basement's rooms are dug a storey down; a point on the edge of a dug cell
                     // is dug too, so the cut's slope falls inside the wall beside it
-                    if (site.Basement != null && site.BasementAt(wx, wz)) return site.Base - site.Storey;
+                    if (site.Basement != null && site.BasementAt(wx, wz)) return site.Base - site.Depth;
                     return site.Base;
                 }
                 h = (float)Lerp(site.Base, h, SmoothStep(d / site.Blend));
@@ -863,9 +863,9 @@ namespace U5InValheim.WorldGen.Core
         public float Blend = 14f;
         public Paint[] Paint;
         public bool[] Water;
-        /// <summary>Cells dug out for the basement, or null; the basement floor is Storey under Base.</summary>
+        /// <summary>Cells dug out for the basement, or null; the basement floor is Depth under Base.</summary>
         public bool[] Basement;
-        public float Storey = 4f;
+        public float Depth = 5f;
 
         /// <summary>Within (or on the edge of) a basement cell.</summary>
         public bool BasementAt(float wx, float wz)

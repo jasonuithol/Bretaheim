@@ -98,7 +98,7 @@ namespace U5InValheim.WorldGen
                 {
                     Location = loc.Number, CentreX = cx, CentreZ = cz, Half = plan.HalfSize, Tile = plan.Tile,
                     Base = SiteBase(shape, cx, cz, plan, tiles), Paint = plan.GroundPaint, Water = plan.Water,
-                    Basement = plan.HasBasement ? plan.Basement : null, Storey = plan.Storey,
+                    Basement = plan.HasBasement ? plan.Basement : null, Depth = plan.BasementDepth,
                 };
                 sites.Add(site);
                 var built = new Built { Location = loc, Plan = plan, Site = site, Origin = new Vector3(cx, Britannia.SeaLevel + site.Base, cz) };
@@ -144,7 +144,7 @@ namespace U5InValheim.WorldGen
             float avg = (float)(sum / n);
             float ground = plan.HasWater ? (tiles.WaterGround.TryGetValue(plan.Location.Number, out float g) ? g : 1.5f) : Mathf.Clamp(avg, 1.5f, 60f);
             // a basement's floor stays a metre above the sea (below it, the sea would flood in)
-            return plan.HasBasement ? Mathf.Max(ground, plan.Storey + 1) : ground;
+            return plan.HasBasement ? Mathf.Max(ground, plan.BasementDepth + 1) : ground;
         }
 
         public static bool IsBuilt(int location) => All.Any(b => b.Location.Number == location);

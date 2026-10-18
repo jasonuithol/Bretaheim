@@ -440,13 +440,13 @@ namespace U5InValheim.Tests
                 if (p.Basement[c])
                     Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Math.Abs(pc.X - p.LocalX(c % 32)) < 0.1f && Math.Abs(pc.Z - p.LocalZ(c / 32)) < 0.1f);
             // the corner towers' ladders lead down and back up
-            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.Storey - 0.2f) < 0.01f); // (a pole's pivot is its middle)
+            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a pole's pivot is its middle)
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y < -2 && Math.Abs(pc.ClimbY - 0.2f) < 0.01f);
             // its walls and the armourer's display wall stand a storey down
             Assert.True(p.Pieces.Count(pc => pc.Prefab.StartsWith("stone_wall") && pc.Y < 0) > 500);
             Assert.True(p.Pieces.Count(pc => pc.Prefab == "itemstand" && pc.Y < 0 && pc.StandItem != null && !pc.StandItem.StartsWith("Trophy")) >= 6);
             // the ground is dug a storey down, right up to (and on) the edges of the dug tiles
-            var site = new SettlementSite { Half = p.HalfSize, Tile = p.Tile, Base = 5, Paint = p.GroundPaint, Water = p.Water, Basement = p.Basement, Storey = p.Storey };
+            var site = new SettlementSite { Half = p.HalfSize, Tile = p.Tile, Base = 6, Paint = p.GroundPaint, Water = p.Water, Basement = p.Basement, Depth = p.BasementDepth };
             var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
             shape.SetSites(new[] { site });
             for (int c = 0; c < 32 * 32; c++)

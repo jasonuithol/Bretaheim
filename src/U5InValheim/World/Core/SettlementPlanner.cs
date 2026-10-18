@@ -49,6 +49,15 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>Cells carved out for the basement's rooms (its floor a storey under the ground), or none.</summary>
         public readonly bool[] Basement = new bool[Size * Size];
         public bool HasBasement => Basement.Any(b => b);
+        /// <summary>
+        /// The basement's ceiling: the ground floor's stone slab (stone_floor_2x2, 1 m thick, its top
+        /// at street level). The basement sits that much lower, so it has a full storey under it.
+        /// </summary>
+        public const float Slab = 1f;
+        /// <summary>How deep the basement's rooms are dug: its floor is this far under the ground.</summary>
+        public float BasementDepth => Storey + Slab;
+        /// <summary>Floor height of storey z (0 = the ground) relative to the ground.</summary>
+        public float LevelY(int z) => z < 0 ? Storey * z - Slab : Storey * z;
         /// <summary>Small water features planted as flower beds instead.</summary>
         public readonly bool[] Garden = new bool[Size * Size];
         /// <summary>Where players appear (Iolo's hut), settlement-local.</summary>
@@ -822,7 +831,7 @@ namespace U5InValheim.WorldGen.Core
         {
             if (lv.Z == 0 || below == null) return;
             var p = ctx.Plan;
-            float y = p.Storey * lv.Z;
+            float y = p.LevelY(lv.Z);
             for (int c = 0; c < N * N; c++)
             {
                 var k = lv.Rule[c].Kind;
@@ -874,7 +883,7 @@ namespace U5InValheim.WorldGen.Core
         void Walls(Ctx ctx, Level lv, TownStyle style, CobbleStyle cobble)
         {
             var p = ctx.Plan;
-            float y0 = p.Storey * lv.Z;
+            float y0 = p.LevelY(lv.Z);
             const int G = N * 2; // 1 m grid
             var along = new bool[N * N];
             for (int c = 0; c < N * N; c++) along[c] = AlongX(lv, c);
@@ -1030,7 +1039,7 @@ namespace U5InValheim.WorldGen.Core
         void Battlements(Ctx ctx, Level lv, TownStyle style)
         {
             var p = ctx.Plan;
-            float y = p.Storey * lv.Z;
+            float y = p.LevelY(lv.Z);
             for (int c = 0; c < N * N; c++)
             {
                 if (lv.Rule[c].Kind != TileKind.Battlement || !lv.Built[c]) continue;
@@ -1263,7 +1272,7 @@ namespace U5InValheim.WorldGen.Core
         void Furniture(Ctx ctx, Level lv, List<Level> levels, VBiome biome, bool[] cottage)
         {
             var p = ctx.Plan;
-            float y = p.Storey * lv.Z;
+            float y = p.LevelY(lv.Z);
             var done = new bool[N * N];
             var beds = Beds(lv);
             var footlockers = Footlockers(lv, beds);
@@ -1417,7 +1426,7 @@ namespace U5InValheim.WorldGen.Core
             pl.Climb = true;
             pl.ClimbX = x;
             pl.ClimbZ = z;
-            pl.ClimbY = p.Storey * levels[target].Z + 0.2f;
+            pl.ClimbY = p.LevelY(levels[target].Z) + 0.2f;
             pl.ClimbVerb = up ? "Climb up" : "Climb down";
             // stand the arrival a step off the ladder, on a floor tile of the target level
             int land = Neighbours4(c).Where(n => levels[target].Interior[n]).DefaultIfEmpty(-1).First();
@@ -1521,7 +1530,7 @@ namespace U5InValheim.WorldGen.Core
 
             var p = ctx.Plan;
             float side = back.dx > 0 ? 90 : back.dx < 0 ? 270 : back.dy > 0 ? 180 : 0; // yaw of the wall's direction
-            float y0 = p.Storey * lv.Z;
+            float y0 = p.LevelY(lv.Z);
             int slot = 0;
             for (int row = 0; row < disp.Rows.Length; row++)
                 for (int i = 0; i < Spots(row); i++)
@@ -1664,7 +1673,7 @@ namespace U5InValheim.WorldGen.Core
             var rt = tiles.Randotron;
             if (rt.HallwayEnd <= 0 || rt.Banners.Length + rt.Trophies.Length == 0) return;
             var p = ctx.Plan;
-            float y = p.Storey * lv.Z;
+            float y = p.LevelY(lv.Z);
             int salt = 1000 + p.Location.Number * 37 + lv.Z * 7;
             // a one-tile hallway is all "doorway" tiles (gaps between two walls)
             bool Floor(int c) => !lv.Barrier[c] && (lv.Walked != null ? lv.Walked[c] : lv.Interior[c] || lv.Doorway[c]);
@@ -1736,7 +1745,7 @@ namespace U5InValheim.WorldGen.Core
                         x += dx * 1.05f; z += dz * 1.05f; yaw = yw;
                         break;
                     }
-                    ctx.Add("sign", x, p.Storey * lv.Z + 1.6f, z, yaw, text: text);
+                    ctx.Add("sign", x, p.LevelY(lv.Z) + 1.6f, z, yaw, text: text);
                 }
         }
 
