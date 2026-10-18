@@ -193,6 +193,10 @@ namespace U5InValheim.WorldGen
                     clearAreas.Add(Activator.CreateInstance(clearAreaType, b.Origin, b.Site.Half * 1.45f));
             }
 
+            // the people live in the zone of their settlement's middle
+            foreach (var b in All)
+                if (ZoneSystem.GetZone(b.Origin) == zoneID) TownsfolkSpawner.Spawn(b, mode, spawnedObjects);
+
             if (!byZone.TryGetValue(zoneID, out var pieces)) return;
             int spawned = 0, missing = 0;
             foreach (var (b, p) in pieces)

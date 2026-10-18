@@ -440,6 +440,9 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   shops (arms/reagents/healer/inn/tavern) in Britain; words-of-power chat listener; Hildir's
   virtue questionnaire and the hut door lock (§5.13); dedicated-server test with two players.
 - Exit: talk to everyone in Britain, buy and sell, watch the town live through a day.
+- Status (2026-10-18): townsfolk of the built settlements spawn dressed (npcs.json) and walk their
+  schedules across storeys (Core/TownWalker, TownPath; simulated over a day in TownsfolkTests).
+  Next: conversation (E, panel, TLK interpreter), then sleep/sit/work poses, doors, guards, shops.
 
 **Phase 4 — All settlements (2 weeks)**
 - Generalise builders to all 26 towns/dwellings/keeps/castles (type-specific materials), all NPCs.

@@ -23,6 +23,9 @@ Britain, Lord British's castle and Iolo's hut):
   up at night and down in the morning.
 - Basements: Lord British's castle (and Blackthorn's palace, Yew, Serpent's Hold) have their cellars
   dug a full storey down under the stone ground floor, reached by the ladders in the corner towers.
+- Townsfolk: the people of the built towns live their day from the original schedules, dressed
+  by their kind (guards in iron with spears, mages in robes, villagers and merchants in Hildir's
+  clothes); hover over them for their name.
 - Ladders look like ladders (rails and rungs) and, as in Ultima, you walk through them; use any
   part to climb.
 - Beds put their headboards against the nearest wall; footlockers face away from the bed.

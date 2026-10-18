@@ -89,10 +89,12 @@ namespace U5InValheim
                 PlaceMarkers.Install(harmony);
                 Settlements.Install(harmony);
                 Structures.Register();
+                TownsfolkSpawner.Register();
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);
                 RiverBanks.Install(harmony);
                 gameObject.AddComponent<WorldWrap>();
+                if (SelfTest.Value) gameObject.AddComponent<DevTools.TownsfolkSelfTest>();
             }
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         }

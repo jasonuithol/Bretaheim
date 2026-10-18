@@ -19,6 +19,7 @@ Ultima V rebuilt inside Valheim (BepInEx + Jötunn). `MASTER_PLAN.md` is the bac
   `NewWorldsAreBritannia` makes World.GenerateSeed return such seeds.
 - Town plans: `dotnet run --project tools/U5Dump -- town <loc> floors` prints each storey (# wall, + opening, o inside/walked, ~ water); `town <loc> probe <z> <x> <y>` explains one tile; `town <loc> out.json` + `tools/render_town.py` renders it.
 - Offline terrain preview: `dotnet run --project tools/U5Dump -- preview out.ppm [px] [extraTiles]`; `slopes [step]` prints slope percentiles per terrain class; `dressing` counts the edge plants and rocks (`dressing.json`); `banners out.ppm [tiles]` draws the shop banners printed from TILES.16; `sites 2,17,19` shows where settlements are built (moved apart) and the land there.
+- Townsfolk: `World/Townsfolk.cs` (prefab `u5_townsperson` = Player body without Player, spawned per settlement zone) drives `Core/TownWalker` (schedule + paths, Unity-free, tested by simulating a day); a dedicated server unloads them with no player near, so walking is only seen in a client.
 - `tools/data/valheim_prefabs.txt` prefab inventory (`tools/extract_prefabs.sh` after Valheim updates).
 
 ## Build / test / ship

@@ -60,6 +60,21 @@ namespace U5InValheim.WorldGen.Core
         public float LevelY(int z) => z < 0 ? Storey * z - Slab : Storey * z;
         /// <summary>Small water features planted as flower beds instead.</summary>
         public readonly bool[] Garden = new bool[Size * Size];
+        /// <summary>Per storey (z): the tiles townsfolk walk on (cell index row-major, y south).</summary>
+        public readonly Dictionary<int, bool[]> Walk = new Dictionary<int, bool[]>();
+        /// <summary>Per storey: furniture and plants townsfolk squeeze past when there is no clear way (chairs set between tables).</summary>
+        public readonly Dictionary<int, bool[]> Squeeze = new Dictionary<int, bool[]>();
+        /// <summary>Ladders and stairs: from (Z, Cell) to the same cell of storey ToZ.</summary>
+        public readonly List<(int Z, int Cell, int ToZ)> Links = new List<(int, int, int)>();
+        /// <summary>World-local position of the middle of a tile on storey z, on its floor.</summary>
+        public (float x, float y, float z) TilePos(int z, int cell) => (LocalX(cell % Size), LevelY(z), LocalZ(cell / Size));
+        /// <summary>The tile under a settlement-local position (clamped to the map).</summary>
+        public int CellAt(float x, float z)
+        {
+            int tx = Math.Max(0, Math.Min(Size - 1, (int)Math.Round(x / Tile + (Size / 2 - 0.5))));
+            int ty = Math.Max(0, Math.Min(Size - 1, (int)Math.Round((Size / 2 - 0.5) - z / Tile)));
+            return ty * Size + tx;
+        }
         /// <summary>Where players appear (Iolo's hut), settlement-local.</summary>
         public float SpawnX, SpawnZ;
         public bool HasSpawn;
@@ -158,6 +173,11 @@ namespace U5InValheim.WorldGen.Core
             ArmouryWall(ctx, loc, levels);
             Spawn(plan, ground);
             if (loc.Number == 13) IolosHut(ctx, ground);
+            foreach (var lv in levels)
+            {
+                plan.Walk[lv.Z] = NpcWalk(lv, out var squeeze);
+                plan.Squeeze[lv.Z] = squeeze;
+            }
             return plan;
         }
 
@@ -1414,6 +1434,41 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>
+        /// Where townsfolk walk on a storey (the original's NPC walk bitmap, from the tiles): floors,
+        /// streets, crops, doors and archways, ladders, chairs and beds; not walls, windows, water
+        /// (drawbridge decks are fine), trees, fences, tables or props. Upper storeys and the
+        /// basement only where they are really built (walked from their ladders).
+        /// </summary>
+        static bool[] NpcWalk(Level lv, out bool[] squeeze)
+        {
+            var walk = new bool[N * N];
+            squeeze = new bool[N * N];
+            for (int c = 0; c < N * N; c++)
+            {
+                var r = lv.Rule[c];
+                if (lv.Z != 0 && !(lv.Walked != null ? lv.Walked[c] || lv.Doorway[c] : lv.Interior[c] || lv.Doorway[c]) && r.Kind != TileKind.Door && r.Kind != TileKind.Arch) continue;
+                if (lv.Trough[c] || r.Secret) continue;
+                switch (r.Kind)
+                {
+                    case TileKind.Ground: case TileKind.Crop: case TileKind.Door: case TileKind.Arch:
+                    case TileKind.Stairs: case TileKind.LadderUp: case TileKind.LadderDown:
+                    case TileKind.Chair: case TileKind.BedHead: case TileKind.BedFoot:
+                        walk[c] = true;
+                        break;
+                    case TileKind.Water:
+                        walk[c] = lv.Drawbridge[c];
+                        break;
+                    case TileKind.Table: case TileKind.Prop: case TileKind.Tree: case TileKind.FruitTree:
+                    case TileKind.FenceEW: case TileKind.FenceNS: case TileKind.Sign:
+                        squeeze[c] = !r.River;
+                        break;
+                }
+                if (r.River && !lv.Drawbridge[c]) walk[c] = false;
+            }
+            return walk;
+        }
+
+        /// <summary>
         /// Stairs and ladders become a ladder you use to change floor (like the original, which
         /// changes floor on the spot): the destination is the same tile one floor up or down.
         /// The ladder is two thin rails and rungs, at the back of its tile facing the way you come
@@ -1442,6 +1497,7 @@ namespace U5InValheim.WorldGen.Core
             for (float h = up ? 0.15f : LadderSink + LadderRungStep; h < height - (up ? LadderSink : 0.15f); h += LadderRungStep)
                 ctx.Centre("wood_beam_1", lx, bottom + h, lz, yaw, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
             bool climb = target >= 0 && target < levels.Count;
+            if (climb) p.Links.Add((lv.Z, c, levels[target].Z));
             // stand the arrival a step off the ladder, on a floor tile of the target level
             int land = climb ? Neighbours4(c).Where(n => levels[target].Interior[n]).DefaultIfEmpty(-1).First() : -1;
             for (int i = first; i < p.Pieces.Count; i++)
