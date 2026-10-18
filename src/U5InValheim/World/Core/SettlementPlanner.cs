@@ -663,9 +663,10 @@ namespace U5InValheim.WorldGen.Core
         /// four courses of 2×1×1 bricks laid along their run, each course 1 m out of phase with the
         /// one below; 1×1×1 bricks fill the odd ends, so neighbouring tiles of a run share bricks.
         /// Cobblestone walls are a wooden frame filled with stone fence; windows a sill and arches
-        /// with the opening between; arrow slits leave a cross-shaped gap in the second course; doors
-        /// stand in the middle of their tile, 3 m tall, or 2 m with an open viewport above; archways
-        /// and doorways are open 3 m high. Openings have a lintel course of bricks on top.
+        /// with the opening between (each arch piece with a twin turned 180°, so it arches from
+        /// both sides); arrow slits leave a cross-shaped gap in the second course; doors are 3 m
+        /// leaves (see Door); archways and doorways are open 3 m high. Openings have a lintel
+        /// course of bricks on top.
         /// </summary>
         void Walls(Ctx ctx, Level lv, TownStyle style, CobbleStyle cobble)
         {
@@ -736,10 +737,13 @@ namespace U5InValheim.WorldGen.Core
                         break;
                     case TileKind.Window:
                         ctx.Centre(style.Sill, cx, y0 + 0.5f, cz, yaw);
+                        // the arch piece curves down on one side only: a twin turned 180° in the same
+                        // place makes a full arch across the 2 m opening
                         for (int side = -1; side <= 1; side += 2)
                         {
                             Ctx.Rotate(0, side * 0.5f, yaw, out float ox, out float oz);
                             ctx.Centre(style.Arch, cx + ox, y0 + 2.5f, cz + oz, yaw);
+                            ctx.Centre(style.Arch, cx + ox, y0 + 2.5f, cz + oz, (yaw + 180) % 360);
                         }
                         break;
                     case TileKind.Door:

@@ -366,6 +366,17 @@ namespace U5InValheim.Tests
                 Assert.True(Math.Abs(centres[i].x - squares[i].x) + Math.Abs(centres[i].z - squares[i].z) <= 48, $"village {i} moved too far");
         }
 
+        [U5Fact]
+        public void WindowArchesHaveATwinTurnedRound()
+        {
+            var p = Plan(21, "village"); // East Britanny's windows (0x4b)
+            var arches = p.Pieces.Where(pc => pc.Prefab == "stone_arch").ToList();
+            Assert.NotEmpty(arches);
+            foreach (var a in arches)
+                Assert.Contains(arches, b => Math.Abs(b.X - a.X) < 0.01f && Math.Abs(b.Y - a.Y) < 0.01f && Math.Abs(b.Z - a.Z) < 0.01f
+                                             && Math.Abs(((b.Yaw - a.Yaw) % 360 + 360) % 360 - 180) < 0.1f);
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {
