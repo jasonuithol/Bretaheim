@@ -57,6 +57,8 @@ namespace U5InValheim.WorldGen.Core
         public string SignPost;
         /// <summary>River water: a trough (Prefab standing in it) inside a building, shallow lily water outside.</summary>
         public bool River;
+        /// <summary>Bridge planks (0x48/0x49): a drawbridge where a line of them has water at both ends.</summary>
+        public bool Drawbridge;
 
         public bool IsBarrier => Kind == TileKind.Wall || Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch || Kind == TileKind.Battlement;
         public bool IsOpening => Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch;
@@ -160,6 +162,7 @@ namespace U5InValheim.WorldGen.Core
                     Candles = Json.Get(o, "candles") is double candles ? (int)candles : 0,
                     SignPost = Json.Str(o, "signpost"),
                     River = Json.Bool(o, "river"),
+                    Drawbridge = Json.Bool(o, "drawbridge"),
                 };
                 if (Json.Str(o, "wall") is string side) r.WallSide = FacingYaw(side);
                 if (Json.Get(o, "choices") is List<object> choices) r.Choices = choices.ConvertAll(c => (string)c).ToArray();

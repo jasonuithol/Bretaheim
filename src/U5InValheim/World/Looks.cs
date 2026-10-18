@@ -29,6 +29,7 @@ namespace U5InValheim.WorldGen
                 case "fountain": Fountain(go); break;
                 default:
                     if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
+                    else if (look.StartsWith("drawbridge:")) Drawbridge.Add(go, look.Substring(11));
                     break;
             }
         }
@@ -177,6 +178,59 @@ namespace U5InValheim.WorldGen
                 }
                 r.sharedMaterials = mats;
             }
+        }
+    }
+
+    /// <summary>
+    /// A drawbridge deck (look "drawbridge:dx,dz", the offset from the deck's middle to its
+    /// hinge edge): raised at night, lowered in the morning, swinging about the hinge. Every
+    /// peer works it out from the shared clock, so nothing is sent.
+    /// </summary>
+    public class Drawbridge : MonoBehaviour
+    {
+        const float Raised = 80f, DegreesPerSecond = 15f;
+        Vector3 hinge, axis, homePos;
+        Quaternion homeRot;
+        float angle;
+        bool ready;
+
+        public static void Add(GameObject go, string offset)
+        {
+            var parts = offset.Split(',');
+            if (parts.Length != 2) return;
+            var d = new Vector3(float.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture), 0,
+                                float.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture));
+            go.AddComponent<Drawbridge>().toHinge = d;
+        }
+
+        Vector3 toHinge;
+
+        void Start()
+        {
+            homePos = transform.position;
+            homeRot = transform.rotation;
+            hinge = homePos + toHinge;
+            // the deck's far side is opposite the hinge: turning about (deck → hinge) × up lifts it
+            axis = Vector3.Cross(-toHinge, Vector3.up).normalized;
+            if (axis.sqrMagnitude < 0.5f) { enabled = false; return; }
+            angle = EnvMan.IsNight() ? Raised : 0; // already where it should be when it loads
+            ready = true;
+            Pose();
+        }
+
+        void Update()
+        {
+            if (!ready) return;
+            float target = EnvMan.IsNight() ? Raised : 0;
+            if (Mathf.Approximately(angle, target)) return;
+            angle = Mathf.MoveTowards(angle, target, DegreesPerSecond * Time.deltaTime);
+            Pose();
+        }
+
+        void Pose()
+        {
+            var turn = Quaternion.AngleAxis(angle, axis);
+            transform.SetPositionAndRotation(hinge + turn * (homePos - hinge), turn * homeRot);
         }
     }
 

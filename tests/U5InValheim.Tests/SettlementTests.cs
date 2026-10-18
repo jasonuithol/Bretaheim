@@ -400,6 +400,29 @@ namespace U5InValheim.Tests
             }
         }
 
+        [U5Fact]
+        public void BridgePlanksBetweenWaterAreDrawbridgesOverTheRiver()
+        {
+            // North Britanny, row 10: 61 49 48 49 61 - three bridge tiles with the stream either side
+            var p = Plan(20, "village");
+            var decks = p.Pieces.Where(pc => pc.Look != null && pc.Look.StartsWith("drawbridge:")).ToList();
+            Assert.Equal(3, decks.Count);
+            foreach (int x in new[] { 14, 15, 16 })
+            {
+                int c = 10 * 32 + x;
+                Assert.True(p.Water[c], "the river runs on under the deck");
+                var deck = decks.Single(d => Math.Abs(d.X - p.LocalX(x)) < 0.1f);
+                Assert.Equal("wood_floor", deck.Prefab);
+                Assert.Equal(p.LocalZ(10), deck.Z, 0.1f);
+                // hinged on its south edge, the side facing the middle of the village
+                Assert.Equal("drawbridge:0,-1", deck.Look);
+                // open to the sky
+                Assert.DoesNotContain(p.Pieces, pc => pc.Y > 1 && Math.Abs(pc.X - deck.X) < 0.9f && Math.Abs(pc.Z - deck.Z) < 0.9f);
+            }
+            // bridge planks without water at both ends stay a plank floor (Blackthorn's palace gate rows have water; Britain has none)
+            Assert.DoesNotContain(Plan(2, "towne").Pieces, pc => pc.Look != null && pc.Look.StartsWith("drawbridge:"));
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {

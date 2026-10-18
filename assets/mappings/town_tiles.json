@@ -1,5 +1,5 @@
 {
-  "_doc": "Settlement map tile (hex; Constructing world assets.txt numbers them in decimal) -> what the settlement builder makes of it. Kinds: ground (paint: grass|paved|dirt|cultivated|planks), wall (build: brick|cobble|shelf), window (narrow = arrow slit), door (viewport, lock key|magic, gate = iron gate), arch (walk-through archway), roof, battlement (merlons), tree, fruittree, crop, water, fence_ew, fence_ns, stairs, ladder_up, ladder_down, bed_head, bed_foot, table (candles: how many of prefab stand on that tile of the table), chair (facing), prop (prefab | choices | parts), sign (a guild icon: prefab is the banner its TILES.16 picture is printed on; signpost post|top marks the posts it hangs from). Parts are tile-local (x east, z north, y up from the floor); place: centre (default, the middle of the bounds) | stand (furniture, on y) | top (top at y) | pivot (the prefab's own origin); look: white_marble | fountain (changed in game). A wall-mounted prop names its wall side (wall: n/e/s/w). River water (river: true) inside a building is a trough: floored, with its prefab (a quenching bucket) standing in it; outside it is water, unless it is part of a small water feature (see garden). Unlisted tiles are ground/grass.",
+  "_doc": "Settlement map tile (hex; Constructing world assets.txt numbers them in decimal) -> what the settlement builder makes of it. Kinds: ground (paint: grass|paved|dirt|cultivated|planks), wall (build: brick|cobble|shelf), window (narrow = arrow slit), door (viewport, lock key|magic, gate = iron gate), arch (walk-through archway), roof, battlement (merlons), tree, fruittree, crop, water, fence_ew, fence_ns, stairs, ladder_up, ladder_down, bed_head, bed_foot, table (candles: how many of prefab stand on that tile of the table), chair (facing), prop (prefab | choices | parts), sign (a guild icon: prefab is the banner its TILES.16 picture is printed on; signpost post|top marks the posts it hangs from). Parts are tile-local (x east, z north, y up from the floor); place: centre (default, the middle of the bounds) | stand (furniture, on y) | top (top at y) | pivot (the prefab's own origin); look: white_marble | fountain (changed in game). A wall-mounted prop names its wall side (wall: n/e/s/w). River water (river: true) inside a building is a trough: floored, with its prefab (a quenching bucket) standing in it; outside it is water, unless it is part of a small water feature (see garden). A drawbridge tile (0x48/0x49) in a line with water at both ends is a drawbridge: river under a wooden deck that swings up at night; elsewhere a plank floor. Unlisted tiles are ground/grass.",
   "tiles": {
     "01": {"kind": "water"},
     "02": {"kind": "water"},
@@ -38,8 +38,8 @@
     "44": {"kind": "ground", "paint": "paved"},
     "45": {"kind": "ground", "paint": "paved"},
     "46": {"kind": "prop", "prefab": "stone_pillar"},
-    "48": {"kind": "ground", "paint": "planks"},
-    "49": {"kind": "ground", "paint": "planks"},
+    "48": {"kind": "ground", "paint": "planks", "drawbridge": true},
+    "49": {"kind": "ground", "paint": "planks", "drawbridge": true},
     "4a": {"kind": "window", "narrow": true},
     "4b": {"kind": "window"},
     "4d": {"kind": "wall", "build": "cobble"},

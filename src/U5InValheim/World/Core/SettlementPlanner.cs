@@ -106,6 +106,9 @@ namespace U5InValheim.WorldGen.Core
             public bool[] Walked;
             /// <summary>River water inside a building: a trough, floored round its quenching buckets.</summary>
             public bool[] Trough = new bool[N * N];
+            /// <summary>Drawbridge decks (ground floor), with the offset (dx, dz, metres) from each deck's middle to its hinge.</summary>
+            public bool[] Drawbridge = new bool[N * N];
+            public (float dx, float dz)[] Hinge = new (float, float)[N * N];
         }
 
         /// <summary>A tile that is not on this floor: open air.</summary>
@@ -289,14 +292,15 @@ namespace U5InValheim.WorldGen.Core
             }
             if (reopened) Flood(lv);
 
+            if (z == 0 && walked == null) Drawbridges(lv);
             var building = Buildings(lv);
             for (int i = 0; i < N * N; i++)
             {
                 lv.Trough[i] = building[i] && lv.Rule[i].River;
                 // inside: a building's floor; plank floors are always a building (Iolo's barn is
                 // open on one side), and so is anything under a room of the floor above
-                lv.Interior[i] = lv.Trough[i] || (!lv.Barrier[i] && !lv.Doorway[i] && !lv.Rule[i].IsOutdoor && lv.Rule[i].Kind != TileKind.Roof
-                                 && (building[i] || lv.Rule[i].Paint == Paint.Planks || (indoorAbove != null && indoorAbove[i])));
+                lv.Interior[i] = !lv.Drawbridge[i] && (lv.Trough[i] || (!lv.Barrier[i] && !lv.Doorway[i] && !lv.Rule[i].IsOutdoor && lv.Rule[i].Kind != TileKind.Roof
+                                 && (building[i] || lv.Rule[i].Paint == Paint.Planks || (indoorAbove != null && indoorAbove[i]))));
                 // an upper floor only exists above something built on the floor below
                 if (below != null && lv.Interior[i] && !below.Covered[i] && !below.Built[i]) lv.Interior[i] = false;
                 if (walked != null && !walked[i]) lv.Interior[i] = false;
@@ -581,6 +585,16 @@ namespace U5InValheim.WorldGen.Core
                 if (g.Trough[c]) { p.GroundPaint[c] = Paint.Paved; continue; }
                 if (garden[c]) { p.Garden[c] = true; Plant(ctx, c); continue; }
                 if (r.Kind == TileKind.Water) { p.Water[c] = true; continue; }
+                if (g.Drawbridge[c])
+                {
+                    // the river runs on under the deck, which is lowered by day and raised at night
+                    p.Water[c] = true;
+                    var (hx, hz) = g.Hinge[c];
+                    ctx.Top("wood_floor", CellX(p, c), 0.05f, CellZ(p, c), 0);
+                    string look = FormattableString.Invariant($"drawbridge:{hx:0.##},{hz:0.##}");
+                    ctx.Last(pl => { pl.Look = look; return pl; });
+                    continue;
+                }
                 if (r.Paint == Paint.Planks)
                 {
                     ctx.Top("wood_floor", CellX(p, c), 0.05f, CellZ(p, c), 0);
@@ -589,6 +603,76 @@ namespace U5InValheim.WorldGen.Core
                 if (g.Barrier[c] || g.Doorway[c]) p.GroundPaint[c] = g.Building[c] || g.Doorway[c] ? Paint.Paved : Paint.None;
                 else if (g.Interior[c]) p.GroundPaint[c] = r.Paint == Paint.None ? Paint.Paved : r.Paint; // floor continues under furniture
                 else p.GroundPaint[c] = r.Paint;
+            }
+        }
+
+        /// <summary>
+        /// Drawbridges (Constructing world assets 72, 73): a line of bridge tiles along a row with
+        /// water at both ends is crossed north–south (along a column, east–west); the lines that
+        /// touch make one bridge, hinged on its edge facing the middle of the map (the town or
+        /// castle side), so the whole deck swings up about that edge.
+        /// </summary>
+        void Drawbridges(Level lv)
+        {
+            bool Water(int c) => lv.Rule[c].Kind == TileKind.Water;
+            bool Plank(int c) => lv.Rule[c].Drawbridge;
+            var across = new int[N * N]; // 1: crossed north–south, 2: east–west
+            for (int dir = 0; dir < 2; dir++)
+            {
+                int step = dir == 0 ? 1 : N;
+                for (int c = 0; c < N * N; c++)
+                {
+                    if (!Plank(c)) continue;
+                    int prev = c - step;
+                    bool rowStart = dir == 0 ? c % N == 0 : c < N;
+                    if (!rowStart && Plank(prev)) continue; // not the start of a line
+                    int end = c;
+                    while ((dir == 0 ? (end + 1) % N != 0 : end + N < N * N) && Plank(end + step)) end += step;
+                    bool before = !rowStart && Water(prev);
+                    bool after = (dir == 0 ? (end + 1) % N != 0 : end + N < N * N) && Water(end + step);
+                    if (!before || !after) continue;
+                    for (int t = c; t <= end; t += step) across[t] = dir == 0 ? 1 : 2;
+                }
+            }
+            var seen = new bool[N * N];
+            for (int s0 = 0; s0 < N * N; s0++)
+            {
+                if (seen[s0] || across[s0] == 0) continue;
+                var deck = new List<int>();
+                var q = new Queue<int>();
+                q.Enqueue(s0); seen[s0] = true;
+                while (q.Count > 0)
+                {
+                    int c = q.Dequeue();
+                    deck.Add(c);
+                    foreach (int n in Neighbours4(c))
+                        if (!seen[n] && across[n] == across[s0]) { seen[n] = true; q.Enqueue(n); }
+                }
+                // crossed north–south: hinged on its north or south edge, whichever faces the middle
+                bool ns = across[s0] == 1;
+                float tile = 2f;
+                if (ns)
+                {
+                    int y0 = deck.Min(c => c / N), y1 = deck.Max(c => c / N);
+                    bool south = (y0 + y1) / 2.0 < N / 2.0 - 0.5; // the middle lies south (larger y)
+                    foreach (int c in deck)
+                    {
+                        int edge = south ? y1 : y0; // the hinge row (z grows north)
+                        lv.Drawbridge[c] = true;
+                        lv.Hinge[c] = (0, south ? -(edge - c / N) * tile - tile / 2 : (c / N - edge) * tile + tile / 2);
+                    }
+                }
+                else
+                {
+                    int x0 = deck.Min(c => c % N), x1 = deck.Max(c => c % N);
+                    bool east = (x0 + x1) / 2.0 < N / 2.0 - 0.5;
+                    foreach (int c in deck)
+                    {
+                        int edge = east ? x1 : x0;
+                        lv.Drawbridge[c] = true;
+                        lv.Hinge[c] = (east ? (edge - c % N) * tile + tile / 2 : -((c % N) - edge) * tile - tile / 2, 0);
+                    }
+                }
             }
         }
 

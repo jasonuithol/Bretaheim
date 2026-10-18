@@ -99,6 +99,23 @@ namespace U5InValheim.DevTools
                 TestLook(__instance.GetPrefab("piece_bathtub"), "fountain");
                 TestLook(__instance.GetPrefab("blackmarble_column_2"), "white_marble");
                 TestLook(__instance.GetPrefab("piece_banner01"), "icon:f6");
+                // a drawbridge deck hinged 1 m south of its middle, raised: its north edge must go up
+                {
+                    ZNetView.m_forceDisableInit = true;
+                    var deck = UnityEngine.Object.Instantiate(__instance.GetPrefab("wood_floor"), new Vector3(0, 100, 0), Quaternion.identity);
+                    ZNetView.m_forceDisableInit = false;
+                    WorldGen.Drawbridge.Add(deck, "0,-1");
+                    var db = deck.GetComponent<WorldGen.Drawbridge>();
+                    AccessTools.Field(typeof(WorldGen.Drawbridge), "homePos").SetValue(db, deck.transform.position);
+                    AccessTools.Field(typeof(WorldGen.Drawbridge), "homeRot").SetValue(db, deck.transform.rotation);
+                    AccessTools.Field(typeof(WorldGen.Drawbridge), "hinge").SetValue(db, deck.transform.position + new Vector3(0, 0, -1));
+                    AccessTools.Field(typeof(WorldGen.Drawbridge), "axis").SetValue(db, Vector3.Cross(new Vector3(0, 0, 1), Vector3.up).normalized);
+                    AccessTools.Field(typeof(WorldGen.Drawbridge), "angle").SetValue(db, 80f);
+                    AccessTools.Method(typeof(WorldGen.Drawbridge), "Pose").Invoke(db, null);
+                    var north = deck.transform.TransformPoint(new Vector3(0, 0, 1));
+                    Plugin.Log.LogInfo($"drawbridge raised: middle {deck.transform.position}, north edge {north} (up: {north.y > 101.5f})");
+                    UnityEngine.Object.Destroy(deck);
+                }
                 foreach (var (bedName, part) in new[] { ("piece_bed02", "New/high"), ("bed", "New") })
                 {
                     var bm = __instance.GetPrefab(bedName)?.transform.Find(part)?.GetComponent<MeshFilter>()?.sharedMesh;
