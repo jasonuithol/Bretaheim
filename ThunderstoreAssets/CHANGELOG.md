@@ -17,6 +17,14 @@ Britain, Lord British's castle and Iolo's hut):
 - Armourers show what they sell on the wall behind the counter (Iolo's Bows: a wall of bows),
   staggered so long items don't overlap.
 - Britain's plaza water is a flower bed of bushes, flowers and thistles.
+- West, North and East Britanny are built too, moved apart from the castle so each has room for
+  its slopes. North Britanny's stream runs in a ditch into its pond.
+- Drawbridges: bridge planks with water at both ends are wooden decks over the river that swing
+  up at night and down in the morning.
+- Beds put their headboards against the nearest wall; footlockers face away from the bed.
+- Shop fronts up to three tiles wide count as doorways, so those shops get their roofs.
+- Window arches are full arches; tables of any length; the `SpawnLocation` setting starts you
+  in Iolo's hut (default) or just outside another built settlement.
 - Randotron: dead-end hallways may get a banner or a mounted animal head.
 - Iolo's hut is the spawn point, with its tool chest, workbench and barley plot.
 - Building shells can be merged into one object per zone (`CombinedShells`) to cut piece counts.
