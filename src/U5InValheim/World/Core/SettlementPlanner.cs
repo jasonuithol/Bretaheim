@@ -1110,8 +1110,18 @@ namespace U5InValheim.WorldGen.Core
                         int len = x1 - tx + 1;
                         for (int i = tx; i <= x1; i++) done[ty * N + i] = true;
                         float mx = (p.LocalX(tx) + p.LocalX(x1)) / 2;
-                        string table = len >= 3 ? "piece_table_oak" : len == 2 ? "piece_table" : "piece_table_round";
-                        ctx.Stand(table, mx, y, z, 0);
+                        string table = len >= 2 ? "piece_table_oak" : "piece_table_round";
+                        if (len >= 2 && geo.TryGet(table, out var ob))
+                        {
+                            // the run is laid with oak tables end to end (as many as come nearest their
+                            // own 6.45 m), stretched or squeezed along their length to fill it exactly
+                            float run = len * p.Tile, own = ob.MaxX - ob.MinX;
+                            int k = Math.Max(1, (int)Math.Round(run / own));
+                            float each = run / k;
+                            for (int i = 0; i < k; i++)
+                                ctx.Stand(table, p.LocalX(tx) - p.Tile / 2 + each * (i + 0.5f), y, z, 0, each / own, 1, 1);
+                        }
+                        else ctx.Stand(table, mx, y, z, 0);
                         // candelabra tiles (0xbe): a cluster of candles on the table top over the tile
                         float top = y + (geo.TryGet(table, out var tb) ? tb.MaxY : 0.8f);
                         for (int i = tx; i <= x1; i++)

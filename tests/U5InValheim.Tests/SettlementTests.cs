@@ -272,6 +272,32 @@ namespace U5InValheim.Tests
             Assert.All(p.Pieces.Where(pc => pc.Prefab == "piece_brazierfloor01"), pc => Assert.True(pc.Y % p.Storey >= 0.9f));
         }
 
+        [U5Theory]
+        [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(17)]
+        public void TablesRunTheirWholeLengthUnderTheirCandles(int location)
+        {
+            var tt = TownTiles.Parse(Mapping("town_tiles.json"));
+            var p = Plan(location, location == 17 ? "castle" : "towne");
+            var tables = p.Pieces.Where(pc => pc.Prefab.StartsWith("piece_table")).ToList();
+            bool Under(float x, float y, float z) => tables.Any(t =>
+            {
+                var b = geo.Value[t.Prefab];
+                float sx = t.Scaled ? t.SX : 1;
+                return Math.Abs(t.Y - y) < 0.1f && x >= t.X + b.MinX * sx - 0.05f && x <= t.X + b.MaxX * sx + 0.05f && z >= t.Z + b.MinZ - 0.05f && z <= t.Z + b.MaxZ + 0.05f;
+            });
+            // every table tile of the ground floor is under a table top (Britain's inn counter is 7 tiles long)
+            var raw = Env.Data.Maps.Floor(Env.Data.Location(location), Math.Max(0, Env.Data.Location(location).MinZ));
+            for (int c = 0; c < 32 * 32; c++)
+                if (tt[raw[c]].Kind == TileKind.Table)
+                    foreach (float dx in new[] { -0.9f, 0f, 0.9f })
+                        Assert.True(Under(p.LocalX(c % 32) + dx, 0, p.LocalZ(c / 32)), $"({c % 32}, {c / 32}) +{dx}");
+            // and no candle hangs in the air
+            foreach (var candle in p.Pieces.Where(pc => pc.Prefab == "Candle_resin"))
+                Assert.True(tables.Any(t => candle.Y > t.Y + 0.5f && candle.Y < t.Y + 1f && Math.Abs(candle.Z - t.Z) < 1
+                                            && candle.X >= t.X + geo.Value[t.Prefab].MinX * (t.Scaled ? t.SX : 1) && candle.X <= t.X + geo.Value[t.Prefab].MaxX * (t.Scaled ? t.SX : 1)),
+                            $"candle at ({candle.X}, {candle.Z})");
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {
