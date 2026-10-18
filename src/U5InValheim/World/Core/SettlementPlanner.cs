@@ -7,6 +7,13 @@ using U5InValheim.Data;
 namespace U5InValheim.WorldGen.Core
 {
     /// <summary>One piece to spawn: prefab, pivot position in settlement-local metres, yaw, extra data.</summary>
+    /// <summary>A chair or bed townsfolk use: where they rest and which way they face.</summary>
+    public struct Seat
+    {
+        public float X, Y, Z, Yaw;
+        public bool Bed;
+    }
+
     public struct Placement
     {
         public string Prefab;
@@ -66,6 +73,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<int, bool[]> Squeeze = new Dictionary<int, bool[]>();
         /// <summary>Ladders and stairs: from (Z, Cell) to the same cell of storey ToZ.</summary>
         public readonly List<(int Z, int Cell, int ToZ)> Links = new List<(int, int, int)>();
+        /// <summary>Chairs and beds townsfolk sit or lie on, by (storey, cell): where they rest (the piece's attach point) and which way they face.</summary>
+        public readonly Dictionary<(int z, int cell), Seat> Seats = new Dictionary<(int, int), Seat>();
         /// <summary>World-local position of the middle of a tile on storey z, on its floor.</summary>
         public (float x, float y, float z) TilePos(int z, int cell) => (LocalX(cell % Size), LevelY(z), LocalZ(cell / Size));
         /// <summary>The tile under a settlement-local position (clamped to the map).</summary>
@@ -1333,19 +1342,21 @@ namespace U5InValheim.WorldGen.Core
                         break;
                     case TileKind.Chair:
                         ctx.Stand("piece_chair", x, y, z, r.Yaw);
+                        Seat(p, lv.Z, false, c);
                         break;
                     case TileKind.BedHead:
                     {
                         // cottages have plain wooden beds, everyone else the fancy one
                         string bed = cottage[c] ? "bed" : "piece_bed02";
                         var b = beds.FirstOrDefault(t => t.head == c || t.foot == c);
-                        if (b.head == b.foot) { ctx.Stand(bed, x, y, z, 0); break; }
+                        if (b.head == b.foot) { ctx.Stand(bed, x, y, z, 0); Seat(p, lv.Z, true, c); break; }
                         int other = b.head == c ? b.foot : b.head;
                         done[other] = true;
                         float hx = CellX(p, b.head), hz = CellZ(p, b.head), fx = CellX(p, b.foot), fz = CellZ(p, b.foot);
                         // both beds' headboards are at their local −z
                         float yaw = (float)(Math.Atan2(-(hx - fx), -(hz - fz)) * 180 / Math.PI + 360) % 360;
                         ctx.Stand(bed, (hx + fx) / 2, y, (hz + fz) / 2, yaw);
+                        Seat(p, lv.Z, true, b.head, b.foot);
                         break;
                     }
                     case TileKind.Table:
@@ -1518,6 +1529,17 @@ namespace U5InValheim.WorldGen.Core
 
         /// <summary>Ladder: how far it stands back from its tile's centre, half its width, rail and rung thickness (scale of a 0.4 m pole), rung spacing, and how far its rails reach into the ceiling or floor.</summary>
         const float LadderBack = 0.55f, LadderHalfWidth = 0.3f, LadderRail = 0.25f, LadderRung = 0.18f, LadderRungStep = 0.33f, LadderSink = 0.15f;
+
+        /// <summary>
+        /// The piece just placed is somewhere to sit or lie: Valheim's chair seats you 0.1 m above
+        /// its origin, its beds lay you 0.44 m above theirs, turned as the piece is.
+        /// </summary>
+        static void Seat(SettlementPlan p, int z, bool bed, params int[] cells)
+        {
+            var piece = p.Pieces[p.Pieces.Count - 1];
+            var seat = new Seat { X = piece.X, Y = piece.Y + (bed ? 0.44f : 0.1f), Z = piece.Z, Yaw = piece.Yaw, Bed = bed };
+            foreach (int c in cells) p.Seats[(z, c)] = seat;
+        }
 
         static string TreeFor(VBiome biome, int h)
         {

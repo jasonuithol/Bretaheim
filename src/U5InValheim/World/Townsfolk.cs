@@ -8,6 +8,7 @@ using U5InValheim.Data;
 using U5InValheim.WorldGen.Core;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using Pose = U5InValheim.WorldGen.Core.Pose;
 
 namespace U5InValheim.WorldGen
 {
@@ -20,7 +21,7 @@ namespace U5InValheim.WorldGen
     public static class TownsfolkSpawner
     {
         public const string PrefabName = "u5_townsperson";
-        public const string LocKey = "u5_npc_loc", SlotKey = "u5_npc_slot", FloorKey = "u5_npc_z";
+        public const string LocKey = "u5_npc_loc", SlotKey = "u5_npc_slot", FloorKey = "u5_npc_z", PoseKey = "u5_npc_pose";
 
         static Dictionary<int, PersonLook> looks;
 
@@ -161,12 +162,14 @@ namespace U5InValheim.WorldGen
 
     /// <summary>
     /// A townsperson in the world: the owner of its ZDO runs its day (<see cref="TownWalker"/>);
-    /// every peer animates it from how it moves.
+    /// every peer animates it from how it moves, and sits or lies it down (Valheim's
+    /// attach_chair / attach_bed, as for a player) as the owner says.
     /// </summary>
     public class TownNpc : MonoBehaviour, Hoverable
     {
         const float TurnSpeed = 360f;
-        static readonly int ForwardSpeed = ZSyncAnimation.GetHash("forward_speed"), OnGround = ZSyncAnimation.GetHash("onGround"), InWater = ZSyncAnimation.GetHash("inWater");
+        static readonly int ForwardSpeed = ZSyncAnimation.GetHash("forward_speed"), OnGround = ZSyncAnimation.GetHash("onGround"), InWater = ZSyncAnimation.GetHash("inWater"),
+            AttachChair = ZSyncAnimation.GetHash("attach_chair"), AttachBed = ZSyncAnimation.GetHash("attach_bed");
 
         ZNetView nview;
         Animator animator;
@@ -207,7 +210,12 @@ namespace U5InValheim.WorldGen
         {
             if (!ready || nview.GetZDO() == null) return;
             if (nview.IsOwner()) Live(Time.deltaTime);
-            else walker = null; // whoever owns it next picks up from where it stands
+            else if (walker != null)
+            {
+                // whoever owns it next picks up from where it stands
+                home.Crowd.Leave(walker);
+                walker = null;
+            }
             Animate(Time.deltaTime);
         }
 
@@ -217,11 +225,19 @@ namespace U5InValheim.WorldGen
             if (walker == null)
             {
                 var local = transform.position - home.Origin;
-                walker = new TownWalker(home.Plan, npc.Schedule, zdo.GetInt(TownsfolkSpawner.FloorKey), local.x, local.z, home.Location.Number * 32 + npc.Slot);
+                walker = new TownWalker(home.Plan, npc.Schedule, zdo.GetInt(TownsfolkSpawner.FloorKey), local.x, local.z, home.Location.Number * 32 + npc.Slot, home.Crowd);
             }
             int floor = walker.Floor;
             walker.Tick(dt, Hour());
             if (walker.Floor != floor) zdo.Set(TownsfolkSpawner.FloorKey, walker.Floor);
+            if (zdo.GetInt(TownsfolkSpawner.PoseKey) != (int)walker.Pose) zdo.Set(TownsfolkSpawner.PoseKey, (int)walker.Pose);
+            if (walker.Pose != Pose.Stand)
+            {
+                // on the chair or bed, turned as it is (as Valheim seats a player)
+                transform.position = home.Origin + new Vector3(walker.RestX, walker.RestY, walker.RestZ);
+                transform.rotation = Quaternion.Euler(0, walker.RestYaw, 0);
+                return;
+            }
             transform.position = home.Origin + new Vector3(walker.X, walker.Y, walker.Z);
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(new Vector3(walker.HeadingX, 0, walker.HeadingZ)), TurnSpeed * dt);
         }
@@ -235,10 +251,19 @@ namespace U5InValheim.WorldGen
             lastPos = pos;
             // teleports (ladders) are not walking
             float now = moved.magnitude / dt;
-            speed = Mathf.Lerp(speed, now > 6f ? 0 : now, Mathf.Clamp01(dt * 8f));
+            int pose = nview.GetZDO().GetInt(TownsfolkSpawner.PoseKey);
+            // getting into or out of a chair or bed is not walking
+            speed = pose != 0 ? 0 : Mathf.Lerp(speed, now > 6f ? 0 : now, Mathf.Clamp01(dt * 8f));
+            animator.SetBool(AttachChair, pose == (int)Pose.Sit);
+            animator.SetBool(AttachBed, pose == (int)Pose.Lie);
             animator.SetFloat(ForwardSpeed, speed);
             animator.SetBool(OnGround, true);
             animator.SetBool(InWater, false);
+        }
+
+        void OnDestroy()
+        {
+            if (walker != null) home?.Crowd.Leave(walker);
         }
 
         public string GetHoverText() => label;

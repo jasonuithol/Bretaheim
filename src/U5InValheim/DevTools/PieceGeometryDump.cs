@@ -105,6 +105,13 @@ namespace U5InValheim.DevTools
                     Plugin.Log.LogInfo($"look passable on {n}: colliders on {string.Join(",", go.GetComponentsInChildren<Collider>(true).Select(c => LayerMask.LayerToName(c.gameObject.layer)))}");
                     UnityEngine.Object.Destroy(go);
                 }
+                foreach (var n in new[] { "piece_chair", "bed", "piece_bed02" })
+                {
+                    var go = __instance.GetPrefab(n);
+                    var point = go?.GetComponent<Chair>()?.m_attachPoint ?? go?.GetComponent<Bed>()?.m_spawnPoint;
+                    if (point != null)
+                        Plugin.Log.LogInfo($"attach point {n}: {go.transform.InverseTransformPoint(point.position)} yaw {(Quaternion.Inverse(go.transform.rotation) * point.rotation).eulerAngles}");
+                }
                 int nonsolid = LayerMask.NameToLayer("piece_nonsolid");
                 Plugin.Log.LogInfo("piece_nonsolid collides with: " + string.Join(",", Enumerable.Range(0, 32)
                     .Where(l => LayerMask.LayerToName(l).Length > 0 && !Physics.GetIgnoreLayerCollision(nonsolid, l)).Select(LayerMask.LayerToName)));

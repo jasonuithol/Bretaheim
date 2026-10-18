@@ -4,11 +4,15 @@ using U5InValheim.Data;
 
 namespace U5InValheim.WorldGen.Core
 {
+    public enum Pose { Stand, Sit, Lie }
+
     /// <summary>
     /// A townsperson's day (NPC.OVL move_npcs, in real time): at each hour of their schedule they
     /// walk to that place (across storeys by the ladders, on the spot like a player climbing), and
     /// there stay put (AI 0) or wander near it (AI 1 within 3 tiles, AI 2 within 6). With no way
-    /// there they simply appear there, as the original teleports NPCs it cannot path.
+    /// there they simply appear there, as the original teleports NPCs it cannot path. Stopping on
+    /// a chair they sit, on a bed they lie down; on a tile someone else stands on, they take the
+    /// nearest free one (<see cref="TownCrowd"/>).
     /// Unity-free: the game moves the body to <see cref="X"/>/<see cref="Y"/>/<see cref="Z"/>.
     /// </summary>
     public class TownWalker
@@ -19,6 +23,7 @@ namespace U5InValheim.WorldGen.Core
 
         readonly SettlementPlan plan;
         readonly NpcSchedule schedule;
+        readonly TownCrowd crowd;
         uint rng;
 
         /// <summary>Storey and settlement-local position (metres; Y is the storey's floor).</summary>
@@ -30,15 +35,22 @@ namespace U5InValheim.WorldGen.Core
         public float HeadingX { get; private set; }
         public float HeadingZ { get; private set; } = 1;
         public bool Moving => path != null && path.Count > 0;
+        /// <summary>Standing, sitting on a chair or lying in bed; resting, the body is at Rest* facing RestYaw.</summary>
+        public Pose Pose { get; private set; }
+        public float RestX { get; private set; }
+        public float RestY { get; private set; }
+        public float RestZ { get; private set; }
+        public float RestYaw { get; private set; }
 
         List<(int z, int cell)> path;
         int goalPlace = -1;
         float wanderIn, pace = Speed;
 
-        public TownWalker(SettlementPlan plan, NpcSchedule schedule, int floor, float x, float z, int seed)
+        public TownWalker(SettlementPlan plan, NpcSchedule schedule, int floor, float x, float z, int seed, TownCrowd crowd = null)
         {
             this.plan = plan;
             this.schedule = schedule;
+            this.crowd = crowd;
             Floor = floor;
             X = x;
             Z = z;
@@ -68,12 +80,12 @@ namespace U5InValheim.WorldGen.Core
                 int ty = Clamp(post / N + (int)(Next() % (2 * reach + 1)) - reach);
                 int target = ty * N + tx, z = schedule.Z[place];
                 // the whole way stays near the post, on its storey (the original wanders a step at a time)
-                var way = Floor == z && TownPath.Walkable(plan, z, target) ? TownPath.Find(plan, Floor, Cell, z, target) : null;
+                var way = Floor == z && TownPath.Walkable(plan, z, target) && !(crowd?.Taken(z, target, this) ?? false) ? TownPath.Find(plan, Floor, Cell, z, target) : null;
                 if (way != null && way.TrueForAll(st => st.z == z && Math.Max(Math.Abs(st.cell % N - post % N), Math.Abs(st.cell / N - post / N)) <= reach))
                 {
+                    Leave();
                     path = way;
                     pace = Speed;
-                    settled = false;
                 }
             }
             Walk(dt);
@@ -88,8 +100,30 @@ namespace U5InValheim.WorldGen.Core
         /// </summary>
         void Settle()
         {
-            settled = true;
             int c = Cell, x = c % N, y = c / N;
+            if (crowd != null && !crowd.TryTake(Floor, c, this))
+            {
+                int free = crowd.NearestFree(plan, Floor, c, this);
+                var way = free >= 0 ? TownPath.Find(plan, Floor, c, Floor, free) : null;
+                if (way != null)
+                {
+                    path = way;
+                    pace = Speed;
+                    return;
+                }
+            }
+            settled = true;
+            if (plan.Seats.TryGetValue((Floor, c), out var seat))
+            {
+                Pose = seat.Bed ? Pose.Lie : Pose.Sit;
+                RestX = seat.X;
+                RestY = seat.Y;
+                RestZ = seat.Z;
+                RestYaw = seat.Yaw;
+                HeadingX = (float)Math.Sin(seat.Yaw * Math.PI / 180);
+                HeadingZ = (float)Math.Cos(seat.Yaw * Math.PI / 180);
+                return;
+            }
             plan.Squeeze.TryGetValue(Floor, out var furniture);
             // east, west, north (map y − 1), south
             var dirs = new[] { (1, 0), (-1, 0), (0, -1), (0, 1) };
@@ -116,10 +150,18 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>The tile they face when standing still (for tests).</summary>
         public int Facing => plan.CellAt(X + HeadingX * plan.Tile, Z + HeadingZ * plan.Tile);
 
+        /// <summary>Gets up and leaves their tile to others.</summary>
+        void Leave()
+        {
+            settled = false;
+            Pose = Pose.Stand;
+            crowd?.Leave(this);
+        }
+
         void Head(int z, int cell)
         {
+            Leave();
             path = TownPath.Find(plan, Floor, Cell, z, cell);
-            settled = false;
             if (path == null) Place(z, cell);
             pace = path == null ? Speed : Math.Max(Speed, Math.Min(Hurry, path.Count * plan.Tile / TripTime));
         }

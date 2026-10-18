@@ -25,6 +25,8 @@ namespace U5InValheim.WorldGen
             public SettlementSite Site;
             /// <summary>World position of the settlement's local origin (centre, ground level).</summary>
             public Vector3 Origin;
+            /// <summary>Who of its townsfolk (moved by this peer) stands where.</summary>
+            public readonly TownCrowd Crowd = new TownCrowd();
         }
 
         public const string FixedKey = "u5_fixed";
