@@ -43,7 +43,8 @@ Britain, Lord British's castle and Iolo's hut):
   the original prices in Valheim's trade window; armourers buy your arms; healers heal and cure. Guards run down and kill
   monsters that come into town.
 - Talk to townsfolk (E): their original conversations, typed keywords and Name/Job/Bye, with
-  their words over their heads. They sit on chairs, sleep in beds and keep to one tile each.
+  their words over their heads, the talk reading down from the top with your answers after the
+  colon. They walk at their own pace, sit on chairs, sleep in beds and keep to one tile each.
 - Ladders look like ladders (rails and rungs) and, as in Ultima, you walk through them; use any
   part to climb.
 - Beds put their headboards against the nearest wall; footlockers face away from the bed.
