@@ -33,6 +33,9 @@ namespace U5InValheim.WorldGen
             Patch(harmony, typeof(Character), "OnDeath", prefix: nameof(OnDeath_Prefix));
             Patch(harmony, typeof(SkillsDialog), "Setup", postfix: nameof(SkillsSetup_Postfix));
             Patch(harmony, typeof(Game), "Start", postfix: nameof(GameStart_Postfix));
+            Patch(harmony, typeof(Player), "RPC_UseStamina", prefix: nameof(UseStamina_Prefix));
+            Patch(harmony, typeof(Bed), "Interact", prefix: nameof(BedInteract_Prefix));
+            Patch(harmony, typeof(Bed), "GetHoverText", prefix: nameof(BedHover_Prefix));
         }
 
         static void Patch(Harmony h, Type t, string m, string prefix = null, string postfix = null)
@@ -48,6 +51,29 @@ namespace U5InValheim.WorldGen
         {
             if (!Active || __instance != Me) return;
             health = Mine.MaxHitPoints * Ultima.Scale;
+        }
+
+        /// <summary>No stamina in Britannia (Ultima has none): running, jumping, swinging and swimming cost nothing.</summary>
+        static bool UseStamina_Prefix() => !Active;
+
+        // ── beds ────────────────────────────────────────────────────────────────────────────
+
+        static bool TownBed(Bed bed) => Active && bed.GetComponentInParent<U5Fixed>() != null;
+
+        /// <summary>The townsfolk's beds are theirs: not to be claimed or slept in.</summary>
+        static bool BedInteract_Prefix(Bed __instance, Humanoid human, ref bool __result)
+        {
+            if (!TownBed(__instance)) return true;
+            human.Message(MessageHud.MessageType.Center, "Not thy bed!");
+            __result = false;
+            return false;
+        }
+
+        static bool BedHover_Prefix(Bed __instance, ref string __result)
+        {
+            if (!TownBed(__instance)) return true;
+            __result = Localization.instance.Localize(__instance.GetHoverName());
+            return false;
         }
 
         // ── blows ───────────────────────────────────────────────────────────────────────────
@@ -125,7 +151,7 @@ namespace U5InValheim.WorldGen
                 ("Dexterity", a.Dexterity.ToString(), a.Dexterity / 30f, "Ultima dexterity (up to 30)"),
                 ("Intelligence", a.Intelligence.ToString(), a.Intelligence / 30f, "Ultima intelligence (up to 30)"),
                 ("Magic", a.Mana.ToString(), a.Intelligence > 0 ? a.Mana / (float)a.Intelligence : 0, "Mana for spells"),
-                ("Hit points", $"{Mathf.CeilToInt(player.GetHealth() / Ultima.Scale)}/{a.MaxHitPoints}", player.GetHealth() / Mathf.Max(1, a.MaxHitPoints * Ultima.Scale), "30 a level"),
+                ("Hit points", $"{Mathf.CeilToInt(player.GetHealth())}/{a.MaxHitPoints * Ultima.Scale:0}", player.GetHealth() / Mathf.Max(1, a.MaxHitPoints * Ultima.Scale), $"The original's 30 a level, on Britannia's scale (×{Ultima.Scale:0}) like every creature's"),
                 ("Level", a.Level.ToString(), a.Level / (float)Avatar.MaxLevel, "Lord British's apparition raises it when thou sleepest, once thy deeds have earned it"),
                 ("Experience", a.Experience.ToString(), next > 0 ? Mathf.Clamp01(a.Experience / (float)next) : 1, a.Level >= Avatar.MaxLevel ? "" : $"Level {a.Level + 1} at {next}"),
                 ("Karma", karma.ToString(), karma / 99f, "Thy virtue"),

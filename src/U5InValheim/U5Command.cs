@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -36,6 +36,14 @@ namespace U5InValheim
                 foreach (var line in text.TrimEnd('\n').Split('\n')) terminal.AddString(line);
             }
 
+            if (args.Length > 0 && args[0] == "encounter")
+            {
+                var me = Player.m_localPlayer;
+                if (!Terminal.m_cheat) Print("u5 encounter needs devcommands");
+                else if (me == null || WorldGen.Britannia.Active == null) Print("u5 encounter: only in Britannia");
+                else Print(WorldGen.UltimaSpawner.Encounter(me.transform.position, me.GetPlayerName(), new System.Random()) ?? "nothing comes here (no monster for this land, a town, or 8 already near)");
+                return;
+            }
             if (args.Length == 0 || args[0] != "dump")
             {
                 Print(Dump.Usage);

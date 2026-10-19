@@ -218,6 +218,7 @@ namespace U5InValheim.WorldGen
         ZNetView nview;
         Humanoid human;
         Rigidbody body;
+        RigidbodyConstraints freeConstraints;
         ZSyncAnimation zanim;
         Settlements.Built home;
         SettlementNpc npc;
@@ -233,6 +234,7 @@ namespace U5InValheim.WorldGen
             nview = GetComponent<ZNetView>();
             human = GetComponent<Humanoid>();
             body = GetComponent<Rigidbody>();
+            freeConstraints = body.constraints;
             zanim = GetComponent<ZSyncAnimation>();
             TownsfolkPatches.Register(human, this);
             if (nview.GetZDO() != null && nview.GetZDO().GetInt(TownsfolkSpawner.LocKey) != 0) Init();
@@ -528,12 +530,12 @@ namespace U5InValheim.WorldGen
                 // on the chair or bed, turned as it is (as Valheim seats a player); Valheim's sitting
                 // pose is made for a full-size body: a child would sink into the seat
                 float lift = walker.Pose == Pose.Sit ? (1f - transform.localScale.y) * ChildSeatLift : 0f;
+                Hold(true);
                 Place(home.Origin + new Vector3(walker.RestX, walker.RestY + lift, walker.RestZ), Quaternion.Euler(0, walker.RestYaw, 0));
-                body.isKinematic = true;
                 human.SetMoveDir(Vector3.zero);
                 return;
             }
-            body.isKinematic = false;
+            Hold(false);
             if (steering) { behind = 0; return; }
             var target = home.Origin + new Vector3(walker.X, walker.Y, walker.Z);
             if (walker.Floor != bodyFloor || Mathf.Abs(target.y - transform.position.y) > 2.5f)
@@ -571,7 +573,20 @@ namespace U5InValheim.WorldGen
         void Still()
         {
             human.SetMoveDir(Vector3.zero);
-            body.isKinematic = true;
+            Hold(true);
+        }
+
+        /// <summary>
+        /// Held still (seated, lying, fallen) by freezing the body rather than making it kinematic:
+        /// Valheim's movement keeps setting a character's velocity, which a kinematic body refuses
+        /// with a warning each frame.
+        /// </summary>
+        void Hold(bool held)
+        {
+            var want = held ? RigidbodyConstraints.FreezeAll : freeConstraints;
+            if (body.constraints == want) return;
+            body.constraints = want;
+            body.linearVelocity = Vector3.zero;
         }
 
         void Place(Vector3 at, Quaternion rot)
@@ -579,7 +594,7 @@ namespace U5InValheim.WorldGen
             transform.SetPositionAndRotation(at, rot);
             body.position = at;
             body.rotation = rot;
-            if (!body.isKinematic) body.linearVelocity = Vector3.zero;
+            body.linearVelocity = Vector3.zero;
         }
 
         static readonly Collider[] nearby = new Collider[16];

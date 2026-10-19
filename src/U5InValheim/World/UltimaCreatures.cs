@@ -61,10 +61,19 @@ namespace U5InValheim.WorldGen
             return bodies.TryGetValue(type, out var b) ? b : ((string, float)?)null;
         }
 
+        /// <summary>The first creature type with this Valheim body, or −1.</summary>
+        public static int TypeOfBody(string prefab)
+        {
+            Body(0);
+            foreach (var kv in bodies.OrderBy(kv => kv.Key)) if (kv.Value.prefab == prefab) return kv.Key;
+            return -1;
+        }
+
         public static void Install(Harmony harmony)
         {
             Patch(harmony, typeof(Character), "Awake", postfix: nameof(Awake_Postfix));
             Patch(harmony, typeof(Character), "OnDestroy", prefix: nameof(OnDestroy_Prefix));
+            Patch(harmony, typeof(Character), "SetupMaxHealth", prefix: nameof(SetupMaxHealth_Prefix));
             Patch(harmony, typeof(Character), "RPC_Damage", prefix: nameof(RPC_Damage_Prefix));
             Patch(harmony, typeof(SpawnSystem), "Spawn", prefix: nameof(Spawn_Prefix));
             Patch(harmony, typeof(RandEventSystem), "UpdateRandomEvent", prefix: nameof(UpdateRandomEvent_Prefix));
@@ -82,8 +91,21 @@ namespace U5InValheim.WorldGen
         static void Awake_Postfix(Character __instance)
         {
             var zdo = __instance.GetComponent<ZNetView>()?.GetZDO();
-            int type = zdo?.GetInt(TypeKey) - 1 ?? -1;
-            if (type < 0) return;
+            if (zdo == null) return;
+            int type = zdo.GetInt(TypeKey) - 1;
+            if (type < 0)
+            {
+                // any other monster in Britannia (a dev command's, a Valheim spawner's) whose body
+                // is an Ultima creature's is that creature: the first type with that body
+                if (Britannia.Active == null || __instance is Player || __instance.GetComponent<TownNpc>() != null) return;
+                type = TypeOfBody(Utils.GetPrefabName(__instance.gameObject.name));
+                if (type < 0) return;
+                if (zdo.IsOwner())
+                {
+                    zdo.Set(TypeKey, type + 1);
+                    SetHitPoints(__instance, Stats(type));
+                }
+            }
             Register(__instance, type);
             __instance.m_group = MonsterGroup;
             var ai = __instance.GetComponent<MonsterAI>();
@@ -96,11 +118,20 @@ namespace U5InValheim.WorldGen
                 ai.m_attackPlayerObjects = false;
             }
             var body = Body(type);
-            if (body != null && body.Value.scale != 1f) __instance.transform.localScale = Vector3.one * body.Value.scale;
-            if (zdo.GetBool(WildKey)) __instance.gameObject.AddComponent<WildEncounter>();
+            if (body != null) __instance.transform.localScale = Vector3.one * body.Value.scale;
+            if (zdo.GetBool(WildKey) && __instance.GetComponent<WildEncounter>() == null) __instance.gameObject.AddComponent<WildEncounter>();
         }
 
         static void OnDestroy_Prefix(Character __instance) => Unregister(__instance);
+
+        /// <summary>An Ultima creature's hit points are its type's at any Valheim level (Valheim sets them up on load and on SetLevel).</summary>
+        static bool SetupMaxHealth_Prefix(Character __instance)
+        {
+            int type = __instance.GetComponent<ZNetView>()?.GetZDO()?.GetInt(TypeKey) - 1 ?? -1;
+            if (type < 0) return true;
+            SetHitPoints(__instance, Stats(type));
+            return false;
+        }
 
         /// <summary>A creature of an Ultima type in its Valheim body, with the type's hit points (a wild one despawns far from players).</summary>
         public static Character Spawn(int type, Vector3 at, bool wild)

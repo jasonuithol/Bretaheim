@@ -64,6 +64,11 @@ namespace U5InValheim.DevTools
             }
             foreach (var c in Character.GetAllCharacters().Where(c => c.GetComponent<WildEncounter>() != null).Take(6))
                 Plugin.Log.LogInfo($"townsfolk self-test encounter: {c.m_name} hp {c.GetHealth():0}/{c.GetMaxHealth():0} group {c.m_group} level {c.GetLevel()}");
+            // a Valheim monster made the plain way (as the spawn command does) is the Ultima creature of its body
+            var plain = Instantiate(ZNetScene.instance.GetPrefab("Troll"), outside + Vector3.up * 2, Quaternion.identity).GetComponent<Character>();
+            plain.SetLevel(2);
+            var plainStats = UltimaCreatures.Of(plain);
+            Plugin.Log.LogInfo($"townsfolk self-test plain troll: {(plainStats == null ? "not Ultima" : Plugin.U5.Ovl.CreatureName(plainStats.Type))} hp {plain.GetHealth():0}/{plain.GetMaxHealth():0} group {plain.m_group}");
             // North Britanny has no guards: its villager runs to Lord British's castle for help
             var north = Settlements.Get(20);
             if (north != null)
