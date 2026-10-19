@@ -119,4 +119,4 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
 - **The Shrine of Spirituality** has coordinates (0,0): it is not on the map and is reached only
   through a moongate (Phase 7 story work).
 - **Destard, Shame and Doom** have no ladder on level 0; you enter them in a room.
-| 2026-10-20 | Lord British's roof strips | the castle's top floors draw two 4-tile strips of 0xfe (a white block) across the roof tiles of each wing; town_tiles.json tile_as reads them there as roof (0x27), so each wing gets one roof without a gap. Elsewhere 0xfe stays a wall. |
+| 2026-10-20 | White roof strips | Lord British's castle, Minoc and Empath Abbey draw strips of 0xfe (a white block) across the roof tiles of their top floors (4-tile strips across each castle and abbey wing; Minoc a 4- and an 8-tile strip); town_tiles.json tile_as reads them there as roof (0x27), so each roof is whole. Elsewhere 0xfe stays a wall. |

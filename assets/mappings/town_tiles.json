@@ -194,8 +194,10 @@
     "20": 5
   },
   "tile_as": {
-    "_doc": "Tiles a settlement's maps are read as instead, by location number (hex tile -> hex tile). Lord British's castle: the strips of 0xfe (a white block) across its top floors' roof are roof (0x27).",
-    "17": {"fe": "27"}
+    "_doc": "Tiles a settlement's maps are read as instead, by location number (hex tile -> hex tile). Lord British's castle, Minoc and Empath Abbey: the strips of 0xfe (a white block) across their top floors' roofs are roof (0x27).",
+    "5": {"fe": "27"},
+    "17": {"fe": "27"},
+    "31": {"fe": "27"}
   },
   "help_from": {
     "_doc": "Where a settlement without guards sends for help when monsters come into town, by location number: its villager runs out towards that settlement and its guards come back with them. Only the Britannys, from Lord British's castle; other towns without guards wait for the reinforcements.",
