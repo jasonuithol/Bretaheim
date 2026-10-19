@@ -35,6 +35,8 @@ namespace U5InValheim.WorldGen.Core
         public float HeadingX { get; private set; }
         public float HeadingZ { get; private set; } = 1;
         public bool Moving => path != null && path.Count > 0;
+        /// <summary>How fast they are going (walking, or hurrying on a long trip or a chase).</summary>
+        public float Pace => pace;
         /// <summary>Standing, sitting on a chair or lying in bed; resting, the body is at Rest* facing RestYaw.</summary>
         public Pose Pose { get; private set; }
         public float RestX { get; private set; }
@@ -79,6 +81,14 @@ namespace U5InValheim.WorldGen.Core
 
         /// <summary>Hurried there and stopped (a chase or errand done).</summary>
         public bool Arrived => Chasing && !Moving;
+
+        /// <summary>Taken where the body is (a guard closing in on a monster or fighting it, off the paths).</summary>
+        public void Follow(float x, float z)
+        {
+            path = null;
+            X = x;
+            Z = z;
+        }
 
         /// <summary>Stops where they are (close enough to strike).</summary>
         public void Halt() => path = null;

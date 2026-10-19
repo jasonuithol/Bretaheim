@@ -23,13 +23,12 @@ namespace U5InValheim.WorldGen
     /// </summary>
     public class TownWatch
     {
-        const float ScanEvery = 0.5f, Sees = 25f, GuardSees = 20f, Beyond = 6f, Touch = 2.5f, LockReach = 8f, StrikeEvery = 3f, GuardArmour = 0.5f;
+        const float ScanEvery = 0.5f, Sees = 25f, GuardSees = 20f, Beyond = 6f, Touch = 2.5f, LockReach = 8f;
         public const string AlarmLockKey = "u5_alarm_lock";
 
         readonly Settlements.Built town;
         readonly List<TownNpc> folk = new List<TownNpc>();
         readonly List<Character> threats = new List<Character>();
-        readonly Dictionary<Character, float> nextBlow = new Dictionary<Character, float>();
         readonly List<ZNetView> lockedDoors = new List<ZNetView>();
         float scanAt, since = -1, quietSince = -1;
         bool reinforced;
@@ -140,7 +139,6 @@ namespace U5InValheim.WorldGen
             // hidden at home: the door is locked
             foreach (var h in mine.Where(f => f.Duty == Duty.Hide && f.Hidden)) LockNearestDoor(h.transform.position);
 
-            Blows(guards);
 
             int standing = guards.Count(g => !g.IsReinforcement);
             if (!reinforced && TownAlarm.ReinforcementsDue(Time.time - since, standing, allGuards))
@@ -181,48 +179,6 @@ namespace U5InValheim.WorldGen
             }
         }
 
-        /// <summary>
-        /// Monsters hit back: one beside a fighting guard strikes them every three seconds for its
-        /// weapons' average damage, halved by the guard's iron armour (guards are not creatures, so
-        /// Valheim's AI never aims at them). A lone guard holds a troll for about two and a half minutes.
-        /// </summary>
-        void Blows(List<TownNpc> guards)
-        {
-            foreach (var t in threats)
-            {
-                var victim = guards.Where(g => g.Duty == Duty.Fight).OrderBy(g => Vector3.Distance(g.transform.position, t.transform.position)).FirstOrDefault();
-                if (victim == null || Vector3.Distance(victim.transform.position, t.transform.position) > Touch + 0.5f) continue;
-                if (nextBlow.TryGetValue(t, out float at) && Time.time < at) continue;
-                nextBlow[t] = Time.time + StrikeEvery;
-                victim.Hurt(MonsterDamage(t) * GuardArmour);
-            }
-            foreach (var gone in nextBlow.Keys.Where(k => k == null || !threats.Contains(k)).ToList()) nextBlow.Remove(gone);
-        }
-
-        /// <summary>A monster's blow: its weapons' average total damage (Valheim's creatures attack with items: default, random, or in sets, as the troll's), else 15.</summary>
-        static float MonsterDamage(Character c)
-        {
-            float sum = 0;
-            int n = 0;
-            void Consider(IEnumerable<GameObject> items)
-            {
-                if (items == null) return;
-                foreach (var item in items)
-                {
-                    var drop = item != null ? item.GetComponent<ItemDrop>() : null;
-                    float d = drop != null ? drop.m_itemData.m_shared.m_damages.GetTotalDamage() : 0;
-                    if (d > 0) { sum += d; n++; }
-                }
-            }
-            if (c is Humanoid h)
-            {
-                Consider(h.m_defaultItems);
-                Consider(h.m_randomWeapon);
-                if (h.m_randomSets != null) foreach (var set in h.m_randomSets) Consider(set.m_items);
-            }
-            return n > 0 ? sum / n : 15f;
-        }
-
         void LockNearestDoor(Vector3 at)
         {
             Door nearest = null;
@@ -258,7 +214,6 @@ namespace U5InValheim.WorldGen
                     door.GetZDO().Set(AlarmLockKey, false);
                 }
             lockedDoors.Clear();
-            nextBlow.Clear();
         }
 
         // ── doors locked against the monsters ───────────────────────────────────────────────
@@ -272,7 +227,8 @@ namespace U5InValheim.WorldGen
         static bool DoorInteract_Prefix(Door __instance, Humanoid character, ref bool __result)
         {
             var zdo = __instance.GetComponent<ZNetView>()?.GetZDO();
-            if (zdo == null || !zdo.GetBool(AlarmLockKey)) return true;
+            // (townsfolk have the keys to their own doors)
+            if (zdo == null || !zdo.GetBool(AlarmLockKey) || (character != null && character.GetComponent<TownNpc>() != null)) return true;
             character?.Message(MessageHud.MessageType.Center, "Locked! The townsfolk hide from the monsters.");
             __result = false;
             return false;

@@ -11,6 +11,8 @@ namespace U5InValheim.WorldGen.Core
     {
         /// <summary>A guard's health: they can be hurt, but are unusually hard to kill (a troll alone needs about two and a half minutes).</summary>
         public const float GuardHealth = 3000f;
+        /// <summary>Everyone else's health (a monster can kill them; they are back the next morning).</summary>
+        public const float VillagerHealth = 200f;
         /// <summary>One guard per this much monster health.</summary>
         public const float HealthPerGuard = 300f;
         /// <summary>Reinforcements come after a fight this long (seconds), or when no guard is left standing.</summary>

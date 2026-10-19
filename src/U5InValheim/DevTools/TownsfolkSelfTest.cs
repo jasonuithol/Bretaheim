@@ -26,45 +26,56 @@ namespace U5InValheim.DevTools
 
         IEnumerator Start()
         {
-            while (ZNet.instance == null || !ZNet.instance.IsDedicated() || ZNetScene.instance == null || Settlements.Get(2) == null || EnvMan.instance == null)
+            while (ZNet.instance == null || !ZNet.instance.IsDedicated() || ZNetScene.instance == null || Settlements.Get(2) == null || EnvMan.instance == null || ZoneSystem.instance == null)
                 yield return new WaitForSeconds(1f);
             yield return new WaitForSeconds(5f);
+            holding = true; // (a headless server unloads everything with no player near: not during the test)
             var b = Settlements.Get(2);
-            TownsfolkSpawner.Spawn(b, ZoneSystem.SpawnMode.Full, null);
-            var folk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).OrderBy(n => n.GetHoverName()).ToList();
+            // Britain's ground, pieces and people, as a player arriving would make them
+            yield return Generate(b.Origin);
+            var folk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 2).OrderBy(n => n.GetHoverName()).ToList();
             var zdos = folk.Select(n => n.GetComponent<ZNetView>().GetZDO()).ToList();
-            Plugin.Log.LogInfo($"townsfolk self-test hour {TownNpc.Hour()}: {folk.Count} people: " +
-                string.Join("; ", folk.Select(n => { var p = n.transform.position - b.Origin; return $"{n.GetHoverName()} ({p.x:0.0},{p.y:0.0},{p.z:0.0})"; })));
-            foreach (var n in folk.Where(f => f.GetHoverName() == "Eb" || f.GetHoverName() == "Guard" || f.GetHoverName() == "Annon").Take(3))
+            Plugin.Log.LogInfo($"townsfolk self-test hour {TownNpc.Hour()}: {folk.Count} people in Britain");
+            // walking under physics: nobody falls through the world, people get where they are going
+            var start = folk.ToDictionary(f => f, f => f.transform.position);
+            yield return new WaitForSeconds(10f);
+            Plugin.Log.LogInfo("townsfolk self-test walk 10s: " + string.Join("; ", folk.Where(f => f != null).Take(14).Select(f =>
             {
-                var zdo = n.GetComponent<ZNetView>().GetZDO();
-                Plugin.Log.LogInfo($"  {n.GetHoverName()}: model {zdo.GetInt(ZDOVars.s_modelIndex)} chest {Name(zdo.GetInt(ZDOVars.s_chestItem))} legs {Name(zdo.GetInt(ZDOVars.s_legItem))} helmet {Name(zdo.GetInt(ZDOVars.s_helmetItem))} right {Name(zdo.GetInt(ZDOVars.s_rightItem))} left {Name(zdo.GetInt(ZDOVars.s_leftItem))} hair {Name(zdo.GetInt(ZDOVars.s_hairItem))} beard {Name(zdo.GetInt(ZDOVars.s_beardItem))} scale {n.transform.localScale.x:0.00}" +
-                    $" layer {LayerMask.LayerToName(n.gameObject.layer)} components {string.Join(",", n.GetComponents<Component>().Select(c => c.GetType().Name))}");
-            }
+                var p = f.transform.position - b.Origin;
+                var hum = f.GetComponent<Humanoid>();
+                return $"{f.GetHoverName()} moved {Vector3.Distance(start[f], f.transform.position):0.0} m, y {p.y:0.0}, floor {f.Floor}, hp {f.Health:0}/{f.MaxHealth:0}, wears {hum.GetInventory().GetEquippedItems().Count}";
+            })));
             // Iolo's Bows' stock as the trade window gets it
             var keeper = folk.FirstOrDefault(f => f.GetHoverName() == "Armourer");
             var trader = keeper?.ShopTrader();
-            Plugin.Log.LogInfo($"townsfolk self-test shop: {(trader == null ? "none" : string.Join("; ", trader.m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price} gp tooltip {(t.m_tooltip == null ? "NULL" : "ok")} effects {(t.m_buyPlayerEffects == null ? "NULL" : "ok")}")))}");
+            Plugin.Log.LogInfo($"townsfolk self-test shop: {(trader == null ? "none" : string.Join("; ", trader.m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price} gp")))}");
             // the town's alarm: a monster on the street beside a villager, away from the guards
-            holding = true; // (a headless server unloads everything with no player near: not during the test)
-            yield return Alarm(b, folk, "Greyling", 12, false, zdos);
-            yield return Alarm(b, folk, "Troll", 40, false, zdos);
-            yield return Alarm(b, folk, "Greyling", 25, true, zdos);
+            yield return Alarm(b, folk, "Greyling", 40, false, zdos);
+            yield return Alarm(b, folk, "Troll", 60, false, zdos);
+            yield return Alarm(b, folk, "Greyling", 30, true, zdos);
             // North Britanny has no guards: its villager runs to Lord British's castle for help
             var north = Settlements.Get(20);
             if (north != null)
             {
-                TownsfolkSpawner.Spawn(north, ZoneSystem.SpawnMode.Full, null);
+                yield return Generate(north.Origin);
                 var northFolk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 20).ToList();
-                zdos.AddRange(northFolk.Select(n => n.GetComponent<ZNetView>().GetZDO()));
-                yield return Alarm(north, northFolk, "Greyling", 40, false, zdos);
+                yield return Alarm(north, northFolk, "Greyling", 45, false, zdos);
             }
             holding = false;
-            yield return null;
-            foreach (var zdo in zdos) if (zdo != null && zdo.IsValid()) ZDOMan.instance.DestroyZDO(zdo);
-            Plugin.Log.LogInfo($"townsfolk self-test: removed {zdos.Count} again");
         }
 
+        /// <summary>Generates the zones round a point (ground, settlement pieces, townsfolk) as a player arriving would.</summary>
+        IEnumerator Generate(Vector3 at)
+        {
+            var zs = HarmonyLib.Traverse.Create(ZoneSystem.instance);
+            for (int i = 0; i < 40; i++)
+            {
+                bool made = zs.Method("CreateLocalZones", at).GetValue<bool>();
+                yield return null;
+                if (!made && i > 2) break;
+            }
+            yield return new WaitForSeconds(3f);
+        }
 
         /// <summary>A monster on the street beside a villager (away from the guards), and what the town does, second by second.</summary>
         IEnumerator Alarm(Settlements.Built b, System.Collections.Generic.List<TownNpc> folk, string monster, int seconds, bool guardsDown, System.Collections.Generic.List<ZDO> zdos)
@@ -80,9 +91,6 @@ namespace U5InValheim.DevTools
             var (sx, _, sz) = b.Plan.TilePos(0, spot);
             var m = Instantiate(prefab, b.Origin + new Vector3(sx, 0.2f, sz), Quaternion.identity).GetComponent<Character>();
             zdos.Add(m.GetComponent<ZNetView>().GetZDO());
-            // no ground is generated here with no player near: keep it from falling through the world
-            var body = m.GetComponent<Rigidbody>();
-            if (body != null) { body.isKinematic = true; body.useGravity = false; }
             // all the guards down: reinforcements should come
             if (guardsDown) foreach (var g in guards) g.Hurt(100000f);
             float t0 = Time.time;
@@ -93,8 +101,21 @@ namespace U5InValheim.DevTools
                 yield return new WaitForSeconds(1f);
                 var all = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(f => f.Location == b.Location.Number).ToList();
                 var duties = all.GroupBy(f => f.IsReinforcement ? "Reinforcement " + f.Duty : f.Duty.ToString()).Select(g => $"{g.Key} {g.Count()}");
-                var hurt = all.Where(f => f.IsGuard && f.Health < TownAlarm.GuardHealth).Select(f => $"{f.Health:0}");
-                Plugin.Log.LogInfo($"townsfolk self-test alarm t={i + 1}s: {string.Join(", ", duties)}; {monster} {(m != null ? $"{m.GetHealth():0} hp" : "gone")}{(hurt.Any() ? $"; guards hurt: {string.Join(" ", hurt)}" : "")}");
+                var hurt = all.Where(f => !f.IsDead && f.Health < f.MaxHealth).Select(f => $"{f.GetHoverName()} {f.Health:0}");
+                var aim = m != null ? HarmonyLib.Traverse.Create(m.GetComponent<MonsterAI>()).Field("m_targetCreature").GetValue<Character>() : null;
+                var fallen = all.Where(f => f.IsDead).Select(f => f.GetHoverName());
+                if (m != null)
+                {
+                    var ml = m.transform.position - b.Origin;
+                    int mc = b.Plan.CellAt(ml.x, ml.z);
+                    Plugin.Log.LogInfo($"townsfolk self-test chase t={i + 1}s: {monster} at ({mc % 32},{mc / 32}) y {ml.y:0.0}; fighters " + string.Join(" ", all.Where(f => f.Duty == Duty.Fight).Select(f =>
+                    {
+                        var fl = f.transform.position - b.Origin;
+                        int fc = b.Plan.CellAt(fl.x, fl.z);
+                        return $"({fc % 32},{fc / 32}) y {fl.y:0.0} {Vector3.Distance(f.transform.position, m.transform.position):0.0}m v {f.GetComponent<Rigidbody>().linearVelocity.magnitude:0.0}";
+                    })));
+                }
+                Plugin.Log.LogInfo($"townsfolk self-test alarm t={i + 1}s: {string.Join(", ", duties)}; {monster} {(m != null ? $"{m.GetHealth():0} hp, after {(aim != null ? aim.m_name : "nobody")}" : "gone")}{(hurt.Any() ? $"; hurt: {string.Join(" ", hurt)}" : "")}{(fallen.Any() ? $"; fallen: {string.Join(", ", fallen)}" : "")}");
                 if (m == null && all.All(f => f.Duty == Duty.None)) break;
             }
         }

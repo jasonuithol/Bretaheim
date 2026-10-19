@@ -29,6 +29,8 @@ Britain, Lord British's castle and Iolo's hut):
 - Town alarm: a villager who sees a monster runs for a guard, the rest hide at home behind locked
   doors; guards fetch more guards for big monsters, and reinforcements come if the fight drags on.
   The Britannys run to Lord British's castle for its guards.
+- Townsfolk are real creatures: monsters hunt them, guards fight with their weapons (and throw
+  their spears), the fallen are back the next morning; players cannot hurt them.
 - New Avatars arrive in Britannia with 150 gold.
 - Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at
   the original prices in Valheim's trade window; armourers buy your arms; healers heal and cure. Guards run down and kill
