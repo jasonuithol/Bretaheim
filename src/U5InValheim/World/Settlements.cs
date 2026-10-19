@@ -27,6 +27,9 @@ namespace U5InValheim.WorldGen
             public Vector3 Origin;
             /// <summary>Who of its townsfolk (moved by this peer) stands where.</summary>
             public readonly TownCrowd Crowd = new TownCrowd();
+            TownWatch watch;
+            /// <summary>The town's alarm (monsters in town).</summary>
+            public TownWatch Watch => watch ?? (watch = new TownWatch(this));
         }
 
         public const string FixedKey = "u5_fixed";

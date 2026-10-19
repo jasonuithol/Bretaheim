@@ -93,6 +93,7 @@ namespace U5InValheim
                 TalkPanel.Install(harmony);
                 ShopTrading.Install(harmony);
                 StartingGold.Install(harmony);
+                TownWatch.Install(harmony);
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);
                 RiverBanks.Install(harmony);

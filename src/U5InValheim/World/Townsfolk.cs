@@ -21,7 +21,8 @@ namespace U5InValheim.WorldGen
     public static class TownsfolkSpawner
     {
         public const string PrefabName = "u5_townsperson";
-        public const string LocKey = "u5_npc_loc", SlotKey = "u5_npc_slot", FloorKey = "u5_npc_z", PoseKey = "u5_npc_pose", SwingKey = "u5_npc_swing";
+        public const string LocKey = "u5_npc_loc", SlotKey = "u5_npc_slot", FloorKey = "u5_npc_z", PoseKey = "u5_npc_pose", SwingKey = "u5_npc_swing",
+            HealthKey = "u5_npc_hp", DeadKey = "u5_npc_dead", TempKey = "u5_npc_temp";
 
         static Dictionary<int, PersonLook> looks;
 
@@ -102,6 +103,28 @@ namespace U5InValheim.WorldGen
                 n++;
             }
             Plugin.Log.LogInfo($"{b.Location.Name}: {n} townsfolk");
+        }
+
+        /// <summary>Temporary guards running in from the town's edge (TownWatch): the look of the town's guards, gone when the fight is over.</summary>
+        public static void SpawnReinforcements(Settlements.Built b, int edgeCell, int count)
+        {
+            var prefab = ZNetScene.instance.GetPrefab(PrefabName);
+            var guard = Plugin.U5.NpcsOf(b.Location).FirstOrDefault(n => n.Slot > 0 && n.Exists && (n.IsGuard || n.CreatureType == 12));
+            if (prefab == null || guard == null) return;
+            var (x, y, z) = b.Plan.TilePos(0, edgeCell);
+            for (int i = 0; i < count; i++)
+            {
+                var go = Object.Instantiate(prefab, b.Origin + new Vector3(x + (i % 3 - 1) * 0.8f, y, z + (i / 3) * 0.8f), Quaternion.identity);
+                var zdo = go.GetComponent<ZNetView>().GetZDO();
+                zdo.Set(LocKey, b.Location.Number);
+                zdo.Set(SlotKey, guard.Slot);
+                zdo.Set(FloorKey, 0);
+                zdo.Set(TempKey, true);
+                Dress(zdo, b.Location, guard);
+                var npc = go.GetComponent<TownNpc>();
+                npc.Init();
+                npc.Duty = Duty.Fight;
+            }
         }
 
         static readonly Vector3[] Skins = { new Vector3(1f, 1f, 1f), new Vector3(0.9f, 0.82f, 0.75f), new Vector3(0.75f, 0.62f, 0.5f), new Vector3(0.55f, 0.42f, 0.32f), new Vector3(0.38f, 0.28f, 0.2f) };
@@ -203,6 +226,7 @@ namespace U5InValheim.WorldGen
             home = Settlements.Get(zdo.GetInt(TownsfolkSpawner.LocKey));
             int slot = zdo.GetInt(TownsfolkSpawner.SlotKey);
             if (home == null || slot <= 0 || slot >= NpcFile.NpcsPerSettlement) return;
+            home.Watch.Join(this);
             npc = Plugin.U5.NpcsOf(home.Location)[slot];
             label = Townsfolk.Label(Plugin.U5, home.Location, npc);
             swingsSeen = zdo.GetInt(TownsfolkSpawner.SwingKey);
@@ -215,6 +239,56 @@ namespace U5InValheim.WorldGen
         public TlkScript Script => npc != null ? Plugin.U5.ScriptOf(home.Location, npc) : null;
         bool talking;
         bool Asleep => nview.GetZDO()?.GetInt(TownsfolkSpawner.PoseKey) == (int)Pose.Lie;
+
+        // ── the town's alarm (TownWatch) ────────────────────────────────────────────────────
+
+        /// <summary>What they are doing about a monster in town (set by the town's watch).</summary>
+        public Duty Duty
+        {
+            get => duty;
+            set
+            {
+                if (duty == value) return;
+                duty = value;
+                if (walker != null && (value == Duty.None || value == Duty.Fight)) walker.StopChase();
+            }
+        }
+        Duty duty;
+
+        public bool IsOwned => ready && nview.GetZDO() != null && nview.IsOwner();
+        public bool IsGuard => npc != null && (npc.IsGuard || npc.CreatureType == 12);
+        public bool IsReinforcement => nview.GetZDO()?.GetBool(TownsfolkSpawner.TempKey) ?? false;
+        public bool IsDead => (nview.GetZDO()?.GetInt(TownsfolkSpawner.DeadKey) ?? 0) > 0;
+        public int Floor => walker?.Floor ?? nview.GetZDO()?.GetInt(TownsfolkSpawner.FloorKey) ?? 0;
+        public int Cell => walker?.Cell ?? 0;
+        /// <summary>Gone home to hide (and arrived).</summary>
+        public bool Hidden => duty == Duty.Hide && walker != null && walker.Arrived;
+        public float Health => nview.GetZDO()?.GetFloat(TownsfolkSpawner.HealthKey, TownAlarm.GuardHealth) ?? TownAlarm.GuardHealth;
+
+        /// <summary>Hurrying to another townsperson (with news, or to fetch them).</summary>
+        public void RunTo(TownNpc other)
+        {
+            if (walker == null || other.walker == null) return;
+            walker.Chase(other.Floor, other.Cell);
+        }
+
+        /// <summary>Whole again (after a fight).</summary>
+        public void Heal() => nview.GetZDO()?.Set(TownsfolkSpawner.HealthKey, TownAlarm.GuardHealth);
+
+        /// <summary>A monster's blow: a guard falls at 0 and lies dead until the next morning (reinforcements are gone for good).</summary>
+        public void Hurt(float damage)
+        {
+            var zdo = nview.GetZDO();
+            if (zdo == null || IsDead) return;
+            float hp = Health - damage;
+            zdo.Set(TownsfolkSpawner.HealthKey, Mathf.Max(0, hp));
+            if (hp > 0) return;
+            Plugin.Log.LogInfo($"{home.Location.Name}: a guard has fallen");
+            if (IsReinforcement) { ZNetScene.instance.Destroy(gameObject); return; }
+            zdo.Set(TownsfolkSpawner.DeadKey, (EnvMan.instance?.GetDay() ?? 0) + 1);
+            duty = Duty.None;
+            home.Crowd.Leave(walker);
+        }
 
         /// <summary>
         /// Talking (TALK.OVL talk_to_npc): townsfolk with a conversation open the panel; shopkeepers
@@ -260,30 +334,58 @@ namespace U5InValheim.WorldGen
 
         // ── guards ──────────────────────────────────────────────────────────────────────────
 
-        const float ScanEvery = 0.5f, Reach = 2.2f, SwingEvery = 1.4f, Sight = 48f, Beyond = 6f, GuardStrength = 1.5f;
+        const float Reach = 2.2f, SwingEvery = 1.4f, GuardStrength = 1.5f;
         Character foe;
-        float scanAt, swingAt;
+        float swingAt;
         int swingsSeen;
 
-        bool IsGuard => npc != null && (npc.IsGuard || npc.CreatureType == 12);
+        /// <summary>
+        /// On duty in the town's alarm: messengers and recruiting guards are moved by the watch
+        /// (RunTo), the hiding run home and stay, fighters fight, reinforcements leave by the edge
+        /// they came in at and are gone.
+        /// </summary>
+        void OnDuty(float dt)
+        {
+            var zdo = nview.GetZDO();
+            int floor = walker.Floor;
+            switch (duty)
+            {
+                case Duty.Hide:
+                    if (!walker.Chasing)
+                    {
+                        var (hz, hc) = TownAlarm.Home(home.Plan, npc.Schedule);
+                        walker.Chase(hz, hc);
+                    }
+                    break;
+                case Duty.Fight:
+                    Guard();
+                    break;
+                case Duty.Leave:
+                    var local = transform.position - home.Origin;
+                    int edge = TownAlarm.EdgeNear(home.Plan, local.x, local.z);
+                    if (edge < 0 || (walker.Arrived && walker.Cell == edge)) { ZNetScene.instance.Destroy(gameObject); return; }
+                    walker.Chase(0, edge);
+                    break;
+            }
+            walker.Tick(dt, Hour());
+            if (walker.Floor != floor) zdo.Set(TownsfolkSpawner.FloorKey, walker.Floor);
+            if (zdo.GetInt(TownsfolkSpawner.PoseKey) != (int)walker.Pose) zdo.Set(TownsfolkSpawner.PoseKey, (int)walker.Pose);
+            transform.position = home.Origin + new Vector3(walker.X, walker.Y, walker.Z);
+            if (duty != Duty.Fight || walker.Moving)
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(new Vector3(walker.HeadingX, 0, walker.HeadingZ)), TurnSpeed * dt);
+        }
 
         /// <summary>
-        /// Guards keep the peace: a monster (anything hostile to players, untamed) in the town
-        /// square or just outside it is run down along the streets and struck with the guard's
-        /// weapon, its own attack, half again as hard (Britannia's guards are formidable); when
-        /// it is dead or gone they go back to their post. Only guards on the ground floor.
+        /// A fighting guard runs the nearest monster in town down along the streets (down the
+        /// ladders if need be) and strikes it with their weapon, its own attack, half again as hard
+        /// (Britannia's guards are formidable).
         /// </summary>
         void Guard()
         {
-            if (Time.time >= scanAt)
+            foe = home.Watch.Target(transform.position);
+            if (foe == null)
             {
-                scanAt = Time.time + ScanEvery;
-                foe = walker.Floor == 0 ? FindFoe() : null;
-            }
-            if (foe == null || foe.IsDead())
-            {
-                foe = null;
-                walker.StopChase();
+                walker.Halt();
                 return;
             }
             var to = foe.transform.position - transform.position;
@@ -302,24 +404,6 @@ namespace U5InValheim.WorldGen
                 swingAt = Time.time + SwingEvery;
                 Strike(foe, to.normalized);
             }
-        }
-
-        Character FindFoe()
-        {
-            var someone = Player.m_localPlayer ?? (Player.GetAllPlayers().Count > 0 ? Player.GetAllPlayers()[0] : null);
-            Character best = null;
-            float bestDist = Sight;
-            foreach (var c in Character.GetAllCharacters())
-            {
-                if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || c.GetBaseAI() == null) continue;
-                if (someone != null ? !BaseAI.IsEnemy(c, someone) : c.GetFaction() == Character.Faction.Players) continue;
-                var local = c.transform.position - home.Origin;
-                // in (or at the edge of) the town square, on the ground
-                if (Mathf.Max(Mathf.Abs(local.x), Mathf.Abs(local.z)) > home.Site.Half + Beyond || Mathf.Abs(local.y) > 3f) continue;
-                float d = Vector3.Distance(c.transform.position, transform.position);
-                if (d < bestDist) { bestDist = d; best = c; }
-            }
-            return best;
         }
 
         void Strike(Character target, Vector3 dir)
@@ -406,6 +490,21 @@ namespace U5InValheim.WorldGen
                 var local = transform.position - home.Origin;
                 walker = new TownWalker(home.Plan, npc.Schedule, zdo.GetInt(TownsfolkSpawner.FloorKey), local.x, local.z, home.Location.Number * 32 + npc.Slot, home.Crowd);
             }
+            home.Watch.Tick();
+            if (IsDead)
+            {
+                // fallen: back at their post, whole, the next morning
+                var env = EnvMan.instance;
+                if (env != null && env.GetDay() >= zdo.GetInt(TownsfolkSpawner.DeadKey) && Hour() >= 6)
+                {
+                    zdo.Set(TownsfolkSpawner.DeadKey, 0);
+                    zdo.Set(TownsfolkSpawner.HealthKey, TownAlarm.GuardHealth);
+                    walker = null;
+                }
+                return;
+            }
+            if (IsReinforcement && duty == Duty.None) duty = Duty.Leave;
+            if (duty != Duty.None) { OnDuty(dt); return; }
             if (talking)
             {
                 // stopped, turned to the one they talk to (in a chair or bed they stay put)
@@ -418,7 +517,6 @@ namespace U5InValheim.WorldGen
                 }
                 return;
             }
-            if (IsGuard) Guard();
             int floor = walker.Floor;
             walker.Tick(dt, Hour());
             if (walker.Floor != floor) zdo.Set(TownsfolkSpawner.FloorKey, walker.Floor);
@@ -436,8 +534,24 @@ namespace U5InValheim.WorldGen
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(new Vector3(walker.HeadingX, 0, walker.HeadingZ)), TurnSpeed * dt);
         }
 
+        Renderer[] bodies;
+        Collider[] solids;
+        bool shown = true;
+
+        /// <summary>A fallen guard is gone from sight (on every peer) until they come back.</summary>
+        void ShowBody(bool show)
+        {
+            if (show == shown) return;
+            shown = show;
+            bodies = bodies ?? GetComponentsInChildren<Renderer>(true);
+            solids = solids ?? GetComponentsInChildren<Collider>(true);
+            foreach (var r in bodies) if (r != null) r.enabled = show;
+            foreach (var c in solids) if (c != null) c.enabled = show;
+        }
+
         void Animate(float dt)
         {
+            ShowBody(!IsDead);
             if (animator == null || dt <= 0) return;
             var pos = transform.position;
             var moved = pos - lastPos;
@@ -465,9 +579,15 @@ namespace U5InValheim.WorldGen
         void OnDestroy()
         {
             if (walker != null) home?.Crowd.Leave(walker);
+            home?.Watch.Part(this);
         }
 
-        public string GetHoverText() => Asleep ? $"{label} (asleep)" : Localization.instance.Localize($"{label}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
+        public string GetHoverText()
+        {
+            // a hurt guard shows how hurt
+            string name = IsGuard && Health < TownAlarm.GuardHealth ? $"{label} ({Mathf.CeilToInt(Health)}/{TownAlarm.GuardHealth:0})" : label;
+            return Asleep ? $"{name} (asleep)" : Localization.instance.Localize($"{name}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
+        }
         public string GetHoverName() => label;
         public float GetHoverOffset() => 0f;
     }

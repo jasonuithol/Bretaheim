@@ -77,6 +77,9 @@ namespace U5InValheim.WorldGen.Core
             pace = Hurry;
         }
 
+        /// <summary>Hurried there and stopped (a chase or errand done).</summary>
+        public bool Arrived => Chasing && !Moving;
+
         /// <summary>Stops where they are (close enough to strike).</summary>
         public void Halt() => path = null;
 

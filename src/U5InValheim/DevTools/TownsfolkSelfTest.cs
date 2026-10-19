@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Linq;
 using U5InValheim.WorldGen;
+using U5InValheim.WorldGen.Core;
 using UnityEngine;
 
 namespace U5InValheim.DevTools
@@ -44,38 +45,41 @@ namespace U5InValheim.DevTools
             var keeper = folk.FirstOrDefault(f => f.GetHoverName() == "Armourer");
             var trader = keeper?.ShopTrader();
             Plugin.Log.LogInfo($"townsfolk self-test shop: {(trader == null ? "none" : string.Join("; ", trader.m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price} gp tooltip {(t.m_tooltip == null ? "NULL" : "ok")} effects {(t.m_buyPlayerEffects == null ? "NULL" : "ok")}")))}");
-            // a guard and a greyling: the guard should run at it and strike
-            var guard = folk.FirstOrDefault(f => f.GetHoverName() == "Guard" && f.transform.position.y - b.Origin.y < 1f);
-            var greyling = ZNetScene.instance.GetPrefab("Greyling");
-            if (guard != null && greyling != null)
+            // the town's alarm: a monster on the street beside a villager, away from the guards
+            holding = true; // (a headless server unloads everything with no player near: not during the test)
+            foreach (var (monster, seconds, guardsDown) in new[] { ("Greyling", 12, false), ("Troll", 40, false), ("Greyling", 25, true) })
             {
-                // a headless server unloads everything with no player near: not during the fight
-                holding = true;
-                // on open street three or four tiles from the guard
-                var gl = guard.transform.position - b.Origin;
-                int gc = b.Plan.CellAt(gl.x, gl.z);
-                int spot = Enumerable.Range(0, 1024).Where(c => b.Plan.Walk[0][c] && Mathf.Max(Mathf.Abs(c % 32 - gc % 32), Mathf.Abs(c / 32 - gc / 32)) is int d && d >= 3 && d <= 4)
-                    .OrderBy(c => Mathf.Abs(c % 32 - gc % 32) + Mathf.Abs(c / 32 - gc / 32)).FirstOrDefault();
+                var prefab = ZNetScene.instance.GetPrefab(monster);
+                var guards = folk.Where(f => f != null && f.IsGuard).ToList();
+                var villager = folk.Where(f => f != null && !f.IsGuard && f.Floor == 0)
+                    .OrderByDescending(f => guards.Count == 0 ? 0 : guards.Min(g => Vector3.Distance(g.transform.position, f.transform.position))).FirstOrDefault();
+                if (prefab == null || villager == null) { Plugin.Log.LogWarning($"townsfolk self-test alarm: no {monster} or villager"); continue; }
+                var vl = villager.transform.position - b.Origin;
+                int vc = b.Plan.CellAt(vl.x, vl.z);
+                int spot = Enumerable.Range(0, 1024).Where(c => b.Plan.Walk[0][c] && Mathf.Max(Mathf.Abs(c % 32 - vc % 32), Mathf.Abs(c / 32 - vc / 32)) is int d && d >= 2 && d <= 3).FirstOrDefault();
                 var (sx, _, sz) = b.Plan.TilePos(0, spot);
-                var g = Instantiate(greyling, b.Origin + new Vector3(sx, 0.2f, sz), Quaternion.identity).GetComponent<Character>();
-                zdos.Add(g.GetComponent<ZNetView>().GetZDO());
+                var m = Instantiate(prefab, b.Origin + new Vector3(sx, 0.2f, sz), Quaternion.identity).GetComponent<Character>();
+                zdos.Add(m.GetComponent<ZNetView>().GetZDO());
                 // no ground is generated here with no player near: keep it from falling through the world
-                var body = g.GetComponent<Rigidbody>();
+                var body = m.GetComponent<Rigidbody>();
                 if (body != null) { body.isKinematic = true; body.useGravity = false; }
-                Plugin.Log.LogInfo($"townsfolk self-test fight: guard's swing animation '{HarmonyLib.Traverse.Create(guard).Method("SwingAnimation").GetValue<string>()}'");
-                float hp0 = g.GetHealth();
-                var guardZdo = guard.GetComponent<ZNetView>().GetZDO();
+                // all the guards down: reinforcements should come
+                if (guardsDown) foreach (var g in guards) g.Hurt(100000f);
                 float t0 = Time.time;
-                g.m_onDeath += () => Plugin.Log.LogInfo($"townsfolk self-test fight: the greyling died at {Time.time - t0:0.0}s after {guardZdo.GetInt(TownsfolkSpawner.SwingKey)} swing(s)");
-                var start = guard.transform.position;
-                for (int i = 0; i < 12 && g != null && !g.IsDead(); i++)
+                m.m_onDeath += () => Plugin.Log.LogInfo($"townsfolk self-test alarm: the {monster} died at {Time.time - t0:0.0}s");
+                var hm = m as Humanoid;
+                Plugin.Log.LogInfo($"townsfolk self-test alarm: a {monster} ({m.GetMaxHealth():0} hp) beside {villager.GetHoverName()}; weapons default [{string.Join(",", hm?.m_defaultItems?.Where(x => x != null).Select(x => x.name) ?? new string[0])}] random [{string.Join(",", hm?.m_randomWeapon?.Where(x => x != null).Select(x => x.name) ?? new string[0])}] sets {hm?.m_randomSets?.Length ?? 0}");
+                for (int i = 0; i < seconds; i++)
                 {
-                    yield return new WaitForSeconds(0.5f);
-                    if (g == null || guard == null) { Plugin.Log.LogWarning($"townsfolk self-test fight: gone (guard {guard != null}, greyling {g != null})"); break; }
-                    Plugin.Log.LogInfo($"townsfolk self-test fight t={i * 0.5f + 0.5f:0.0}s: guard moved {Vector3.Distance(start, guard.transform.position):0.0} m, greyling {g.GetHealth():0}/{hp0:0} hp, swings {guard.GetComponent<ZNetView>().GetZDO().GetInt(TownsfolkSpawner.SwingKey)}, foe {HarmonyLib.Traverse.Create(guard).Field("foe").GetValue<Character>()?.name}, distance {Vector3.Distance(g.transform.position, guard.transform.position):0.0}, greyling at {g.transform.position - b.Origin}, owner {guard.GetComponent<ZNetView>().IsOwner()}");
+                    yield return new WaitForSeconds(1f);
+                    var duties = folk.Where(f => f != null).GroupBy(f => f.Duty).Select(g => $"{g.Key} {g.Count()}");
+                    var hurt = folk.Where(f => f != null && f.IsGuard && f.Health < TownAlarm.GuardHealth).Select(f => $"{f.Health:0}");
+                    var runner = folk.FirstOrDefault(f => f != null && f.Duty == Duty.Messenger);
+                    string run = runner == null ? "" : $"; messenger {runner.GetHoverName()} at ({runner.Cell % 32},{runner.Cell / 32},{runner.Floor}), guards at {string.Join(" ", folk.Where(f => f != null && f.IsGuard).Select(g => $"({g.Cell % 32},{g.Cell / 32},{g.Floor} {g.Duty} {Vector3.Distance(g.transform.position, runner.transform.position):0.0}m)"))}";
+                    Plugin.Log.LogInfo($"townsfolk self-test alarm t={i + 1}s: {string.Join(", ", duties)}; {monster} {(m != null ? $"{m.GetHealth():0} hp" : "gone")}{(hurt.Any() ? $"; guards hurt: {string.Join(" ", hurt)}" : "")}{run}");
+                    if (m == null && folk.All(f => f == null || f.Duty == Duty.None || f.IsReinforcement)) break;
                 }
             }
-            else Plugin.Log.LogWarning($"townsfolk self-test fight: guard {guard != null}, greyling {greyling != null}");
             holding = false;
             yield return null;
             foreach (var zdo in zdos) if (zdo != null && zdo.IsValid()) ZDOMan.instance.DestroyZDO(zdo);

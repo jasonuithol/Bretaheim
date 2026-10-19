@@ -444,7 +444,8 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   schedules across storeys (Core/TownWalker, TownPath; simulated over a day in TownsfolkTests).
   They sit and sleep, keep one to a tile, and talk (E: panel + Data/TalkSession, TALK.OVL ported).
   Shops sell (arms, reagents, guild, tavern rations; healers heal/cure) through Valheim's trade
-  window; guards fight monsters in town. Next: selling, inn/stables/shipwright, tavern meals and
+  window; guards fight monsters in town, raised by a villager's alarm (World/TownWatch: messenger,
+  hiding behind locked doors, guards fetching guards, 3000-hp guards, reinforcements). Next: selling, inn/stables/shipwright, tavern meals and
   rumours, the guards' challenge and alarm, doors, work poses, gifts (with the item set).
 
 **Phase 4 — All settlements (2 weeks)**
