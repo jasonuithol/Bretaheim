@@ -141,6 +141,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<int, string> DrawbridgeHinge = new Dictionary<int, string>();
         /// <summary>Where a settlement without guards sends for help, by location number (the Britannys: Lord British's castle).</summary>
         public readonly Dictionary<int, int> HelpFrom = new Dictionary<int, int>();
+        /// <summary>Tiles a settlement's maps are read as instead, by location number (tile → tile).</summary>
+        public readonly Dictionary<int, Dictionary<byte, byte>> TileAs = new Dictionary<int, Dictionary<byte, byte>>();
 
         public TileRule this[int tile] => rules[tile & 0xff];
 
@@ -231,6 +233,13 @@ namespace U5InValheim.WorldGen.Core
             if (root.TryGetValue("drawbridge_hinge", out var dh))
                 foreach (var kv in Json.Obj(dh))
                     if (!kv.Key.StartsWith("_")) t.DrawbridgeHinge[int.Parse(kv.Key)] = (string)kv.Value;
+            if (root.TryGetValue("tile_as", out var ta))
+                foreach (var kv in Json.Obj(ta))
+                {
+                    if (kv.Key.StartsWith("_")) continue;
+                    var map = t.TileAs[int.Parse(kv.Key)] = new Dictionary<byte, byte>();
+                    foreach (var m in Json.Obj(kv.Value)) map[byte.Parse(m.Key, NumberStyles.HexNumber)] = byte.Parse((string)m.Value, NumberStyles.HexNumber);
+                }
             if (root.TryGetValue("help_from", out var hf))
                 foreach (var kv in Json.Obj(hf))
                     if (!kv.Key.StartsWith("_")) t.HelpFrom[int.Parse(kv.Key)] = (int)(double)kv.Value;

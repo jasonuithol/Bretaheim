@@ -202,7 +202,7 @@ namespace U5InValheim.WorldGen.Core
             // own floor).
             int z0 = Math.Max(0, loc.MinZ);
             var raws = new List<byte[]>();
-            for (int z = z0; z <= loc.MaxZ; z++) raws.Add(data.Maps.Floor(loc, z));
+            for (int z = z0; z <= loc.MaxZ; z++) raws.Add(TileAs(loc.Number, data.Maps.Floor(loc, z)));
             var alone = new List<Level>();
             var walks = new List<bool[]>();
             for (int i = 0; i < raws.Count; i++)
@@ -1107,6 +1107,15 @@ namespace U5InValheim.WorldGen.Core
                 foreach (var (qx, qz) in cells)
                     if (!done.Contains((qx, qz))) ctx.Centre(style.BrickSmall, cx + qx * 0.5f, y + 0.5f, cz + qz * 0.5f, 0);
             }
+        }
+
+        /// <summary>A settlement's map read with its tile substitutions (town_tiles.json tile_as: Lord British's roof strips of 0xfe are roof).</summary>
+        byte[] TileAs(int location, byte[] raw)
+        {
+            if (!tiles.TileAs.TryGetValue(location, out var map)) return raw;
+            var copy = (byte[])raw.Clone();
+            for (int c = 0; c < copy.Length; c++) if (map.TryGetValue(copy[c], out byte to)) copy[c] = to;
+            return copy;
         }
 
         // ── roofs ─────────────────────────────────────────────────────────────────────────────
