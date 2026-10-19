@@ -95,6 +95,9 @@ namespace U5InValheim
                 StartingGold.Install(harmony);
                 TownWatch.Install(harmony);
                 TownsfolkPatches.Install(harmony);
+                UltimaCreatures.Install(harmony);
+                AvatarStats.Install(harmony);
+                gameObject.AddComponent<UltimaSpawner>();
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);
                 RiverBanks.Install(harmony);

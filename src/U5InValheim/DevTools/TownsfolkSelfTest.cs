@@ -50,16 +50,27 @@ namespace U5InValheim.DevTools
             var trader = keeper?.ShopTrader();
             Plugin.Log.LogInfo($"townsfolk self-test shop: {(trader == null ? "none" : string.Join("; ", trader.m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price} gp")))}");
             // the town's alarm: a monster on the street beside a villager, away from the guards
-            yield return Alarm(b, folk, "Greyling", 40, false, zdos);
-            yield return Alarm(b, folk, "Troll", 60, false, zdos);
-            yield return Alarm(b, folk, "Greyling", 30, true, zdos);
+            yield return Alarm(b, folk, 32, 40, false, zdos);  // an orc
+            yield return Alarm(b, folk, 41, 60, false, zdos);  // a troll
+            yield return Alarm(b, folk, 32, 30, true, zdos);   // an orc, the guards down
+            // the original's random encounters, just outside Britain (the turn's roll forced)
+            var rnd = new System.Random(5);
+            var outside = b.Origin + new Vector3(b.Site.Half + 70f, 0, 0);
+            yield return Generate(outside);
+            for (int i = 0; i < 6; i++)
+            {
+                var said = UltimaSpawner.Encounter(outside, "the self-test", rnd);
+                Plugin.Log.LogInfo($"townsfolk self-test encounter: {said ?? "none"}");
+            }
+            foreach (var c in Character.GetAllCharacters().Where(c => c.GetComponent<WildEncounter>() != null).Take(6))
+                Plugin.Log.LogInfo($"townsfolk self-test encounter: {c.m_name} hp {c.GetHealth():0}/{c.GetMaxHealth():0} group {c.m_group} level {c.GetLevel()}");
             // North Britanny has no guards: its villager runs to Lord British's castle for help
             var north = Settlements.Get(20);
             if (north != null)
             {
                 yield return Generate(north.Origin);
                 var northFolk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 20).ToList();
-                yield return Alarm(north, northFolk, "Greyling", 45, false, zdos);
+                yield return Alarm(north, northFolk, 32, 45, false, zdos);
             }
             holding = false;
         }
@@ -78,18 +89,18 @@ namespace U5InValheim.DevTools
         }
 
         /// <summary>A monster on the street beside a villager (away from the guards), and what the town does, second by second.</summary>
-        IEnumerator Alarm(Settlements.Built b, System.Collections.Generic.List<TownNpc> folk, string monster, int seconds, bool guardsDown, System.Collections.Generic.List<ZDO> zdos)
+        IEnumerator Alarm(Settlements.Built b, System.Collections.Generic.List<TownNpc> folk, int type, int seconds, bool guardsDown, System.Collections.Generic.List<ZDO> zdos)
         {
-            var prefab = ZNetScene.instance.GetPrefab(monster);
+            string monster = Plugin.U5.Ovl.CreatureName(type);
             var guards = folk.Where(f => f != null && f.IsGuard).ToList();
             var villager = folk.Where(f => f != null && !f.IsGuard && f.Floor == 0)
                 .OrderByDescending(f => guards.Count == 0 ? 0 : guards.Min(g => Vector3.Distance(g.transform.position, f.transform.position))).FirstOrDefault();
-            if (prefab == null || villager == null) { Plugin.Log.LogWarning($"townsfolk self-test alarm: no {monster} or villager in {b.Location.Name}"); yield break; }
+            if (villager == null) { Plugin.Log.LogWarning($"townsfolk self-test alarm: no villager in {b.Location.Name}"); yield break; }
             var vl = villager.transform.position - b.Origin;
             int vc = b.Plan.CellAt(vl.x, vl.z);
             int spot = Enumerable.Range(0, 1024).Where(c => b.Plan.Walk[0][c] && Mathf.Max(Mathf.Abs(c % 32 - vc % 32), Mathf.Abs(c / 32 - vc / 32)) is int d && d >= 2 && d <= 3).FirstOrDefault();
             var (sx, _, sz) = b.Plan.TilePos(0, spot);
-            var m = Instantiate(prefab, b.Origin + new Vector3(sx, 0.2f, sz), Quaternion.identity).GetComponent<Character>();
+            var m = UltimaCreatures.Spawn(type, b.Origin + new Vector3(sx, 0.2f, sz), false);
             zdos.Add(m.GetComponent<ZNetView>().GetZDO());
             // all the guards down: reinforcements should come
             if (guardsDown) foreach (var g in guards) g.Hurt(100000f);

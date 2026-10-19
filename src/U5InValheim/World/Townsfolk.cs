@@ -55,7 +55,7 @@ namespace U5InValheim.WorldGen
             human.m_name = "Townsperson";
             human.m_group = "u5_townsfolk";
             human.m_faction = Character.Faction.Players;
-            human.m_health = TownAlarm.VillagerHealth;
+            human.m_health = 8 * Ultima.Scale; // (a villager's; each gets their type's when dressed)
             // a little quicker than their schedule walks and hurries, so the body keeps up with it
             human.m_walkSpeed = TownWalker.Speed + 0.4f;
             human.m_runSpeed = TownWalker.Hurry + 0.5f;
@@ -250,6 +250,8 @@ namespace U5InValheim.WorldGen
             npc = Plugin.U5.NpcsOf(home.Location)[slot];
             label = zdo.GetBool(TownsfolkSpawner.TempKey) ? "Guard" : Townsfolk.Label(Plugin.U5, home.Location, npc);
             if (human != null) human.m_name = label;
+            // they fight on their creature type's stats (a guard's, for reinforcements)
+            UltimaCreatures.Register(human, CreatureType);
             ready = true;
         }
 
@@ -264,9 +266,13 @@ namespace U5InValheim.WorldGen
 
         bool equipped;
 
+        /// <summary>Their creature type (DATA.OVL stat line): the .NPC type's, a guard's for reinforcements.</summary>
+        public int CreatureType => IsReinforcement ? 12 : Math.Max(0, npc?.CreatureType ?? 4);
+
         /// <summary>
         /// Their clothes and arms, equipped for real (a creature's inventory is not saved: whoever
-        /// moves them dresses them), and their health: guards are unusually hard to kill.
+        /// moves them dresses them; what they hold is only how they look and swing: their blows
+        /// are their type's), and their type's hit points.
         /// </summary>
         void Outfit()
         {
@@ -280,12 +286,7 @@ namespace U5InValheim.WorldGen
                 var item = inv.AddItem(name, 1, 1, 0, 0L, "", false);
                 if (item != null) human.EquipItem(item, false);
             }
-            float max = IsGuard ? TownAlarm.GuardHealth : TownAlarm.VillagerHealth;
-            if (human.GetMaxHealth() != max)
-            {
-                human.SetMaxHealth(max);
-                human.SetHealth(max);
-            }
+            UltimaCreatures.SetHitPoints(human, UltimaCreatures.Stats(CreatureType));
         }
 
         // ── the town's alarm (TownWatch) ────────────────────────────────────────────────────
@@ -765,6 +766,7 @@ namespace U5InValheim.WorldGen
         void OnDestroy()
         {
             TownsfolkPatches.Unregister(human);
+            UltimaCreatures.Unregister(human);
             if (walker != null) home?.Crowd.Leave(walker);
             home?.Watch.Part(this);
         }

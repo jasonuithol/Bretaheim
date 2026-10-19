@@ -29,6 +29,10 @@ Britain, Lord British's castle and Iolo's hut):
 - Town alarm: a villager who sees a monster runs for a guard, the rest hide at home behind locked
   doors; guards fetch more guards for big monsters, and reinforcements come if the fight drags on.
   The Britannys run to Lord British's castle for its guards.
+- Ultima's numbers for every fight: creatures and townsfolk fight on their type's stats, the
+  Avatar on Ultima hit points (30 a level), weapon attack values and armour defence; kills earn
+  experience and Lord British's apparition raises the level when you wake. Tab shows the Ultima
+  stats. On the Britannia surface the original's random encounters replace Valheim's monsters.
 - Townsfolk are real creatures: monsters hunt them, guards fight with their weapons (and throw
   their spears), the fallen are back the next morning; players cannot hurt them.
 - New Avatars arrive in Britannia with 150 gold.
