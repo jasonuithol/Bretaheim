@@ -139,6 +139,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<int, float> WaterGround = new Dictionary<int, float>();
         /// <summary>Side (n/e/s/w) drawbridges hinge on, by location number (others: the side facing the middle of the map).</summary>
         public readonly Dictionary<int, string> DrawbridgeHinge = new Dictionary<int, string>();
+        /// <summary>Where a settlement without guards sends for help, by location number (the Britannys: Lord British's castle).</summary>
+        public readonly Dictionary<int, int> HelpFrom = new Dictionary<int, int>();
 
         public TileRule this[int tile] => rules[tile & 0xff];
 
@@ -229,6 +231,9 @@ namespace U5InValheim.WorldGen.Core
             if (root.TryGetValue("drawbridge_hinge", out var dh))
                 foreach (var kv in Json.Obj(dh))
                     if (!kv.Key.StartsWith("_")) t.DrawbridgeHinge[int.Parse(kv.Key)] = (string)kv.Value;
+            if (root.TryGetValue("help_from", out var hf))
+                foreach (var kv in Json.Obj(hf))
+                    if (!kv.Key.StartsWith("_")) t.HelpFrom[int.Parse(kv.Key)] = (int)(double)kv.Value;
             if (root.TryGetValue("garden", out var gdn))
             {
                 var o = Json.Obj(gdn);

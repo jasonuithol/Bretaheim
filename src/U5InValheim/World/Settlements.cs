@@ -45,6 +45,8 @@ namespace U5InValheim.WorldGen
         static Dictionary<(int, Vector2s), List<Placement>> shells = new Dictionary<(int, Vector2s), List<Placement>>();
         static Type clearAreaType;
         static TownTiles tiles;
+        /// <summary>town_tiles.json (once the settlements are planned).</summary>
+        public static TownTiles Tiles => tiles;
         static PieceGeometry geo;
 
         public static void Install(Harmony harmony)

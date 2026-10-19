@@ -193,6 +193,12 @@
     "_doc": "Ground height (m above the sea) of a settlement with water, by location number; others with water stand at 1.5 m. The water is at sea level whatever the ground: higher ground makes its water tiles deep ditches. North Britanny sits on land 7-11 m up: its stream is a ditch running into its pond.",
     "20": 5
   },
+  "help_from": {
+    "_doc": "Where a settlement without guards sends for help when monsters come into town, by location number: its villager runs out towards that settlement and its guards come back with them. Only the Britannys, from Lord British's castle; other towns without guards wait for the reinforcements.",
+    "19": 17,
+    "20": 17,
+    "21": 17
+  },
   "drawbridge_hinge": {
     "_doc": "The side (n/e/s/w) a settlement's drawbridges hinge on, by location number; elsewhere they hinge on the side facing the middle of the map (the castle side of a moat).",
     "20": "n"

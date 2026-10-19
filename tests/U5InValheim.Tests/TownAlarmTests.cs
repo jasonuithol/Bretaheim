@@ -51,6 +51,18 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void TheBritannysSendToTheCastleForHelp()
+        {
+            var tiles = TownTiles.Parse(Mapping("town_tiles.json"));
+            foreach (int village in new[] { 19, 20, 21 }) Assert.Equal(17, tiles.HelpFrom[village]);
+            Assert.False(tiles.HelpFrom.ContainsKey(2), "Britain has its own guards");
+            // North Britanny has no guard of its own; the castle has
+            bool Guarded(int loc) => Env.Data.NpcsOf(Env.Data.Location(loc)).Any(n => n.Slot > 0 && n.Exists && (n.IsGuard || n.CreatureType == 12));
+            Assert.False(Guarded(20));
+            Assert.True(Guarded(17));
+        }
+
+        [U5Fact]
         public void ReinforcementsArriveOnTheEdgeNearestTheFight()
         {
             var plan = britain.Value;

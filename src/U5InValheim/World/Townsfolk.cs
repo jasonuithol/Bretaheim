@@ -106,21 +106,28 @@ namespace U5InValheim.WorldGen
         }
 
         /// <summary>Temporary guards running in from the town's edge (TownWatch): the look of the town's guards, gone when the fight is over.</summary>
-        public static void SpawnReinforcements(Settlements.Built b, int edgeCell, int count)
+        /// <summary>A guard of a settlement, or null for a town without (North Britanny).</summary>
+        public static SettlementNpc GuardOf(Data.Location loc) => Plugin.U5.NpcsOf(loc).FirstOrDefault(n => n.Slot > 0 && n.Exists && (n.IsGuard || n.CreatureType == 12));
+
+        /// <summary>Temporary guards come in at a town's edge: its own, or (a town without guards) those of the settlement that sent them.</summary>
+        public static void SpawnReinforcements(Settlements.Built b, int edgeCell, int count, Settlements.Built from = null)
         {
             var prefab = ZNetScene.instance.GetPrefab(PrefabName);
-            var guard = Plugin.U5.NpcsOf(b.Location).FirstOrDefault(n => n.Slot > 0 && n.Exists && (n.IsGuard || n.CreatureType == 12));
-            if (prefab == null || guard == null) return;
+            from = from ?? b;
+            var guard = GuardOf(from.Location);
+            // (they belong to the town they defend: any of its people's slots carries them; they are labelled Guard)
+            var anyone = Plugin.U5.NpcsOf(b.Location).FirstOrDefault(n => n.Slot > 0 && n.Exists);
+            if (prefab == null || guard == null || anyone == null) return;
             var (x, y, z) = b.Plan.TilePos(0, edgeCell);
             for (int i = 0; i < count; i++)
             {
                 var go = Object.Instantiate(prefab, b.Origin + new Vector3(x + (i % 3 - 1) * 0.8f, y, z + (i / 3) * 0.8f), Quaternion.identity);
                 var zdo = go.GetComponent<ZNetView>().GetZDO();
                 zdo.Set(LocKey, b.Location.Number);
-                zdo.Set(SlotKey, guard.Slot);
+                zdo.Set(SlotKey, from == b ? guard.Slot : anyone.Slot);
                 zdo.Set(FloorKey, 0);
                 zdo.Set(TempKey, true);
-                Dress(zdo, b.Location, guard);
+                Dress(zdo, from.Location, guard);
                 var npc = go.GetComponent<TownNpc>();
                 npc.Init();
                 npc.Duty = Duty.Fight;
@@ -228,7 +235,7 @@ namespace U5InValheim.WorldGen
             if (home == null || slot <= 0 || slot >= NpcFile.NpcsPerSettlement) return;
             home.Watch.Join(this);
             npc = Plugin.U5.NpcsOf(home.Location)[slot];
-            label = Townsfolk.Label(Plugin.U5, home.Location, npc);
+            label = zdo.GetBool(TownsfolkSpawner.TempKey) ? "Guard" : Townsfolk.Label(Plugin.U5, home.Location, npc);
             swingsSeen = zdo.GetInt(TownsfolkSpawner.SwingKey);
             ready = true;
         }
@@ -256,7 +263,7 @@ namespace U5InValheim.WorldGen
         Duty duty;
 
         public bool IsOwned => ready && nview.GetZDO() != null && nview.IsOwner();
-        public bool IsGuard => npc != null && (npc.IsGuard || npc.CreatureType == 12);
+        public bool IsGuard => npc != null && (npc.IsGuard || npc.CreatureType == 12 || IsReinforcement);
         public bool IsReinforcement => nview.GetZDO()?.GetBool(TownsfolkSpawner.TempKey) ?? false;
         public bool IsDead => (nview.GetZDO()?.GetInt(TownsfolkSpawner.DeadKey) ?? 0) > 0;
         public int Floor => walker?.Floor ?? nview.GetZDO()?.GetInt(TownsfolkSpawner.FloorKey) ?? 0;
@@ -264,6 +271,10 @@ namespace U5InValheim.WorldGen
         /// <summary>Gone home to hide (and arrived).</summary>
         public bool Hidden => duty == Duty.Hide && walker != null && walker.Arrived;
         public float Health => nview.GetZDO()?.GetFloat(TownsfolkSpawner.HealthKey, TownAlarm.GuardHealth) ?? TownAlarm.GuardHealth;
+
+        /// <summary>Hurrying to a tile (out of town for help).</summary>
+        public void RunTo(int z, int cell) => walker?.Chase(z, cell);
+        public bool ArrivedAt(int cell) => walker != null && walker.Arrived && walker.Cell == cell;
 
         /// <summary>Hurrying to another townsperson (with news, or to fetch them).</summary>
         public void RunTo(TownNpc other)
@@ -479,6 +490,8 @@ namespace U5InValheim.WorldGen
                 home.Crowd.Leave(walker);
                 walker = null;
             }
+            // (gone this frame: a reinforcement leaving or fallen)
+            if (nview.GetZDO() == null) return;
             Animate(Time.deltaTime);
         }
 

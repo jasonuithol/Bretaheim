@@ -15,7 +15,9 @@ namespace U5InValheim.WorldGen
     /// the town square is seen by the nearest villager, who runs to the nearest guard with the
     /// news; everyone else runs home and locks the door. The alerted guard fights, or, when the
     /// job looks big (one guard per 300 hp of monster), first runs to fetch more guards. Guards who
-    /// see a monster themselves join in. After five minutes of fighting, or with every guard down,
+    /// see a monster themselves join in. The Britannys without guards (North Britanny) send their
+    /// villager running out towards Lord British's castle (town_tiles.json help_from), whose
+    /// guards come back with them. After five minutes of fighting, or with every guard down,
     /// reinforcements run in from the town's edge. Five quiet seconds after the last monster the
     /// doors unlock and everyone goes back to their day; reinforcements leave the way they came.
     /// </summary>
@@ -31,6 +33,9 @@ namespace U5InValheim.WorldGen
         readonly List<ZNetView> lockedDoors = new List<ZNetView>();
         float scanAt, since = -1, quietSince = -1;
         bool reinforced;
+        /// <summary>A town without guards: the edge tile the messenger runs out of for help, and who sends it.</summary>
+        int helpEdge = -1;
+        Settlements.Built helper;
         int needed = 1;
 
         public TownWatch(Settlements.Built town) { this.town = town; }
@@ -78,8 +83,22 @@ namespace U5InValheim.WorldGen
                 since = Time.time;
                 reinforced = false;
                 needed = TownAlarm.GuardsNeeded(threats.Sum(t => t.GetMaxHealth()), allGuards);
-                Plugin.Log.LogInfo($"{town.Location.Name}: alarm! {threats.Count} monster(s), {needed} guard(s) needed{(spotter != null ? $"; {spotter.GetHoverName()} runs for a guard" : "")}");
-                foreach (var v in villagers) v.Duty = v == spotter && guards.Count > 0 ? Duty.Messenger : Duty.Hide;
+                Plugin.Log.LogInfo($"{town.Location.Name}: alarm! {threats.Count} monster(s), {needed} guard(s) needed{(spotter != null ? $"; {spotter.GetHoverName()} saw it" : "")}");
+                helpEdge = -1;
+                helper = null;
+                if (guards.Count == 0 && allGuards == 0 && spotter != null)
+                {
+                    // no guards here: run to where the town sends for help (town_tiles.json help_from: the Britannys, the castle)
+                    helper = Settlements.Tiles != null && Settlements.Tiles.HelpFrom.TryGetValue(town.Location.Number, out int from) ? Settlements.Get(from) : null;
+                    if (helper != null && TownsfolkSpawner.GuardOf(helper.Location) == null) helper = null;
+                    if (helper != null)
+                    {
+                        var dir = (helper.Origin - town.Origin).normalized * town.Site.Half;
+                        helpEdge = TownAlarm.EdgeNear(town.Plan, dir.x, dir.z);
+                        Plugin.Log.LogInfo($"{town.Location.Name} has no guards: {spotter.GetHoverName()} runs to {helper.Location.Name} for help");
+                    }
+                }
+                foreach (var v in villagers) v.Duty = v == spotter && (guards.Count > 0 || helpEdge >= 0) ? Duty.Messenger : Duty.Hide;
             }
             else
                 foreach (var v in mine.Where(f => !f.IsGuard && f.Duty == Duty.None && !f.IsDead)) v.Duty = Duty.Hide;
@@ -87,6 +106,18 @@ namespace U5InValheim.WorldGen
             // the messenger reaches a guard: the news is out
             foreach (var m in mine.Where(f => f.Duty == Duty.Messenger))
             {
+                if (helpEdge >= 0)
+                {
+                    // out of town for help: the helpers' guards come back in with them
+                    if (!m.ArrivedAt(helpEdge)) { m.RunTo(0, helpEdge); continue; }
+                    reinforced = true;
+                    int come = Math.Max(2, needed);
+                    TownsfolkSpawner.SpawnReinforcements(town, helpEdge, come, helper);
+                    Plugin.Log.LogInfo($"{town.Location.Name}: {come} guards of {helper.Location.Name} come back with {m.GetHoverName()}");
+                    helpEdge = -1;
+                    m.Duty = Duty.Hide;
+                    continue;
+                }
                 var guard = NearestGuard(guards, m.transform.position, g => g.Duty != Duty.Fight) ?? NearestGuard(guards, m.transform.position, g => true);
                 if (guard == null) { m.Duty = Duty.Hide; continue; }
                 if (Vector3.Distance(guard.transform.position, m.transform.position) < Touch)
