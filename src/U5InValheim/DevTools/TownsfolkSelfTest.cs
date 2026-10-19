@@ -45,6 +45,23 @@ namespace U5InValheim.DevTools
                 var hum = f.GetComponent<Humanoid>();
                 return $"{f.GetHoverName()} moved {Vector3.Distance(start[f], f.transform.position):0.0} m, y {p.y:0.0}, floor {f.Floor}, hp {f.Health:0}/{f.MaxHealth:0}, wears {hum.GetInventory().GetEquippedItems().Count}";
             })));
+            // what the player's hover finds on a townsperson (the first Hoverable on the body)
+            var hov = folk.First(f => f != null).GetComponentInParent<Hoverable>();
+            Plugin.Log.LogInfo($"townsfolk self-test hover: {hov.GetType().Name} says \"{hov.GetHoverText().Replace("\n", " | ")}\" ({hov.GetHoverName()})");
+            // how smoothly they walk: samples of walking bodies that have stalled, and teleports
+            int samples = 0, stalls = 0, teleports = TownNpc.Teleports;
+            for (float t = 0; t < 15f; t += 0.1f)
+            {
+                yield return new WaitForSeconds(0.1f);
+                foreach (var f in folk.Where(f => f != null && f.Walking))
+                {
+                    var v = f.GetComponent<Rigidbody>().linearVelocity;
+                    v.y = 0;
+                    samples++;
+                    if (v.magnitude < 0.5f) stalls++;
+                }
+            }
+            Plugin.Log.LogInfo($"townsfolk self-test smooth: {stalls}/{samples} walking samples stalled, {TownNpc.Teleports - teleports} teleports in 15 s");
             // Iolo's Bows' stock as the trade window gets it
             var keeper = folk.FirstOrDefault(f => f.GetHoverName() == "Armourer");
             var trader = keeper?.ShopTrader();

@@ -26,6 +26,8 @@ namespace U5InValheim.WorldGen
             Patch(harmony, typeof(Character), "Damage", prefix: nameof(Damage_Prefix));
             Patch(harmony, typeof(EnemyHud), "TestShow", prefix: nameof(TestShow_Prefix));
             Patch(harmony, typeof(Projectile), "Setup", postfix: nameof(ProjectileSetup_Postfix));
+            Patch(harmony, typeof(Character), "GetHoverText", prefix: nameof(GetHoverText_Prefix));
+            Patch(harmony, typeof(Character), "GetHoverName", prefix: nameof(GetHoverName_Prefix));
         }
 
         static void Patch(Harmony h, Type t, string m, string prefix = null, string postfix = null)
@@ -65,6 +67,23 @@ namespace U5InValheim.WorldGen
             __instance.m_respawnItemOnHit = false;
             __instance.m_spawnItem = null;
             if (Plugin.SelfTest.Value) Plugin.Log.LogInfo($"townsfolk self-test throw: {Of(owner).GetHoverName()} throws ({__instance.name})");
+        }
+
+        /// <summary>The hover finds the creature before the townsperson on the same body: it answers with the townsperson's name and Talk.</summary>
+        static bool GetHoverText_Prefix(Character __instance, ref string __result)
+        {
+            var npc = Of(__instance);
+            if (npc == null) return true;
+            __result = npc.GetHoverText();
+            return false;
+        }
+
+        static bool GetHoverName_Prefix(Character __instance, ref string __result)
+        {
+            var npc = Of(__instance);
+            if (npc == null) return true;
+            __result = npc.GetHoverName();
+            return false;
         }
 
         static bool TestShow_Prefix(Character c, ref bool __result)

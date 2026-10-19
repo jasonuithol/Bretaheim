@@ -212,7 +212,7 @@ namespace U5InValheim.WorldGen
     {
         /// <summary>How much higher a smaller body sits, per unit of scale lost (a 0.7 child sank about 0.5 m).</summary>
         const float ChildSeatLift = 1.6f;
-        const float Near = 0.3f, CatchUp = 4f, StuckFor = 2f, DoorReach = 2f, DoorBehind = 3f;
+        const float Near = 0.3f, Lead = 0.6f, CatchUp = 4f, StuckFor = 2f, DoorReach = 2f, DoorBehind = 3f;
         static readonly int AttachChair = ZSyncAnimation.GetHash("attach_chair"), AttachBed = ZSyncAnimation.GetHash("attach_bed");
 
         ZNetView nview;
@@ -547,18 +547,28 @@ namespace U5InValheim.WorldGen
             var to = target - transform.position;
             to.y = 0;
             float d = to.magnitude;
+            Gap = d;
             behind = d > CatchUp || (d > 1f && body.linearVelocity.magnitude < 0.2f) ? behind + dt : 0;
             if (behind > StuckFor)
             {
                 behind = 0;
+                Teleports++;
                 Place(target, transform.rotation);
                 d = 0;
             }
-            if (d > Near)
+            if (d > Near || (walker.Moving && d > 0.05f))
             {
+                // the walker's pace, a little quicker when behind and slower when close: kept a
+                // pace behind it at an even speed (a quicker body caught it up, stopped and set
+                // off again, over and over)
                 var dir = to / d;
+                float speed = Mathf.Clamp(walker.Pace + (d - Lead) * 1.5f, 0.3f, walker.Pace + 2f);
+                human.m_walkSpeed = human.m_runSpeed = speed;
+                // (walking, or Valheim moves them at its jog speed, whatever the walk speed)
+                bool run = walker.Pace > TownWalker.Speed + 0.5f;
                 human.SetMoveDir(dir);
-                human.SetRun(walker.Pace > TownWalker.Speed + 0.5f);
+                human.SetWalk(!run);
+                human.SetRun(run);
                 if (!facing) human.SetLookDir(dir);
                 Doors(dir);
             }
@@ -721,7 +731,10 @@ namespace U5InValheim.WorldGen
             var local = transform.position - home.Origin;
             walker.Chase(walker.Floor, walker.Cell);
             walker.Follow(local.x, local.z);
+            human.m_walkSpeed = TownWalker.Speed + 0.4f;
+            human.m_runSpeed = TownWalker.Hurry + 0.5f;
             human.SetMoveDir(dir);
+            human.SetWalk(false);
             human.SetRun(dir != Vector3.zero);
             Doors(dir);
         }
@@ -786,10 +799,18 @@ namespace U5InValheim.WorldGen
             home?.Watch.Part(this);
         }
 
+        /// <summary>Walking their schedule's paths on their own feet (for the self-test's smoothness count).</summary>
+        public bool Walking => walker != null && walker.Moving && walker.Pose == Pose.Stand && duty == Duty.None && !talking && !IsDead;
+        /// <summary>Bodies put back on their walker after falling behind or sticking (the self-test counts them).</summary>
+        public static int Teleports;
+        /// <summary>How far the body is behind its walker (the self-test's smoothness count).</summary>
+        public float Gap { get; private set; }
+        public float Pace => walker?.Pace ?? 0;
+
         public string GetHoverText()
         {
             // a hurt townsperson shows how hurt
-            string name = Health < MaxHealth ? $"{label} ({Mathf.CeilToInt(Health)}/{MaxHealth:0})" : label;
+            string name = Health < MaxHealth ? $"{label} ({Mathf.CeilToInt(Health / Ultima.Scale)}/{Mathf.CeilToInt(MaxHealth / Ultima.Scale)})" : label;
             return Asleep ? $"{name} (asleep)" : Localization.instance.Localize($"{name}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
         }
         public string GetHoverName() => label;

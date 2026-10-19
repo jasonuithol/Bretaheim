@@ -36,6 +36,10 @@ namespace U5InValheim.WorldGen
             Patch(harmony, typeof(Player), "RPC_UseStamina", prefix: nameof(UseStamina_Prefix));
             Patch(harmony, typeof(Bed), "Interact", prefix: nameof(BedInteract_Prefix));
             Patch(harmony, typeof(Bed), "GetHoverText", prefix: nameof(BedHover_Prefix));
+            Patch(harmony, typeof(Hud), "UpdateHealth", postfix: nameof(UpdateHealth_Postfix));
+            var showText = AccessTools.Method(typeof(DamageText), "ShowText", new[] { typeof(DamageText.TextType), typeof(Vector3), typeof(float), typeof(bool) });
+            if (showText != null) harmony.Patch(showText, prefix: new HarmonyMethod(typeof(AvatarStats), nameof(ShowText_Prefix)));
+            else Plugin.Log.LogWarning("Avatar stats: DamageText.ShowText not found");
         }
 
         static void Patch(Harmony h, Type t, string m, string prefix = null, string postfix = null)
@@ -52,6 +56,15 @@ namespace U5InValheim.WorldGen
             if (!Active || __instance != Me) return;
             health = Mine.MaxHitPoints * Ultima.Scale;
         }
+
+        /// <summary>Hit points are shown as Ultima counts them (the health bars run on the creatures' scale): 30 at level 1.</summary>
+        static void UpdateHealth_Postfix(Hud __instance, Player player)
+        {
+            if (Active && player != null) __instance.m_healthText.text = Mathf.CeilToInt(player.GetHealth() / Ultima.Scale).ToString();
+        }
+
+        /// <summary>Damage and healing numbers in Ultima's hit points too.</summary>
+        static void ShowText_Prefix(ref float dmg) { if (Active) dmg /= Ultima.Scale; }
 
         /// <summary>No stamina in Britannia (Ultima has none): running, jumping, swinging and swimming cost nothing.</summary>
         static bool UseStamina_Prefix() => !Active;
@@ -151,7 +164,7 @@ namespace U5InValheim.WorldGen
                 ("Dexterity", a.Dexterity.ToString(), a.Dexterity / 30f, "Ultima dexterity (up to 30)"),
                 ("Intelligence", a.Intelligence.ToString(), a.Intelligence / 30f, "Ultima intelligence (up to 30)"),
                 ("Magic", a.Mana.ToString(), a.Intelligence > 0 ? a.Mana / (float)a.Intelligence : 0, "Mana for spells"),
-                ("Hit points", $"{Mathf.CeilToInt(player.GetHealth())}/{a.MaxHitPoints * Ultima.Scale:0}", player.GetHealth() / Mathf.Max(1, a.MaxHitPoints * Ultima.Scale), $"The original's 30 a level, on Britannia's scale (×{Ultima.Scale:0}) like every creature's"),
+                ("Hit points", $"{Mathf.CeilToInt(player.GetHealth() / Ultima.Scale)}/{a.MaxHitPoints}", player.GetHealth() / Mathf.Max(1, a.MaxHitPoints * Ultima.Scale), "30 a level"),
                 ("Level", a.Level.ToString(), a.Level / (float)Avatar.MaxLevel, "Lord British's apparition raises it when thou sleepest, once thy deeds have earned it"),
                 ("Experience", a.Experience.ToString(), next > 0 ? Mathf.Clamp01(a.Experience / (float)next) : 1, a.Level >= Avatar.MaxLevel ? "" : $"Level {a.Level + 1} at {next}"),
                 ("Karma", karma.ToString(), karma / 99f, "Thy virtue"),

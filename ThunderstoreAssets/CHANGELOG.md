@@ -34,7 +34,8 @@ Britain, Lord British's castle and Iolo's hut):
   experience and Lord British's apparition raises the level when you wake. Tab shows the Ultima
   stats. On the Britannia surface the original's random encounters replace Valheim's monsters
   (`u5 encounter` with devcommands brings one); any other Valheim monster there is the Ultima
-  creature of its body. No stamina in Britannia. The townsfolk's beds cannot be claimed.
+  creature of its body. No stamina in Britannia. The townsfolk's beds cannot be claimed. Hit points
+  and damage numbers are shown as Ultima counts them (30 at level 1).
 - Townsfolk are real creatures: monsters hunt them, guards fight with their weapons (and throw
   their spears), the fallen are back the next morning; players cannot hurt them.
 - New Avatars arrive in Britannia with 150 gold.

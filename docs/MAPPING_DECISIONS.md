@@ -91,7 +91,7 @@ Prefab names are checked against `tools/data/valheim_prefabs.txt` by the tests.
 | 2026-10-19 | Valheim monsters are Ultima creatures | in Britannia any monster without an Ultima type (the `spawn` dev command, a Valheim spawner) takes the first creature type whose body it is in monsters.json (a Troll is an Ettin, 30 hp ×10), so it fights on Ultima numbers and gives experience; Character.SetupMaxHealth (load, SetLevel) keeps an Ultima creature on its type's hit points at any star level. |
 | 2026-10-19 | No stamina | Ultima has no stamina: in Britannia Player.RPC_UseStamina does nothing, so running, jumping, swinging and swimming are free. |
 | 2026-10-19 | Town beds | the settlements' beds belong to the townsfolk: they cannot be claimed or slept in ("Not thy bed!"); a player sleeps in a bed of their own until inns are in. |
-| 2026-10-19 | Hit points on one scale | the Tab screen shows hit points as the health bar does (300 at level 1: the original's 30 ×10), not divided back down. |
+| 2026-10-19 | Hit points shown as Ultima counts them | the health bars run on the creatures' ×10 scale, but every number shown is Ultima's: the HUD's health number, the Tab screen, damage and healing numbers and a hurt townsperson's hover all divide by the scale (30 at level 1). |
 | 2026-10-19 | Encounter rate kept | the original's rate is 0 on roads, 1 on grass (a roll of 1..30 below 1 never happens, so no daytime encounters on grassland), 2 in swamp, woods and hills (1 turn in 30), +3 between midnight and 5 am; a turn is 8 s, about a 32 m tile at a walk. |
 
 ## Open (need a decision)
