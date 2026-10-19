@@ -30,6 +30,13 @@ namespace U5InValheim.DevTools
                 yield return new WaitForSeconds(1f);
             yield return new WaitForSeconds(5f);
             holding = true; // (a headless server unloads everything with no player near: not during the test)
+            // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
+            if (System.Environment.GetEnvironmentVariable("U5_SELFTEST") == "crime")
+            {
+                yield return Crimes();
+                holding = false;
+                yield break;
+            }
             var b = Settlements.Get(2);
             // Britain's ground, pieces and people, as a player arriving would make them
             yield return Generate(b.Origin);
@@ -94,6 +101,7 @@ namespace U5InValheim.DevTools
                 var northFolk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 20).ToList();
                 yield return Alarm(north, northFolk, 32, 45, false, zdos);
             }
+            yield return Crimes();
             holding = false;
         }
 
@@ -151,6 +159,86 @@ namespace U5InValheim.DevTools
                 Plugin.Log.LogInfo($"townsfolk self-test alarm t={i + 1}s: {string.Join(", ", duties)}; {monster} {(m != null ? $"{m.GetHealth():0} hp, after {(aim != null ? aim.m_name : "nobody")}" : "gone")}{(hurt.Any() ? $"; hurt: {string.Join(" ", hurt)}" : "")}{(fallen.Any() ? $"; fallen: {string.Join(", ", fallen)}" : "")}");
                 if (m == null && all.All(f => f.Duty == Duty.None)) break;
             }
+        }
+
+        /// <summary>
+        /// Lord British's ballistas against an orc outside the walls; a player (a stand-in body)
+        /// wanted there, then fighting the guards; the jail of Yew.
+        /// </summary>
+        IEnumerator Crimes()
+        {
+            var castle = Settlements.Get(17);
+            if (castle == null) { Plugin.Log.LogWarning("townsfolk self-test crime: the castle is not built"); yield break; }
+            yield return Generate(castle.Origin);
+            yield return new WaitForSeconds(3f);
+            var ballistas = FindObjectsByType<TownBallista>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, castle.Origin) < 60f).ToList();
+            Plugin.Log.LogInfo($"townsfolk self-test ballista: {ballistas.Count} ballistas at the castle");
+            // the one facing south over the gate: an orc 20 m in front of it, outside the walls
+            var gate = ballistas.OrderBy(t => (t.transform.position - castle.Origin).z).FirstOrDefault();
+            if (gate != null)
+            {
+                var at = gate.transform.position + gate.transform.forward * 22f;
+                at.y = ZoneSystem.instance.GetGroundHeight(at) + 0.2f;
+                var orc = UltimaCreatures.Spawn(32, at, false);
+                var t0 = Time.time;
+                bool dead = false;
+                orc.m_onDeath += () => { dead = true; Plugin.Log.LogInfo($"townsfolk self-test ballista: the orc died at {Time.time - t0:0.0}s"); };
+                Plugin.Log.LogInfo($"townsfolk self-test ballista: an orc ({orc.GetMaxHealth():0} hp) {Vector3.Distance(at, gate.transform.position):0} m before the ballista at {gate.transform.position - castle.Origin}, facing {gate.transform.forward}");
+                for (int i = 0; i < 30 && !dead; i++)
+                {
+                    yield return new WaitForSeconds(1f);
+                    var crew = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Duty == Duty.Operate).ToList();
+                    foreach (var bt in ballistas.Where(x => HarmonyLib.Traverse.Create(x).Field("target").GetValue<Character>() != null))
+                    {
+                        var tt = HarmonyLib.Traverse.Create(bt.GetComponent<Turret>());
+                        Plugin.Log.LogInfo($"townsfolk self-test ballista at {bt.transform.position - castle.Origin}: turret target {tt.Field("m_target").GetValue<Character>()?.m_name ?? "none"}, aim {tt.Field("m_aimDiffToTarget").GetValue<float>():0.00}, cooling {bt.GetComponent<Turret>().IsCoolingDown()}, manned {HarmonyLib.Traverse.Create(bt).Property("Manned").GetValue<bool>()}");
+                    }
+                    Plugin.Log.LogInfo($"townsfolk self-test ballista t={i + 1}s: crew {crew.Count}{string.Join("", crew.Select(c => $" ({Vector3.Distance(c.transform.position, gate.transform.position):0.0} m from it)"))}; orc {(orc != null ? $"{orc.GetHealth():0} hp at {Vector3.Distance(orc.transform.position, gate.transform.position):0} m" : "gone")}");
+                }
+                for (int i = 0; i < 20; i++) yield return new WaitForSeconds(1f);
+                Plugin.Log.LogInfo($"townsfolk self-test ballista: crew after the fight {FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Count(n => n.Duty == Duty.Operate)}");
+            }
+            // a stand-in player in the courtyard, wanted: two guards come to arrest them
+            var body = Instantiate(ZNetScene.instance.GetPrefab("Player"), castle.Origin + new Vector3(0, 0.3f, -6f), Quaternion.identity).GetComponent<Player>();
+            // (a body, not a player: an owner destroys every Player but its local one, and a server has no camera)
+            body.enabled = false;
+            var zdo = body.GetComponent<ZNetView>().GetZDO();
+            zdo.Set("u5_wanted", 17);
+            yield return new WaitForSeconds(1f);
+            var cf = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 17).ToList();
+            Plugin.Log.LogInfo($"townsfolk self-test arrest: wanted {Crime.WantedBy(body)}, players {Player.GetAllPlayers().Count}, castle folk {cf.Count} (owned {cf.Count(n => n.IsOwned)}, guards {cf.Count(n => n.IsGuard)}, duties {string.Join(",", cf.Select(n => n.Duty))}), body at {body.transform.position - castle.Origin}");
+            for (int i = 0; i < 25; i++)
+            {
+                yield return new WaitForSeconds(1f);
+                var coming = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Duty == Duty.Arrest).ToList();
+                Plugin.Log.LogInfo($"townsfolk self-test arrest t={i + 1}s: {coming.Count} guards coming, nearest {(coming.Count > 0 ? coming.Min(n => Vector3.Distance(n.transform.position, body.transform.position)) : -1):0.0} m");
+                if (coming.Any(n => Vector3.Distance(n.transform.position, body.transform.position) <= Crime.Reach)) { Plugin.Log.LogInfo($"townsfolk self-test arrest: a guard reached them at {i + 1}s"); break; }
+            }
+            Plugin.Log.LogInfo($"townsfolk self-test arrest: challenge \"{Crime.Challenge.Replace("\n", " ")}\"");
+            // they would not come quietly: the guards fight them
+            zdo.Set("u5_wanted", 0);
+            zdo.Set("u5_hostile", 17);
+            float hp0 = body.GetHealth();
+            var aGuard = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).First(n => n.IsGuard && n.Location == 17 && !n.IsReinforcement).GetComponent<Character>();
+            Plugin.Log.LogInfo($"townsfolk self-test rogue: hostile {Crime.HostileTo(body)}, a guard and they are enemies: {BaseAI.IsEnemy(aGuard, body)} / {BaseAI.IsEnemy(body, aGuard)}");
+            for (int i = 0; i < 20; i++)
+            {
+                yield return new WaitForSeconds(1f);
+                var fighting = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Count(n => n.Duty == Duty.Fight);
+                Plugin.Log.LogInfo($"townsfolk self-test rogue t={i + 1}s: {fighting} guards fighting, health {body.GetHealth():0}/{hp0:0}");
+                if (body.GetHealth() < hp0) { Plugin.Log.LogInfo($"townsfolk self-test rogue: a guard's blow landed at {i + 1}s"); break; }
+            }
+            zdo.Set("u5_hostile", 0);
+            ZNetScene.instance.Destroy(body.gameObject);
+            // the jail of Yew
+            var yew = Settlements.Get(Crime.JailLocation);
+            if (yew == null) { Plugin.Log.LogWarning("townsfolk self-test jail: Yew is not built"); yield break; }
+            yield return Generate(yew.Origin);
+            var (jx, jy, jz) = yew.Plan.TilePos(0, Crime.JailY * SettlementPlan.Size + Crime.JailX);
+            var cell = yew.Origin + new Vector3(jx, jy, jz);
+            bool floor = Physics.Raycast(cell + Vector3.up * 1.5f, Vector3.down, out var hit, 5f);
+            var walls = new[] { Vector3.forward, Vector3.back, Vector3.left, Vector3.right }.Select(d => Physics.Raycast(cell + Vector3.up * 1.2f, d, out var w, 6f) ? $"{w.distance:0.0}m {w.collider.name}" : "open");
+            Plugin.Log.LogInfo($"townsfolk self-test jail: Yew's cell at {cell} ({yew.Location.Name}, {FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Count(n => n.Location == 4)} townsfolk); floor {(floor ? $"{hit.collider.name} at {hit.point.y - cell.y:0.00}" : "none")}; walls N S W E: {string.Join(", ", walls)}");
         }
 
         static string Name(int hash) => hash == 0 ? "-" : ObjectDB.instance?.GetItemPrefab(hash)?.name ?? ZNetScene.instance?.GetPrefab(hash)?.name ?? hash.ToString();

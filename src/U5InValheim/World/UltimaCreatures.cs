@@ -181,6 +181,8 @@ namespace U5InValheim.WorldGen
             bool ultimaDefender = defender != null || (player != null && Britannia.Active != null);
             bool ultimaAttacker = attacker != null || (striker != null && Britannia.Active != null);
             if (!ultimaDefender || !ultimaAttacker) return;
+            // a ballista's bolt is the cannon's, whoever fired it (Ballistas.BoltDamage)
+            if (hit.m_hitType == HitData.HitType.Turret) return;
             float poison = hit.m_damage.m_poison;
             int damage = attacker != null ? attacker.Damage : AvatarStats.WeaponAttack(striker);
             int armour = defender != null ? defender.Armour : AvatarStats.Defence(player);

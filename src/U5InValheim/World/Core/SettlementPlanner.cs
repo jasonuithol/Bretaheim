@@ -1078,6 +1078,8 @@ namespace U5InValheim.WorldGen.Core
             {
                 if (lv.Rule[c].Kind != TileKind.Battlement || !lv.Built[c]) continue;
                 int x = c % N, ty = c / N, raw = lv.Raw[c];
+                // a cannon's (ballista's) firing port: the walk it faces has no parapet, so it sees the ground
+                if (CannonFacing(lv, x, ty)) continue;
                 bool nsWalk = raw == 0x50 || raw == 0x56, ewWalk = raw == 0x51 || raw == 0x57;
                 float cx = CellX(p, c), cz = CellZ(p, c);
                 var sides = new List<(float dx, float dz)>();
@@ -1107,6 +1109,18 @@ namespace U5InValheim.WorldGen.Core
                 foreach (var (qx, qz) in cells)
                     if (!done.Contains((qx, qz))) ctx.Centre(style.BrickSmall, cx + qx * 0.5f, y + 0.5f, cz + qz * 0.5f, 0);
             }
+        }
+
+        /// <summary>A cannon (0xb4..0xb7: facing N, E, S, W) on a tile next to this one faces it.</summary>
+        static bool CannonFacing(Level lv, int x, int y)
+        {
+            foreach (var (dx, dy, facing) in new[] { (0, 1, 0), (-1, 0, 1), (0, -1, 2), (1, 0, 3) })
+            {
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+                if (lv.Raw[ny * N + nx] == 0xb4 + facing) return true;
+            }
+            return false;
         }
 
         /// <summary>A settlement's map read with its tile substitutions (town_tiles.json tile_as: Lord British's roof strips of 0xfe are roof).</summary>

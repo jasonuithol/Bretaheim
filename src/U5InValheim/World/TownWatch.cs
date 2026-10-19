@@ -7,8 +7,8 @@ using UnityEngine;
 
 namespace U5InValheim.WorldGen
 {
-    /// <summary>What a townsperson is doing about a monster in town.</summary>
-    public enum Duty { None, Messenger, Hide, Recruit, Fight, Leave }
+    /// <summary>What a townsperson is doing about a monster (or a criminal) in town.</summary>
+    public enum Duty { None, Messenger, Hide, Recruit, Fight, Leave, Operate, Arrest }
 
     /// <summary>
     /// A town under attack (per settlement, on the peer that moves its townsfolk). A monster in
@@ -54,6 +54,7 @@ namespace U5InValheim.WorldGen
             var mine = folk.Where(f => f.IsOwned).ToList();
             if (mine.Count == 0) return;
             Scan();
+            Arrests(mine);
             if (threats.Count == 0)
             {
                 if (Alarmed)
@@ -173,10 +174,47 @@ namespace U5InValheim.WorldGen
             {
                 if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || c.GetBaseAI() == null) continue;
                 if (someone != null ? !BaseAI.IsEnemy(c, someone) : c.GetFaction() == Character.Faction.Players) continue;
-                var local = c.transform.position - town.Origin;
-                if (Mathf.Max(Mathf.Abs(local.x), Mathf.Abs(local.z)) > town.Site.Half + Beyond || local.y < -town.Plan.BasementDepth - 2 || local.y > 3f * town.Plan.Storey) continue;
+                if (!InTown(c.transform.position)) continue;
                 threats.Add(c);
             }
+            // a player who would not come quietly is fought like a monster (raise_alarm)
+            wanted.Clear();
+            foreach (var p in Player.GetAllPlayers())
+            {
+                if (p == null || p.IsDead() || !InTown(p.transform.position)) continue;
+                if (Crime.HostileTo(p) == town.Location.Number) threats.Add(p);
+                else if (Crime.WantedBy(p) == town.Location.Number) wanted.Add(p);
+            }
+        }
+
+        bool InTown(Vector3 at)
+        {
+            var local = at - town.Origin;
+            return Mathf.Max(Mathf.Abs(local.x), Mathf.Abs(local.z)) <= town.Site.Half + Beyond && local.y >= -town.Plan.BasementDepth - 2 && local.y <= 3f * town.Plan.Storey;
+        }
+
+        readonly List<Player> wanted = new List<Player>();
+
+        /// <summary>The nearest player in town the guards want to arrest.</summary>
+        public Player WantedNear(Vector3 from) => wanted.Where(p => p != null).OrderBy(p => Vector3.Distance(p.transform.position, from)).FirstOrDefault();
+
+        /// <summary>Two guards go for each wanted player; with nobody wanted they go back to their day.</summary>
+        void Arrests(List<TownNpc> mine)
+        {
+            var guards = mine.Where(f => f.IsGuard && !f.IsDead && !f.IsReinforcement).ToList();
+            if (wanted.Count == 0)
+            {
+                foreach (var g in guards.Where(g => g.Duty == Duty.Arrest)) g.Duty = Duty.None;
+                return;
+            }
+            int going = guards.Count(g => g.Duty == Duty.Arrest);
+            foreach (var p in wanted)
+                foreach (var g in guards.Where(g => g.Duty == Duty.None).OrderBy(g => Vector3.Distance(g.transform.position, p.transform.position)).Take(Math.Max(0, 2 - going)).ToList())
+                {
+                    g.Duty = Duty.Arrest;
+                    going++;
+                    Plugin.Log.LogInfo($"{town.Location.Name}: a guard goes to arrest {p.GetPlayerName()}");
+                }
         }
 
         void LockNearestDoor(Vector3 at)
@@ -203,6 +241,7 @@ namespace U5InValheim.WorldGen
             quietSince = -1;
             foreach (var f in mine)
             {
+                if (f.Duty == Duty.Operate) continue; // (the ballista dismisses its crew)
                 f.Duty = f.IsReinforcement ? Duty.Leave : Duty.None;
                 // the standing guards are whole again for the next fight
                 if (f.IsGuard && !f.IsDead) f.Heal();

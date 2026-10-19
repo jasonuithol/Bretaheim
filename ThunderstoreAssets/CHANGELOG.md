@@ -39,6 +39,12 @@ Britain, Lord British's castle and Iolo's hut):
 - Townsfolk are real creatures: monsters hunt them, guards fight with their weapons (and throw
   their spears), the fallen are back the next morning; players cannot hurt them.
 - New Avatars arrive in Britannia with 150 gold.
+- Cannons are ballistas with an open firing port in the parapet. One that sees a monster is
+  manned by a guard who appears behind it and fires explosive bolts until it is dead.
+- Firing a ballista yourself (E) is a crime ("BOOOM!"): the guards come to arrest you. Come
+  quietly and you wake in the jail of Yew at 8 o'clock; refuse and they fight you (and you may
+  fight back). Leaving the settlement ends it.
+- Yew is built.
 - Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at
   the original prices in Valheim's trade window; armourers buy your arms; healers heal and cure. Guards run down and kill
   monsters that come into town.

@@ -54,6 +54,20 @@ namespace U5InValheim.WorldGen
             Refresh();
         }
 
+        /// <summary>A guard come to arrest the player (TOWN guard_arrest): "Wilt thou come quietly?" Yes or No.</summary>
+        public static void OpenArrest(TownNpc guard)
+        {
+            if (!Start(guard, guard.GetHoverName())) return;
+            session = null;
+            Show(Crime.Challenge);
+            SetButtons(("Yes", () => { SetButtons(); Crime.Answer(true, guard); }),
+                ("No", () => { SetButtons(("Bye", () => Close())); Crime.Answer(false, guard); }));
+            Refresh();
+        }
+
+        /// <summary>Words from the game (not the townsperson's conversation) in the open panel.</summary>
+        public static void Tell(string text) { if (IsOpen) Show(text); }
+
         /// <summary>A shop visit (SHOPPES*.OVL): the keeper's greeting, then Buy (Valheim's trade window with the shop's stock), the healer's services, Bye (their farewell).</summary>
         public static void OpenShop(TownNpc who, ShopInfo shop)
         {

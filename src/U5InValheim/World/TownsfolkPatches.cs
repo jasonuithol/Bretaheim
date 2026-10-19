@@ -18,6 +18,8 @@ namespace U5InValheim.WorldGen
         public static void Register(Character c, TownNpc npc) { if (c != null) folk[c] = npc; }
         public static void Unregister(Character c) { if (c != null) folk.Remove(c); }
         static TownNpc Of(Character c) => c != null && folk.TryGetValue(c, out var npc) ? npc : null;
+        /// <summary>The townsperson of a creature, or null.</summary>
+        public static TownNpc NpcOf(Character c) => Of(c);
 
         public static void Install(Harmony harmony)
         {
@@ -55,7 +57,8 @@ namespace U5InValheim.WorldGen
         {
             var npc = Of(__instance);
             if (npc == null) return true;
-            if (hit.GetAttacker() is Player) return false;
+            // players cannot hurt townsfolk, but for the guards they would not come quietly with
+            if (hit.GetAttacker() is Player p && !(npc.IsGuard && Crime.HostileTo(p) == npc.Location)) return false;
             if (Plugin.SelfTest.Value) Plugin.Log.LogInfo($"townsfolk self-test blow: {npc.GetHoverName()} hit by {hit.GetAttacker()?.m_name ?? "?"} for {hit.GetTotalDamage():0.0} (health {__instance.GetHealth():0})");
             return true;
         }

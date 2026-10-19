@@ -77,6 +77,8 @@ namespace U5InValheim.WorldGen
                 fire.m_infiniteFuel = true;
                 if (zdo.IsOwner() && zdo.GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel) zdo.Set(ZDOVars.s_fuel, fire.m_maxFuel);
             }
+            // the town's cannons are ballistas that man themselves against monsters
+            if (__instance.GetComponent<Turret>() != null && __instance.GetComponent<TownBallista>() == null) __instance.gameObject.AddComponent<TownBallista>();
             var target = zdo.GetVec3(Settlements.ClimbKey, Vector3.zero);
             if (target != Vector3.zero)
             {

@@ -153,6 +153,29 @@ namespace U5InValheim.WorldGen
             }
         }
 
+        /// <summary>A guard appearing at a ballista to man it (gone again when it is done).</summary>
+        public static TownNpc SpawnCrew(Settlements.Built b, Vector3 at, float yaw, TownBallista ballista)
+        {
+            var prefab = ZNetScene.instance.GetPrefab(PrefabName);
+            var guard = GuardOf(b.Location);
+            if (prefab == null || guard == null) return null;
+            var go = Object.Instantiate(prefab, at, Quaternion.Euler(0, yaw, 0));
+            var zdo = go.GetComponent<ZNetView>().GetZDO();
+            zdo.Set(LocKey, b.Location.Number);
+            zdo.Set(SlotKey, guard.Slot);
+            zdo.Set(FloorKey, Mathf.Max(0, Mathf.RoundToInt((at.y - b.Origin.y) / b.Plan.Storey)));
+            zdo.Set(TempKey, true);
+            zdo.Set(FromKey, b.Location.Number);
+            zdo.Set(FromSlotKey, guard.Slot);
+            Dress(zdo, b.Location, guard);
+            var npc = go.GetComponent<TownNpc>();
+            npc.Init();
+            npc.Crew(ballista);
+            var fx = ZNetScene.instance.GetPrefab("fx_summon_spirit_spawn");
+            if (fx != null) Object.Instantiate(fx, at, Quaternion.identity);
+            return npc;
+        }
+
         static readonly Vector3[] Skins = { new Vector3(1f, 1f, 1f), new Vector3(0.9f, 0.82f, 0.75f), new Vector3(0.75f, 0.62f, 0.5f), new Vector3(0.55f, 0.42f, 0.32f), new Vector3(0.38f, 0.28f, 0.2f) };
         static readonly Vector3[] Hairs = { new Vector3(0.15f, 0.1f, 0.07f), new Vector3(0.35f, 0.22f, 0.12f), new Vector3(0.6f, 0.45f, 0.25f), new Vector3(0.85f, 0.7f, 0.45f), new Vector3(0.5f, 0.2f, 0.1f), new Vector3(0.6f, 0.6f, 0.6f), new Vector3(0.05f, 0.05f, 0.05f) };
 
@@ -258,6 +281,7 @@ namespace U5InValheim.WorldGen
         }
 
         public int Location => home?.Location.Number ?? 0;
+        public Settlements.Built Home => home;
         public int Slot => npc?.Slot ?? 0;
         /// <summary>Their conversation (.TLK), or null for shopkeepers, guards and the silent.</summary>
         public TlkScript Script => npc != null ? Plugin.U5.ScriptOf(home.Location, npc) : null;
@@ -301,7 +325,7 @@ namespace U5InValheim.WorldGen
             {
                 if (duty == value) return;
                 duty = value;
-                if (walker != null && (value == Duty.None || value == Duty.Fight)) walker.StopChase();
+                if (walker != null && (value == Duty.None || value == Duty.Fight || value == Duty.Arrest)) walker.StopChase();
             }
         }
         Duty duty;
@@ -660,6 +684,15 @@ namespace U5InValheim.WorldGen
                 case Duty.Fight:
                     Guard();
                     break;
+                case Duty.Arrest:
+                    Arrest();
+                    break;
+                case Duty.Operate:
+                    // at the ballista, facing where it shoots; gone with it
+                    if (operating == null) { ZNetScene.instance.Destroy(gameObject); return; }
+                    Steer(Vector3.zero);
+                    human.SetLookDir(operating.transform.forward);
+                    break;
                 case Duty.Leave:
                     // out by the nearest edge (chosen once: two as near would have them dither)
                     if (leaveBy < 0)
@@ -737,6 +770,42 @@ namespace U5InValheim.WorldGen
             human.SetWalk(false);
             human.SetRun(dir != Vector3.zero);
             Doors(dir);
+        }
+
+        TownBallista operating;
+
+        /// <summary>Manning a ballista (a guard who appeared behind it).</summary>
+        public void Crew(TownBallista ballista)
+        {
+            operating = ballista;
+            duty = Duty.Operate;
+        }
+
+        /// <summary>
+        /// Going to arrest a wanted player (TOWN guard_arrest): runs them down like a monster but
+        /// only stands before them; the player is asked to come quietly when one reaches them
+        /// (<see cref="Crime"/>).
+        /// </summary>
+        void Arrest()
+        {
+            var who = home.Watch.WantedNear(transform.position);
+            if (who == null) { walker.Halt(); return; }
+            var to = who.transform.position - transform.position;
+            to.y = 0;
+            if (to.magnitude > Crime.Reach * 0.7f)
+            {
+                if (to.magnitude < 6f && InSight(who))
+                {
+                    Steer(to.normalized);
+                    human.SetLookDir(to.normalized);
+                    return;
+                }
+                var local = who.transform.position - home.Origin;
+                walker.Chase(Mathf.Max(0, Mathf.RoundToInt(local.y / home.Plan.Storey)), home.Plan.CellAt(local.x, local.z));
+                return;
+            }
+            Steer(Vector3.zero);
+            human.SetLookDir(to.normalized);
         }
 
         /// <summary>Their weapon throws (a spear's secondary attack is its throw).</summary>
