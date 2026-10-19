@@ -27,6 +27,8 @@ namespace U5InValheim.WorldGen
         static TownNpc npc;
         static TalkSession session;
         static readonly List<string> lines = new List<string>();
+        /// <summary>The last line shown is a prompt waiting for its answer.</summary>
+        static bool openLine;
         static int openedFrame;
 
         public static bool IsOpen => panel != null && panel.activeSelf;
@@ -134,6 +136,7 @@ namespace U5InValheim.WorldGen
             npc = who;
             visit = null;
             lines.Clear();
+            openLine = false;
             title.text = heading;
             panel.SetActive(true);
             openedFrame = Time.frameCount;
@@ -196,10 +199,21 @@ namespace U5InValheim.WorldGen
             if (string.IsNullOrEmpty(text)) return;
             text = text.Replace("\r", "");
             while (text.Contains("\n\n\n")) text = text.Replace("\n\n\n", "\n\n");
-            lines.AddRange(text.Split('\n'));
+            var added = text.Split('\n');
+            // the player's answer follows the prompt's colon on its line (the prompt ends without a newline)
+            int from = 0;
+            if (lines.Count > 0 && openLine) lines[lines.Count - 1] += added[from++];
+            openLine = session != null && session.Waiting && !text.EndsWith("\n");
+            for (int i = from; i < added.Length; i++) lines.Add(added[i]);
             while (lines.Count > 0 && lines[lines.Count - 1].Length == 0 && lines.Count > LogLines) lines.RemoveAt(lines.Count - 1);
             if (lines.Count > LogLines) lines.RemoveRange(0, lines.Count - LogLines);
+            // from the top; the oldest lines go when the newest would not fit (long lines wrap)
             log.text = string.Join("\n", lines);
+            while (lines.Count > 1 && log.preferredHeight > log.rectTransform.rect.height)
+            {
+                lines.RemoveAt(0);
+                log.text = string.Join("\n", lines);
+            }
             // the newest words of the townsperson over their head
             var said = LastQuote(text);
             if (said != null && npc != null && Chat.instance != null)
@@ -240,7 +254,7 @@ namespace U5InValheim.WorldGen
             title = g.CreateText("", panel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -30), g.AveriaSerifBold, 26, g.ValheimOrange, true, Color.black, 620, 40, false).GetComponent<Text>();
             title.alignment = TextAnchor.MiddleCenter;
             log = g.CreateText("", panel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -250), g.AveriaSerifBold, 17, Color.white, true, Color.black, 620, 380, false).GetComponent<Text>();
-            log.alignment = TextAnchor.LowerLeft;
+            log.alignment = TextAnchor.UpperLeft;
             log.verticalOverflow = VerticalWrapMode.Truncate;
             log.horizontalOverflow = HorizontalWrapMode.Wrap;
             prompt = g.CreateText("", panel.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(110, 85), g.AveriaSerifBold, 17, g.ValheimOrange, true, Color.black, 180, 30, false).GetComponent<Text>();

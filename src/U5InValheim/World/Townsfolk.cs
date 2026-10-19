@@ -809,9 +809,7 @@ namespace U5InValheim.WorldGen
 
         public string GetHoverText()
         {
-            // a hurt townsperson shows how hurt
-            string name = Health < MaxHealth ? $"{label} ({Mathf.CeilToInt(Health / Ultima.Scale)}/{Mathf.CeilToInt(MaxHealth / Ultima.Scale)})" : label;
-            return Asleep ? $"{name} (asleep)" : Localization.instance.Localize($"{name}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
+            return Asleep ? $"{label} (asleep)" : Localization.instance.Localize($"{label}\n[<color=yellow><b>$KEY_Use</b></color>] Talk");
         }
         public string GetHoverName() => label;
         public float GetHoverOffset() => 0f;
