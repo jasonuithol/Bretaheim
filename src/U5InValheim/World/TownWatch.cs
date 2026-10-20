@@ -77,7 +77,8 @@ namespace U5InValheim.WorldGen
             {
                 // the first to see it runs for a guard; everyone else runs home
                 var villagers = mine.Where(f => !f.IsGuard && !f.IsDead).ToList();
-                var spotter = villagers.Where(v => threats.Any(t => Vector3.Distance(t.transform.position, v.transform.position) < Sees))
+                // (prisoners can't get out of their cells to tell anyone)
+                var spotter = villagers.Where(v => !v.IsPrisoner && threats.Any(t => Vector3.Distance(t.transform.position, v.transform.position) < Sees))
                     .OrderBy(v => threats.Min(t => Vector3.Distance(t.transform.position, v.transform.position))).FirstOrDefault();
                 if (spotter == null && !guards.Any(g => g.Duty == Duty.Fight)) return; // nobody has seen it yet
                 since = Time.time;

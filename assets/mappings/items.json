@@ -98,7 +98,7 @@
     { "u5": "Sceptre of Lord British", "prefab": "MaceBronze",     "status": "reshade", "tint": "#d4af37" },
     { "u5": "Amulet of Lord British",  "prefab": "SilverNecklace", "status": "reshade", "tint": "#d4af37", "effect": "amulet" },
     { "u5": "Moonstone",       "prefab": "Eitr",              "status": "derived", "note": "plan §5.8: refined eitr or a recolour" },
-    { "u5": "Keys",            "prefab": null,                "status": "dropped", "note": "no locked doors or chests" },
+    { "u5": "Keys",            "prefab": null,                "status": "dropped", "note": "locked doors are in (Locked! No keys!); keys and jimmying to come" },
     { "u5": "Skull Keys",      "prefab": null,                "status": "dropped", "note": "no locked doors or chests" }
   ],
   "transport": [

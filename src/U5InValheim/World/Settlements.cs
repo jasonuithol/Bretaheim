@@ -232,6 +232,8 @@ namespace U5InValheim.WorldGen
                     if (p.Lock != null) zdo.Set(LockKey, p.Lock);
                     if (p.Look != null) { zdo.Set(LookKey, p.Look); Looks.Apply(go, p.Look); }
                     if (p.StandItem != null) zdo.Set(ZDOVars.s_item, p.StandItem.GetStableHashCode());
+                    if (p.Secret != 0) zdo.Set(TownDoors.SecretKey, p.Secret);
+                    if (p.Hidden != 0) zdo.Set(TownDoors.HiddenKey, p.Hidden);
                     if (p.Text != null) zdo.Set(ZDOVars.s_text, p.Text);
                     if (p.Items != null) zdo.Set(ZDOVars.s_items, ContainerBytes(p.Items));
                     if (p.Climb)

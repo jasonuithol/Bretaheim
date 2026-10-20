@@ -44,7 +44,15 @@ Britain, Lord British's castle and Iolo's hut):
 - Firing a ballista yourself (E) is a crime ("BOOOM!"): the guards come to arrest you. Come
   quietly and you wake in the jail of Yew at 8 o'clock; refuse and they fight you (and you may
   fight back). Leaving the settlement ends it.
-- Yew is built.
+- Yew is built. Its jail: the prisoners in the cells are in rags (no guards in the cells), the
+  cell doors are locked, a secret door hides behind the cell, and trapdoors drop into the basement.
+- Locked doors stay shut for players ("Locked! No keys!"; magically locked: "Magically sealed.");
+  townsfolk have the keys.
+- Secret doors: a wall with rune-marked (blue-grey) bricks; hit it and the bricks vanish, showing
+  the door behind ("a hidden door!").
+- Trapdoors are stone floors you fall through; shackles hang chains from the ceiling; torture
+  tables carry an axe and a knife under a hanging chain; the Gypsy's sphere is a round table with a
+  Moder tear on it.
 - Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at
   the original prices in Valheim's trade window; armourers buy your arms; healers heal and cure. Guards run down and kill
   monsters that come into town.

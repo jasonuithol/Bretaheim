@@ -178,6 +178,10 @@ namespace U5InValheim.DevTools
                 bool table = Physics.RaycastAll(st.transform.position + Vector3.up * 0.3f, Vector3.down, 1f).Any(h => h.collider.GetComponentInParent<Piece>()?.name.StartsWith("piece_table_round") == true);
                 Plugin.Log.LogInfo($"townsfolk self-test sphere: stand {st.name} at {st.transform.position - castle.Origin} holds {Name(st.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_item))} (shown {(held != null ? held.name : "nothing")}), on a round table {table}, removable {st.m_canBeRemoved}");
             }
+            var chains = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => v.name.StartsWith("dvergrprops_hooknchain") && Vector3.Distance(v.transform.position, castle.Origin) < 60f).ToList();
+            Plugin.Log.LogInfo($"townsfolk self-test shackles: {chains.Count} hanging chains at the castle{string.Join("", chains.Take(3).Select(v => $"; at {v.transform.position - castle.Origin} scale {v.transform.localScale.y:0.0}, {string.Join(",", v.GetComponents<Component>().Select(c => c.GetType().Name))}"))}");
+            var onHit = HarmonyLib.AccessTools.Method(typeof(Projectile), "OnHit");
+            new HarmonyLib.Harmony("u5.selftest.bolts").Patch(onHit, prefix: new HarmonyLib.HarmonyMethod(typeof(TownsfolkSelfTest), nameof(BoltHit)));
             var ballistas = FindObjectsByType<TownBallista>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, castle.Origin) < 60f).ToList();
             Plugin.Log.LogInfo($"townsfolk self-test ballista: {ballistas.Count} ballistas at the castle");
             // the one facing south over the gate: an orc 20 m in front of it, outside the walls
@@ -246,6 +250,69 @@ namespace U5InValheim.DevTools
             bool floor = Physics.Raycast(cell + Vector3.up * 1.5f, Vector3.down, out var hit, 5f);
             var walls = new[] { Vector3.forward, Vector3.back, Vector3.left, Vector3.right }.Select(d => Physics.Raycast(cell + Vector3.up * 1.2f, d, out var w, 6f) ? $"{w.distance:0.0}m {w.collider.name}" : "open");
             Plugin.Log.LogInfo($"townsfolk self-test jail: Yew's cell at {cell} ({yew.Location.Name}, {FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Count(n => n.Location == 4)} townsfolk); floor {(floor ? $"{hit.collider.name} at {hit.point.y - cell.y:0.00}" : "none")}; walls N S W E: {string.Join(", ", walls)}");
+            yield return Jail(yew, cell);
+        }
+
+        /// <summary>Yew's jail: prisoners (not guards) in the cells, the cell door locked, the secret wall behind the cell, the trapdoor and ladders down to the basement.</summary>
+        IEnumerator Jail(Settlements.Built yew, Vector3 cell)
+        {
+            var plan = yew.Plan;
+            Vector3 At(int z, int x, int y) { var (px, py, pz) = plan.TilePos(z, y * SettlementPlan.Size + x); return yew.Origin + new Vector3(px, py, pz); }
+            yield return new WaitForSeconds(2f);
+            var cells = plan.Cells[0];
+            Plugin.Log.LogInfo($"townsfolk self-test jail: cells {cells.Count(c => c)} tiles");
+            foreach (var n in FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 4))
+            {
+                var local = n.transform.position - yew.Origin;
+                int tx = Mathf.RoundToInt((local.x + 31) / 2), ty = Mathf.RoundToInt((31 - local.z) / 2);
+                bool inCell = tx >= 0 && ty >= 0 && tx < 32 && ty < 32 && cells[ty * 32 + tx] && local.y > -1f;
+                if (!inCell && !n.IsPrisoner) continue;
+                var chest = n.GetComponent<Humanoid>().GetInventory().GetEquippedItems().Select(i => i.m_dropPrefab?.name);
+                Plugin.Log.LogInfo($"townsfolk self-test jail: {n.GetHoverName()} at tile ({tx},{ty}) in a cell {inCell}, prisoner {n.IsPrisoner}, guard {n.IsGuard}, wearing {string.Join(",", chest)}");
+            }
+            // the cell's door, shut and locked: a player can't open it
+            var doorAt = At(0, 25, 6);
+            var door = FindObjectsByType<Door>(FindObjectsSortMode.None).OrderBy(d => Vector3.Distance(d.transform.position, doorAt)).FirstOrDefault();
+            var body = Instantiate(ZNetScene.instance.GetPrefab("Player"), cell + Vector3.up * 0.3f, Quaternion.identity).GetComponent<Player>();
+            body.enabled = false;
+            if (door != null)
+            {
+                var dz = door.GetComponent<ZNetView>().GetZDO();
+                door.Interact(body, false, false);
+                yield return new WaitForSeconds(1f);
+                Plugin.Log.LogInfo($"townsfolk self-test jail: cell door {Vector3.Distance(door.transform.position, doorAt):0.0} m from (25,6), lock \"{dz.GetString(Settlements.LockKey)}\", state after a player's try {dz.GetInt(ZDOVars.s_state)}, hover \"{door.GetHoverText().Replace("\n", " ")}\" (\"{TownDoors.LockedText("key")}\")");
+            }
+            // the secret wall behind the cell (25,2): rune-marked bricks; a blow shows the door
+            var wallAt = At(0, 25, 2);
+            var secret = FindObjectsByType<WearNTear>(FindObjectsSortMode.None).Where(w => Vector3.Distance(w.transform.position, wallAt) < 3f && w.GetComponent<ZNetView>()?.GetZDO()?.GetInt(TownDoors.SecretKey) != 0).ToList();
+            var hidden = FindObjectsByType<HiddenDoor>(FindObjectsSortMode.None).Where(h => Vector3.Distance(h.transform.position, wallAt) < 3f).ToList();
+            Plugin.Log.LogInfo($"townsfolk self-test jail: secret wall at (25,2): {secret.Count} bricks ({secret.Count(w => w.GetComponent<U5Look>() != null)} rune-marked), {hidden.Count} hidden door(s), the door's collider on {hidden.Select(h => h.GetComponentsInChildren<Collider>(true).Count(c => c.enabled)).FirstOrDefault()}");
+            if (secret.Count > 0)
+            {
+                var hd = hidden.FirstOrDefault()?.gameObject;
+                // (as a blow from the local player does; a server has none)
+                int took = TownDoors.Reveal(secret[0].transform.position, secret[0].GetComponent<ZNetView>().GetZDO().GetInt(TownDoors.SecretKey));
+                yield return new WaitForSeconds(1f);
+                Plugin.Log.LogInfo($"townsfolk self-test jail: the blow took {took} bricks away; {FindObjectsByType<WearNTear>(FindObjectsSortMode.None).Count(w => Vector3.Distance(w.transform.position, wallAt) < 3f && w.GetComponent<ZNetView>()?.GetZDO()?.GetInt(TownDoors.SecretKey) != 0)} left; the door shown {(hd != null && hd.GetComponent<HiddenDoor>() == null && hd.GetComponentsInChildren<Renderer>(true).Any(r => r.enabled))}; a way through at 1.5 m: {!Physics.Raycast(At(0, 25, 3) + Vector3.up * 0.8f, Vector3.forward, 4f, LayerMask.GetMask("Default", "static_solid", "piece", "terrain")) || hd != null}");
+            }
+            ZNetScene.instance.Destroy(body.gameObject);
+            // the trapdoor in the hall (25,8) and the corridor's (20,1): a player falls through to the basement
+            var solid = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain");
+            foreach (var (x, y) in new[] { (25, 8), (20, 1), (24, 8) })
+            {
+                var top = At(0, x, y) + Vector3.up * 2f;
+                bool land = Physics.Raycast(top, Vector3.down, out var h, 12f, solid);
+                Plugin.Log.LogInfo($"townsfolk self-test jail: falling at ({x},{y}) lands on {(land ? $"{h.collider.name} {h.point.y - yew.Origin.y:0.0} m" : "nothing")}");
+            }
+            foreach (var cp in FindObjectsByType<ClimbPoint>(FindObjectsSortMode.None).Where(c => Vector3.Distance(c.transform.position, yew.Origin) < 50f))
+                Plugin.Log.LogInfo($"townsfolk self-test jail: ladder at {cp.transform.position - yew.Origin} ({cp.Verb}) to {cp.Target - yew.Origin}");
+        }
+
+        static void BoltHit(Projectile __instance, Collider collider, Vector3 hitPoint)
+        {
+            if (!__instance.name.StartsWith(Ballistas.ProjectileName)) return;
+            var castle = Settlements.Get(17);
+            Plugin.Log.LogInfo($"townsfolk self-test bolt hit {(collider != null ? collider.name + " of " + collider.transform.root.name : "nothing")} at {hitPoint - (castle?.Origin ?? Vector3.zero)}");
         }
 
         static string Name(int hash) => hash == 0 ? "-" : ObjectDB.instance?.GetItemPrefab(hash)?.name ?? ZNetScene.instance?.GetPrefab(hash)?.name ?? hash.ToString();

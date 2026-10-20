@@ -79,6 +79,8 @@ namespace U5InValheim.WorldGen
             }
             // the town's cannons are ballistas that man themselves against monsters
             if (__instance.GetComponent<Turret>() != null && __instance.GetComponent<TownBallista>() == null) __instance.gameObject.AddComponent<TownBallista>();
+            // the door behind a secret wall, unseen until the wall is hit
+            if (zdo.GetInt(TownDoors.HiddenKey) != 0 && __instance.GetComponent<HiddenDoor>() == null) __instance.gameObject.AddComponent<HiddenDoor>();
             var target = zdo.GetVec3(Settlements.ClimbKey, Vector3.zero);
             if (target != Vector3.zero)
             {

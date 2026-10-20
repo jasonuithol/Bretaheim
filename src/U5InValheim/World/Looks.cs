@@ -28,6 +28,7 @@ namespace U5InValheim.WorldGen
                 case "white_marble": Whiten(go.transform); break;
                 case "fountain": Fountain(go); break;
                 case "passable": Passable(go); break;
+                case "rune": Rune(go); break;
                 default:
                     if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
                     else if (look.StartsWith("drawbridge:")) Drawbridge.Add(go, look.Substring(11));
@@ -44,6 +45,39 @@ namespace U5InValheim.WorldGen
         {
             int layer = LayerMask.NameToLayer("piece_nonsolid");
             foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.gameObject.layer = layer;
+        }
+
+        static readonly Color RuneTint = new Color(0.62f, 0.68f, 0.85f);
+        static readonly Dictionary<Material, Material> runed = new Dictionary<Material, Material>();
+
+        /// <summary>
+        /// The clue on a secret wall (Constructing world assets 78): its middle bricks are a cold,
+        /// bluish grey and glow faintly, as if a rune were cut into them.
+        /// </summary>
+        static void Rune(GameObject go)
+        {
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null) continue;
+                    if (!runed.TryGetValue(m, out var copy))
+                    {
+                        copy = new Material(m) { name = m.name + " (rune)" };
+                        if (copy.HasProperty("_Color")) copy.SetColor("_Color", copy.GetColor("_Color") * RuneTint);
+                        if (copy.HasProperty("_EmissionColor"))
+                        {
+                            copy.EnableKeyword("_EMISSION");
+                            copy.SetColor("_EmissionColor", new Color(0.05f, 0.09f, 0.22f));
+                        }
+                        runed[m] = copy;
+                    }
+                    mats[i] = copy;
+                }
+                r.sharedMaterials = mats;
+            }
         }
 
         /// <summary>

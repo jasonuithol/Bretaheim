@@ -45,6 +45,8 @@ namespace U5InValheim.WorldGen.Core
         public float? WallSide;
         /// <summary>A wall hiding a secret door (revealed later, MASTER_PLAN §5.2).</summary>
         public bool Secret;
+        /// <summary>A trapdoor (0x8c): a stone floor with no collision, dropping whoever steps on it to the storey below.</summary>
+        public bool Trapdoor;
         /// <summary>Yaw in degrees the piece faces (n 0, e 90, s 180, w 270).</summary>
         public float Yaw;
         public WallBuild Build;
@@ -167,6 +169,7 @@ namespace U5InValheim.WorldGen.Core
                     Lock = Json.Str(o, "lock"),
                     Merlons = !o.ContainsKey("merlons") || Json.Bool(o, "merlons"),
                     Secret = Json.Bool(o, "secret"),
+                    Trapdoor = Json.Bool(o, "trapdoor"),
                     Candles = Json.Get(o, "candles") is double candles ? (int)candles : 0,
                     SignPost = Json.Str(o, "signpost"),
                     River = Json.Bool(o, "river"),

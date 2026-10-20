@@ -200,9 +200,22 @@ namespace U5InValheim.WorldGen
             }
         }
 
+        /// <summary>A prisoner: every place of their day is in a jail cell (SettlementPlan.Cells).</summary>
+        public static bool Prisoner(Data.Location loc, SettlementNpc npc)
+        {
+            var plan = loc != null ? Settlements.Get(loc.Number)?.Plan : null;
+            if (plan == null || npc?.Schedule == null) return false;
+            var s = npc.Schedule;
+            for (int i = 0; i < 3; i++)
+                if (!plan.Cells.TryGetValue(s.Z[i], out var cells) || !cells[s.Y[i] * SettlementPlan.Size + s.X[i]]) return false;
+            return true;
+        }
+
         /// <summary>What a person wears and carries (npcs.json), fixed per person: equipped for real, so armour protects and weapons strike.</summary>
         public static List<string> Outfit(Data.Location loc, SettlementNpc npc)
         {
+            // prisoners have been stripped of their arms and armour
+            if (Prisoner(loc, npc)) return new List<string> { "ArmorRagsChest", "ArmorRagsLegs" };
             var look = LookOf(npc.CreatureType);
             uint h = Seed(loc, npc);
             int model = Pick(h, 2, 1);
@@ -337,6 +350,7 @@ namespace U5InValheim.WorldGen
         public int Floor => walker?.Floor ?? nview.GetZDO()?.GetInt(TownsfolkSpawner.FloorKey) ?? 0;
         public int Cell => walker?.Cell ?? 0;
         /// <summary>Gone home to hide (and arrived).</summary>
+        public bool IsPrisoner => npc != null && home != null && TownsfolkSpawner.Prisoner(home.Location, npc);
         public bool Hidden => duty == Duty.Hide && walker != null && walker.Arrived;
         public float Health => human != null ? human.GetHealth() : 0f;
         public float MaxHealth => human != null ? human.GetMaxHealth() : 1f;

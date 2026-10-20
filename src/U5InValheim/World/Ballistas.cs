@@ -200,12 +200,19 @@ namespace U5InValheim.WorldGen
                 if (d >= bestD) continue;
                 var flat = new Vector3(to.x, 0, to.z);
                 if (Vector3.Angle(transform.forward, flat) > Arc) continue;
-                // (from just ahead of its own frame)
-                if (Physics.Linecast(eye + to.normalized * 1.5f, c.GetCenterPoint(), SightMask)) continue;
+                // (from its eye, so the merlons beside its firing port block the view; not its own frame)
+                if (Blocked(eye, c.GetCenterPoint())) continue;
                 best = c;
                 bestD = d;
             }
             return best;
+        }
+
+        bool Blocked(Vector3 from, Vector3 to)
+        {
+            foreach (var h in Physics.RaycastAll(from, to - from, Vector3.Distance(from, to), SightMask))
+                if (!h.collider.transform.IsChildOf(transform)) return true;
+            return false;
         }
 
         /// <summary>Turret.UpdateTarget's place: the spotted monster while manned, else nothing.</summary>

@@ -171,6 +171,7 @@
   "darkwood_wolf": {"snap": [[0, 0, 0]], "min": [-0.414, -0.561, 0], "max": [0.414, 1.23, 2.179], "category": "Misc", "material": "Wood"},
   "DeerStew": {"snap": [], "min": [-0.25, -50.314, -0.253], "max": [0.423, 0.15, 0.275], "category": "Feasts", "material": "Wood"},
   "dverger_guardstone": {"snap": [], "min": [-0.515, -0.002, -0.376], "max": [0.516, 1.611, 0.409], "category": "Misc", "material": "Stone"},
+  "dvergrprops_hooknchain": {"snap": [], "min": [-0.3, -2.266, -0.904], "max": [0.3, 2.5, 0.581], "material": "Iron"},
   "dvergrprops_wood_floor": {"snap": [[1, 0, -1], [-1, 0, -1], [1, 0, 1], [-1, 0, 1]], "min": [-1.01, -0.033, -1.015], "max": [0.99, 0.097, 0.985], "category": "BuildingWorkbench", "material": "Wood"},
   "dvergrprops_wood_stair": {"snap": [[-1, 0, 1], [-1, 1, -1], [1, 1, -1], [1, 0, 1]], "min": [-1, -0.073, -1.024], "max": [1, 1.048, 1.005], "category": "BuildingWorkbench", "material": "Wood"},
   "eitrrefinery": {"snap": [], "min": [-2.797, 0.032, -1.637], "max": [2.797, 4.359, 1.464], "category": "Crafting", "material": "Wood"},

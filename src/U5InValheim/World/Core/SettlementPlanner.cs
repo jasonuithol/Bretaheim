@@ -37,6 +37,10 @@ namespace U5InValheim.WorldGen.Core
         public string Look;
         /// <summary>Item stands: the item (prefab name) shown on it, or null.</summary>
         public string StandItem;
+        /// <summary>A brick of a wall hiding a secret door: its group (the tile's, per storey), or 0. Hitting one takes the group's bricks away.</summary>
+        public int Secret;
+        /// <summary>The door behind a secret wall: hidden until that wall (the same group) is hit, or 0.</summary>
+        public int Hidden;
 
         public override string ToString() => $"{Prefab} ({X:0.##}, {Y:0.##}, {Z:0.##}) yaw {Yaw}";
     }
@@ -69,6 +73,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly bool[] Garden = new bool[Size * Size];
         /// <summary>Per storey (z): the tiles townsfolk walk on (cell index row-major, y south).</summary>
         public readonly Dictionary<int, bool[]> Walk = new Dictionary<int, bool[]>();
+        /// <summary>Per storey: jail cells, rooms whose only ways out are locked doors and secret walls (their townsfolk are prisoners).</summary>
+        public readonly Dictionary<int, bool[]> Cells = new Dictionary<int, bool[]>();
         /// <summary>Per storey: furniture and plants townsfolk squeeze past when there is no clear way (chairs set between tables).</summary>
         public readonly Dictionary<int, bool[]> Squeeze = new Dictionary<int, bool[]>();
         /// <summary>Ladders and stairs: from (Z, Cell) to the same cell of storey ToZ.</summary>
@@ -172,7 +178,7 @@ namespace U5InValheim.WorldGen.Core
             {
                 var lv = levels[i];
                 if (lv.Z > 0) Floors(ctx, lv, levels[i - 1], style);
-                Walls(ctx, lv, style, tiles.Cobble);
+                Walls(ctx, lv, i + 1 < levels.Count ? levels[i + 1] : null, style, tiles.Cobble);
                 Battlements(ctx, lv, style);
                 Furniture(ctx, lv, levels, biome, Cottages(lv));
                 HallwayEnds(ctx, lv);
@@ -186,6 +192,7 @@ namespace U5InValheim.WorldGen.Core
             {
                 plan.Walk[lv.Z] = NpcWalk(lv, out var squeeze);
                 plan.Squeeze[lv.Z] = squeeze;
+                plan.Cells[lv.Z] = Cells(lv);
             }
             return plan;
         }
@@ -843,6 +850,7 @@ namespace U5InValheim.WorldGen.Core
         {
             var b = levels.FirstOrDefault(l => l.Z < 0);
             if (b == null) return;
+            var ground = levels.FirstOrDefault(l => l.Z == 0);
             var p = ctx.Plan;
             for (int c = 0; c < N * N; c++)
             {
@@ -854,6 +862,8 @@ namespace U5InValheim.WorldGen.Core
                 p.GroundPaint[c] = Paint.Paved;
                 p.Water[c] = false;
                 ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
+                // a trapdoor above: the stone underfoot drops whoever steps on it into the basement
+                if (ground != null && ground.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
             }
             // the tiles round the dug ones (the basement's walls) dip to its floor at their dug
             // edges, under walls that stop at the slab: the slab covers them too
@@ -872,7 +882,9 @@ namespace U5InValheim.WorldGen.Core
                 var k = lv.Rule[c].Kind;
                 bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Walked != null && lv.Walked[c])
                                || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
-                if (floored && !Solid(below, c)) ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
+                if (!floored || Solid(below, c)) continue;
+                ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
+                if (lv.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
             }
         }
 
@@ -915,7 +927,7 @@ namespace U5InValheim.WorldGen.Core
         /// leaves (see Door); archways and doorways are open 3 m high. Openings have a lintel
         /// course of bricks on top.
         /// </summary>
-        void Walls(Ctx ctx, Level lv, TownStyle style, CobbleStyle cobble)
+        void Walls(Ctx ctx, Level lv, Level above, TownStyle style, CobbleStyle cobble)
         {
             var p = ctx.Plan;
             float y0 = p.LevelY(lv.Z);
@@ -929,19 +941,22 @@ namespace U5InValheim.WorldGen.Core
             {
                 bool Brick(int c)
                 {
-                    if (lv.Doorway[c]) return course == lintel && TallFlanks(lv, c);
+                    // (no lintel across a ladder's shaft, or under a trapdoor)
+                    if (lv.Doorway[c]) return course == lintel && TallFlanks(lv, c) && !Climbs(lv.Rule[c].Kind) && !(above != null && above.Rule[c].Trapdoor);
                     if (!lv.Built[c]) return false;
                     var r = lv.Rule[c];
                     if (r.Kind == TileKind.Wall) return r.Build == WallBuild.Brick;
                     if (r.Kind == TileKind.Window && r.Narrow) return course != 1;
                     return r.IsOpening && course == lintel;
                 }
+                // a secret wall's bricks (all but its lintel) are its own, taken away when it is hit
+                int Secret(int c) => lv.Rule[c].Kind == TileKind.Wall && lv.Rule[c].Secret && course < lintel ? SecretGroup(lv, c) : 0;
                 var used = new bool[G * G];
-                bool Cell(int gx, int gy, bool alongX)
+                bool Cell(int gx, int gy, bool alongX, int secret)
                 {
                     if (gx < 0 || gy < 0 || gx >= G || gy >= G || used[gy * G + gx]) return false;
                     int c = (gy / 2) * N + gx / 2;
-                    return Brick(c) && along[c] == alongX;
+                    return Brick(c) && along[c] == alongX && Secret(c) == secret;
                 }
                 float y = y0 + course + 0.5f;
                 for (int gy = 0; gy < G; gy++)
@@ -952,7 +967,8 @@ namespace U5InValheim.WorldGen.Core
                     bool ax = along[c];
                     // a 2 m brick starts on cells of this course's phase when the next cell is free
                     int pos = ax ? gx : gy;
-                    bool pair = (pos + course) % 2 == 0 && (ax ? Cell(gx + 1, gy, true) : Cell(gx, gy + 1, false));
+                    int secret = Secret(c);
+                    bool pair = (pos + course) % 2 == 0 && (ax ? Cell(gx + 1, gy, true, secret) : Cell(gx, gy + 1, false, secret));
                     used[gy * G + gx] = true;
                     if (pair)
                     {
@@ -960,6 +976,8 @@ namespace U5InValheim.WorldGen.Core
                         else { used[(gy + 1) * G + gx] = true; ctx.Centre(style.Brick, gx + 0.5f - N, y, N - gy - 1, 90); }
                     }
                     else ctx.Centre(style.BrickSmall, gx + 0.5f - N, y, N - gy - 0.5f, 0);
+                    // (its rune, the clue: the bricks of the middle courses are marked)
+                    if (secret != 0) ctx.Last(pl => { pl.Secret = secret; if (course == 1 || course == 2) pl.Look = "rune"; return pl; });
                 }
             }
 
@@ -993,6 +1011,14 @@ namespace U5InValheim.WorldGen.Core
                             ctx.Centre(style.Arch, cx + ox, y0 + 2.5f, cz + oz, (yaw + 180) % 360);
                         }
                         break;
+                    case TileKind.Wall when r.Secret && r.Build == WallBuild.Brick:
+                    {
+                        // the door it hides, oriented by the wall's run
+                        int group = SecretGroup(lv, c);
+                        Door(ctx, lv, style, c, along[c], y0, single: true);
+                        ctx.Last(pl => { pl.Hidden = group; return pl; });
+                        break;
+                    }
                     case TileKind.Door:
                         if (r.Gate && ctx.Known(style.Gate)) ctx.Centre(style.Gate, cx, y0 + 1.5f, cz, yaw);
                         else Door(ctx, lv, style, c, along[c], y0);
@@ -1009,12 +1035,12 @@ namespace U5InValheim.WorldGen.Core
         /// own would put a post in the middle), each hinged on the side away from the other so the
         /// pair opens from the middle.
         /// </summary>
-        static void Door(Ctx ctx, Level lv, TownStyle style, int c, bool alongX, float y0)
+        static void Door(Ctx ctx, Level lv, TownStyle style, int c, bool alongX, float y0, bool single = false)
         {
             var p = ctx.Plan;
             float cx = CellX(p, c), cz = CellZ(p, c), yaw = alongX ? 0 : 90;
             int x = c % N;
-            int partner = alongX ? (x + 1 < N && IsDoor(lv, c + 1) ? c + 1 : x > 0 && IsDoor(lv, c - 1) ? c - 1 : -1)
+            int partner = single ? -1 : alongX ? (x + 1 < N && IsDoor(lv, c + 1) ? c + 1 : x > 0 && IsDoor(lv, c - 1) ? c - 1 : -1)
                                  : (c + N < N * N && IsDoor(lv, c + N) ? c + N : c >= N && IsDoor(lv, c - N) ? c - N : -1);
             // both doors hinge on their local +x side: turn it away from the other leaf
             Ctx.Rotate(1, 0, yaw, out float ux, out float uz);
@@ -1033,6 +1059,11 @@ namespace U5InValheim.WorldGen.Core
             // the single door's leaf reaches from its pivot (the hinge) along its local −x
             ctx.Pivot(style.Door, cx + ux * p.Tile / 2, y0, cz + uz * p.Tile / 2, yaw);
         }
+
+        /// <summary>A secret wall's group: its tile on its storey (never 0).</summary>
+        static int SecretGroup(Level lv, int c) => (lv.Z + 2) * N * N + c + 1;
+
+        static bool Climbs(TileKind k) => k == TileKind.LadderUp || k == TileKind.LadderDown || k == TileKind.Stairs;
 
         static bool IsDoor(Level lv, int c) => lv.Built[c] && lv.Rule[c].Kind == TileKind.Door && !lv.Rule[c].Gate;
 
@@ -1348,6 +1379,9 @@ namespace U5InValheim.WorldGen.Core
                 }
                 switch (r.Kind)
                 {
+                    case TileKind.Ground when r.Parts != null:
+                        ctx.Parts(r.Parts, x, y, z, Hash(tx, ty, 14) % 4 * 90);
+                        break;
                     case TileKind.Prop:
                         if (r.SignPost == "post" && UnderBanner(lv, c)) break;
                         if (r.Parts != null) ctx.Parts(r.Parts, x, y, z, r.Yaw);
@@ -1469,6 +1503,43 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>
+        /// Jail cells: small rooms whose ways out (doors, secret walls; never an open doorway, a
+        /// ladder or stairs) are all locked doors or secret walls, at least one a locked door.
+        /// </summary>
+        static bool[] Cells(Level lv)
+        {
+            const int MaxTiles = 30;
+            var r = new bool[N * N];
+            var seen = new bool[N * N];
+            bool Open(int c) => !lv.Barrier[c] && lv.Rule[c] != Nothing;
+            for (int s0 = 0; s0 < N * N; s0++)
+            {
+                if (seen[s0] || !Open(s0) || !lv.Interior[s0]) continue;
+                var area = new List<int>();
+                var q = new Queue<int>();
+                q.Enqueue(s0); seen[s0] = true;
+                bool cell = true, locked = false;
+                while (q.Count > 0)
+                {
+                    int c = q.Dequeue();
+                    area.Add(c);
+                    var k = lv.Rule[c].Kind;
+                    if (!lv.Interior[c] || k == TileKind.LadderUp || k == TileKind.LadderDown || k == TileKind.Stairs) cell = false;
+                    foreach (int n in Neighbours4(c))
+                    {
+                        var rn = lv.Rule[n];
+                        if (rn.Kind == TileKind.Door) { if (rn.Lock != null) locked = true; else cell = false; }
+                        else if (rn.Kind == TileKind.Arch || (rn.IsOpening && !rn.Narrow && rn.Kind != TileKind.Window)) cell = false;
+                        if (Open(n) && !seen[n]) { seen[n] = true; q.Enqueue(n); }
+                    }
+                }
+                if (cell && locked && area.Count <= MaxTiles)
+                    foreach (int c in area) r[c] = true;
+            }
+            return r;
+        }
+
+        /// <summary>
         /// Where townsfolk walk on a storey (the original's NPC walk bitmap, from the tiles): floors,
         /// streets, crops, doors and archways, ladders, chairs and beds; not walls, windows, water
         /// (drawbridge decks are fine), trees, fences, tables or props. Upper storeys and the
@@ -1482,7 +1553,7 @@ namespace U5InValheim.WorldGen.Core
             {
                 var r = lv.Rule[c];
                 if (lv.Z != 0 && !(lv.Walked != null ? lv.Walked[c] || lv.Doorway[c] : lv.Interior[c] || lv.Doorway[c]) && r.Kind != TileKind.Door && r.Kind != TileKind.Arch) continue;
-                if (lv.Trough[c] || r.Secret) continue;
+                if (lv.Trough[c] || r.Secret || r.Trapdoor) continue;
                 switch (r.Kind)
                 {
                     case TileKind.Ground: case TileKind.Crop: case TileKind.Door: case TileKind.Arch:
