@@ -17,10 +17,10 @@ namespace U5InValheim.WorldGen
         /// <summary>
         /// Where the second head sits from the first, in the troll's own frame (x right, y up, z
         /// forward), its size, its turn outward and how far it looks up (tried in game: at 2.4 it was
-        /// three times the first head and hung its face).
+        /// three times the first head and hung its face; at 0.8 a little small).
         /// </summary>
-        static readonly Vector3 HeadOffset = new Vector3(1.0f, -0.05f, 0.1f);
-        const float HeadScale = 0.8f, HeadTurn = 15f, HeadLookUp = 40f;
+        static readonly Vector3 HeadOffset = new Vector3(1.15f, -0.05f, 0.1f);
+        const float HeadScale = 1.2f, HeadTurn = 15f, HeadLookUp = 40f;
 
         public static void Register() => PrefabManager.OnVanillaPrefabsAvailable += Create;
 
