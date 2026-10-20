@@ -39,6 +39,13 @@ namespace U5InValheim.DevTools
                 holding = false;
                 yield break;
             }
+            // U5_SELFTEST=sleep: inns and camps
+            if (only == "sleep")
+            {
+                yield return Sleeping();
+                holding = false;
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {
@@ -571,6 +578,49 @@ namespace U5InValheim.DevTools
                     Plugin.Log.LogInfo($"townsfolk self-test town: resident {c.m_name} ({Utils.GetPrefabName(r.gameObject)}) AI {r.GetComponent<ZNetView>().GetZDO().GetInt(ResidentMonster.AiKey)}, its AI on {m != null && m.enabled}, sees {(m != null ? m.m_viewRange : 0):0} m, at {r.transform.position - town.Origin}, hp {c.GetHealth():0}, target {(target != null ? target.GetHoverName() : "none")}");
                 }
             }
+        }
+
+        /// <summary>An inn's room (Britain's Wayfarer Inn) and a camp out in the wild, with a stand-in player.</summary>
+        IEnumerator Sleeping()
+        {
+            var britain = Settlements.Get(2);
+            yield return Generate(britain.Origin);
+            yield return new WaitForSeconds(3f);
+            var inn = Inns.InnOf(britain);
+            var bedAt = inn != null ? Inns.InnBedAt(britain, inn) : null;
+            var body = Instantiate(ZNetScene.instance.GetPrefab("Player"), britain.Origin + new Vector3(0, 0.3f, -6f), Quaternion.identity).GetComponent<Player>();
+            body.enabled = false;
+            var beds = FindObjectsByType<Bed>(FindObjectsSortMode.None).Where(b => Vector3.Distance(b.transform.position, britain.Origin) < 60f).ToList();
+            bool Rests(Bed b) => Inns.MayRest(body, b);
+            Plugin.Log.LogInfo($"townsfolk self-test sleep: {inn?.Name} rest {(inn != null ? Plugin.U5.Shops.InnPrice(inn, 15) : -1)} gp, its bed at {(bedAt.HasValue ? (bedAt.Value - britain.Origin).ToString() : "none")}; {beds.Count} beds in Britain, before paying {beds.Count(Rests)} open");
+            Inns.Rent(body, inn);
+            var open = beds.Where(Rests).ToList();
+            Plugin.Log.LogInfo($"townsfolk self-test sleep: after paying {open.Count} beds open: {string.Join(", ", open.Select(b => $"{b.transform.position - britain.Origin}"))}; record {body.m_customData["u5_inn"]}, now {ZNet.instance.GetTimeSeconds():0}");
+            // a camp: out in the wild, then again (moved), then in the town (refused)
+            // (dry land out of town: the first of a ring of points round Britain 2 m above the sea; Height is from sea level)
+            var shape = Britannia.Active;
+            var wild = Enumerable.Range(0, 24).Select(i => britain.Origin + Quaternion.Euler(0, i * 15, 0) * Vector3.forward * 150f)
+                .FirstOrDefault(v => shape.Height(v.x, v.z) > 2f);
+            yield return Generate(wild);
+            yield return new WaitForSeconds(2f);
+            Player.m_localPlayer = body;
+            try
+            {
+                foreach (var (where, label) in new[] { (wild, "wild"), (wild + new Vector3(12, 0, 0), "moved"), (britain.Origin + new Vector3(0, 0, -6f), "in town") })
+                {
+                    var p = where; p.y = ZoneSystem.instance.GetGroundHeight(p) + 0.1f;
+                    body.transform.position = p;
+                    body.GetComponent<Rigidbody>().position = p;
+                    Camp.Pitch(body);
+                    yield return new WaitForSeconds(0.5f);
+                    var leans = FindObjectsByType<LeanTo>(FindObjectsSortMode.None);
+                    var fires = FindObjectsByType<Fireplace>(FindObjectsSortMode.None).Where(f => f.GetComponent<ZNetView>()?.GetZDO()?.GetBool(Settlements.FixedKey) == true && f.name.StartsWith(Camp.FirePrefab)).ToList();
+                    Plugin.Log.LogInfo($"townsfolk self-test sleep: camp {label}: {leans.Length} lean-to(s) {string.Join(", ", leans.Select(l => $"{l.transform.position - p} hover \"{l.GetHoverText().Replace("\n", " ")}\""))}; {fires.Count} camp fire(s) {string.Join(", ", fires.Select(f => $"{f.transform.position - p} infinite {f.m_infiniteFuel}"))}; near {Camp.Near(p, 6f)}");
+                    yield return new WaitForSeconds(1f);
+                }
+            }
+            finally { Player.m_localPlayer = null; }
+            ZNetScene.instance.Destroy(body.gameObject);
         }
 
         static string Name(int hash) => hash == 0 ? "-" : ObjectDB.instance?.GetItemPrefab(hash)?.name ?? ZNetScene.instance?.GetPrefab(hash)?.name ?? hash.ToString();

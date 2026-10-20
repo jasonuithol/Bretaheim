@@ -148,6 +148,15 @@ if (argv.Count > 0 && argv[0] == "shops")
             }
         }
         if (s.Trade == U5InValheim.Data.ShopTrade.Healer) Console.WriteLine($"  heal {data.Shops.HealerPrices(s).heal} gp, cure {data.Shops.HealerPrices(s).cure} gp");
+        if (s.Trade == U5InValheim.Data.ShopTrade.Inn)
+        {
+            int price = data.Shops.InnPrice(s, U5InValheim.Data.Shops.DefaultIntelligence);
+            Console.WriteLine($"  rest {price} gp, {data.Shops.InnRoomCount(s)} rooms, bed {data.Shops.InnBed(s)}");
+            Console.WriteLine(data.Shops.InnRoom(s, 21, price));
+            Console.WriteLine(data.Shops.InnGoodNight(s, 21, false));
+            Console.WriteLine(data.Shops.InnThrownOut(s, 21));
+            Console.WriteLine(data.Shops.Zzz + " / " + data.Shops.MorningCry);
+        }
         Console.WriteLine(data.Shops.Farewell(s, true, 10, rnd));
     }
     return 0;

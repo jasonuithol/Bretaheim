@@ -163,6 +163,34 @@ namespace U5InValheim.Data
             return Ovl.CStr(p != 0 ? p : Ovl.U16(LongNames + item * 2)).Trim();
         }
 
+        // ── the inn (SHOPPES3 inn_shop: rest for the night) ─────────────────────────────────
+        const int InnRates = 0x4d7e, InnRooms = 0x4dc4, InnRoomTexts = 0x4e6e, InnBedX = 0x4e7a, InnBedY = 0x4e80,
+            InnTakeIt = 0x4dca, InnHighwaymen = 0x4de3, InnScreams = 0x4e07, InnPleasant = 0x4e13, InnMilady = 0x4e2c,
+            InnSir = 0x4e33, InnSays = 0x4e37, InnZzz = 0x4e44, InnMorning = 0x4e51;
+
+        /// <summary>A night's rest for one (rate × party, here one player) at the original's discount for intelligence: price·(100 − 3·INT)/100, signed.</summary>
+        public int InnPrice(ShopInfo s, int intelligence) => Ovl.U8(InnRates + s.Slot) * (100 - 3 * intelligence) / 100;
+
+        /// <summary>How many guests the inn takes.</summary>
+        public int InnRoomCount(ShopInfo s) => Ovl.U8(InnRooms + s.Slot);
+
+        /// <summary>The inn's bed (the cell the party is put to sleep in).</summary>
+        public (int x, int y) InnBed(ShopInfo s) => (Ovl.U8(InnBedX + s.Slot), Ovl.U8(InnBedY + s.Slot));
+
+        /// <summary>The room offered, with its price, and "Wilt thou take it?".</summary>
+        public string InnRoom(ShopInfo s, int hour, int price)
+            => "\"" + ShoppeDat(Ovl.U16(InnRoomTexts + s.Slot * 2), s, hour, price).Trim() + " " + Expand(Bytes(InnTakeIt), s, hour).Trim();
+
+        /// <summary>"Highwaymen! Cheap, at that! OUT!" screams the keeper (no money).</summary>
+        public string InnThrownOut(ShopInfo s, int hour) => Expand(Bytes(InnHighwaymen), s, hour).Trim() + " " + Expand(Bytes(InnScreams), s, hour).Trim();
+
+        /// <summary>"Have a pleasant night, sir!" says the keeper.</summary>
+        public string InnGoodNight(ShopInfo s, int hour, bool female)
+            => Expand(Bytes(InnPleasant), s, hour) + Ovl.CStr(female ? InnMilady : InnSir) + Expand(Bytes(InnSays), s, hour).TrimEnd();
+
+        public string Zzz => Ovl.CStr(InnZzz).Trim();
+        public string MorningCry => Ovl.CStr(InnMorning).Trim();
+
         /// <summary>Healer's prices: heal and cure (0 = free, as in Minoc).</summary>
         public (int heal, int cure) HealerPrices(ShopInfo s) => (Ovl.U8(HealPrices + s.Slot), Ovl.U8(CurePrices + s.Slot));
 

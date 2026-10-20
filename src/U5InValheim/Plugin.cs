@@ -92,6 +92,7 @@ namespace U5InValheim
                 TownsfolkSpawner.Register();
                 Ballistas.Register();
                 Ettin.Register();
+                Camp.Register();
                 TalkPanel.Install(harmony);
                 ShopTrading.Install(harmony);
                 StartingGold.Install(harmony);
@@ -104,7 +105,9 @@ namespace U5InValheim
                 TownDoors.Install(harmony);
                 CreatureTalker.Install(harmony);
                 ResidentMonster.Install(harmony);
+                Sleep.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
+                gameObject.AddComponent<Camp.Keys>();
                 gameObject.AddComponent<UltimaSpawner>();
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);

@@ -341,10 +341,16 @@ have none; castles get fixed ballistas you can fire.
 - Food (decided): rations are **barley**. Every crop field in Britannia grows barley; harvesting from
   someone else's garden costs karma. Each character eats one barley from their inventory once a
   day; with none, they lose 30 % of their health. Valheim food/cooking is not used.
-- No building in the world. **H** places a campfire; interacting with it offers "sleep": the player
-  lies down by the fire and sleep succeeds once everyone present has tried (no watch is kept);
-  a random attack wakes everyone. Day sleeping is allowed, as in the original. Resting/healing and
-  the U5 "hole up" camp encounters hang off this.
+- No building in the world. **H** pitches camp ("Hole up & camp!"): a lean-to and a campfire before
+  the player (not in a settlement, not on water; one camp each, pitching again moves it). The
+  lean-to is slept under as a bed (E: Sleep); the fire burns all night and is where spells are
+  mixed (M near a campfire, with the magic). The night passes when every player is lying down
+  (Valheim's rule); by day, as in the original, eight hours pass. A party asleep at a camp may be
+  ambushed ("Ambushed!": time stops, everyone wakes, an encounter comes). Resting/healing hangs off this.
+- Inns (SHOPPES3): each player pays the innkeeper "Rest" for one night (the original's rate,
+  discounted for intelligence; "Highwaymen! … OUT!" without the gold) and may sleep in any bed of
+  the inn's rooms until 8 the next morning. Leaving and picking up companions is not used (no
+  companions).
 - Karma, gold, MP, level, quest flags live in a mod save component on the player/world save.
 - Starting stats come from the virtue questionnaire in Iolo's hut (§5.13), not from a class pick.
 

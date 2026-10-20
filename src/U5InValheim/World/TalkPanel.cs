@@ -90,7 +90,7 @@ namespace U5InValheim.WorldGen
             Show(shops.Greeting(shop, TownNpc.Hour(), random));
             visit = shop;
             ShopButtons();
-            if (who.ShopTrader() == null && shop.Trade != ShopTrade.Healer) Show("(This shop opens in a later version.)");
+            if (who.ShopTrader() == null && shop.Trade != ShopTrade.Healer && shop.Trade != ShopTrade.Inn) Show("(This shop opens in a later version.)");
             Refresh();
         }
 
@@ -109,8 +109,39 @@ namespace U5InValheim.WorldGen
                 choices.Add(($"Cure ({cure} gp)", () => Heal(cure, true)));
             }
             if (shop.Trade == ShopTrade.Armoury) choices.Add(("Sell", Sell));
+            if (shop.Trade == ShopTrade.Inn) choices.Add(($"Rest ({shops.InnPrice(shop, Intelligence)} gp)", Rest));
             choices.Add(("Bye", () => Close()));
             SetButtons(choices.ToArray());
+        }
+
+        // ── an inn's room for the night (SHOPPES3 inn_rest) ─────────────────────────────────
+
+        /// <summary>"We have rooms … for N gp. Wilt thou take it?" Yes: pay (or be thrown out) and the inn's beds are thine tonight.</summary>
+        static void Rest()
+        {
+            var shop = visit;
+            var shops = Plugin.U5.Shops;
+            int price = shops.InnPrice(shop, Intelligence);
+            Show(shops.InnRoom(shop, TownNpc.Hour(), price).Replace("\n", " "));
+            SetButtons(("Yes", () =>
+            {
+                var me = Player.m_localPlayer;
+                int gold = me?.GetInventory().CountItems("$item_coins") ?? 0;
+                if (me == null || gold < price)
+                {
+                    // "Highwaymen! Cheap, at that! OUT!"
+                    Show(shops.InnThrownOut(shop, TownNpc.Hour()).Replace("\n", " "));
+                    SetButtons(("Bye", () => Close(farewell: false)));
+                    return;
+                }
+                if (price > 0) me.GetInventory().RemoveItem("$item_coins", price);
+                bought = true;
+                Inns.Rent(me, shop);
+                bool female = me.GetComponent<VisEquipment>()?.GetModelIndex() == 1;
+                Show(shops.InnGoodNight(shop, TownNpc.Hour(), female).Replace("\n", " "));
+                Show("(The inn's beds are thine until morning: lie down in one to sleep.)");
+                SetButtons(("Bye", () => Close(farewell: false)));
+            }), ("No", ShopButtons));
         }
 
         // ── selling to an armourer ──────────────────────────────────────────────────────────

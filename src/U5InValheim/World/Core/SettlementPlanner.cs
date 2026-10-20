@@ -80,6 +80,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<int, bool[]> Walk = new Dictionary<int, bool[]>();
         /// <summary>Per storey: jail cells, rooms whose only ways out are locked doors and secret walls (their townsfolk are prisoners).</summary>
         public readonly Dictionary<int, bool[]> Cells = new Dictionary<int, bool[]>();
+        /// <summary>The inn's rooms (its beds are let for the night), on the storey of its bed, or none.</summary>
+        public readonly Dictionary<int, bool[]> InnRooms = new Dictionary<int, bool[]>();
         /// <summary>Per storey: furniture and plants townsfolk squeeze past when there is no clear way (chairs set between tables).</summary>
         public readonly Dictionary<int, bool[]> Squeeze = new Dictionary<int, bool[]>();
         /// <summary>Ladders and stairs: from (Z, Cell) to the same cell of storey ToZ.</summary>
@@ -209,6 +211,7 @@ namespace U5InValheim.WorldGen.Core
                 plan.Squeeze[lv.Z] = squeeze;
                 plan.Cells[lv.Z] = Cells(lv);
             }
+            InnRooms(plan, loc, levels);
             return plan;
         }
 
@@ -1660,6 +1663,34 @@ namespace U5InValheim.WorldGen.Core
                 if (IsCottage(lv, group)) foreach (int c in list) r[c] = true;
             }
             return r;
+        }
+
+        /// <summary>
+        /// The inn's rooms (SHOPPES3: its bed cell): what is walked to from its bed, through the floor
+        /// and the doors inside, not out into the street.
+        /// </summary>
+        void InnRooms(SettlementPlan plan, Data.Location loc, List<Level> levels)
+        {
+            var keeper = data.NpcsOf(loc).FirstOrDefault(n => n.Exists && n.IsShopkeeper && n.Trade == ShopTrade.Inn);
+            if (keeper == null) return;
+            var (bx, by) = data.Shops.InnBed(data.Shops.Of(loc, keeper));
+            int bed = by * N + bx;
+            var lv = levels.FirstOrDefault(l => l.Rule[bed].Kind == TileKind.BedHead || l.Rule[bed].Kind == TileKind.BedFoot);
+            if (lv == null) return;
+            bool Indoors(int c) => lv.Interior[c] || (lv.Rule[c].Kind == TileKind.Door && Neighbours4(c).Any(n => lv.Interior[n]));
+            var rooms = new bool[N * N];
+            var q = new Queue<int>();
+            rooms[bed] = true;
+            q.Enqueue(bed);
+            while (q.Count > 0)
+            {
+                int c = q.Dequeue();
+                // (through a door only into more of the inside: a door out to the street is the edge)
+                if (lv.Rule[c].Kind == TileKind.Door && Neighbours4(c).Count(n => lv.Interior[n]) < 2) continue;
+                foreach (int n in Neighbours4(c))
+                    if (!rooms[n] && Indoors(n)) { rooms[n] = true; q.Enqueue(n); }
+            }
+            plan.InnRooms[lv.Z] = rooms;
         }
 
         /// <summary>

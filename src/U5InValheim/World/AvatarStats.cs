@@ -73,19 +73,27 @@ namespace U5InValheim.WorldGen
 
         static bool TownBed(Bed bed) => Active && bed.GetComponentInParent<U5Fixed>() != null;
 
-        /// <summary>The townsfolk's beds are theirs: not to be claimed or slept in.</summary>
-        static bool BedInteract_Prefix(Bed __instance, Humanoid human, ref bool __result)
+        /// <summary>The townsfolk's beds are theirs: not to be claimed or slept in, but for a room paid for at the inn (Inns).</summary>
+        static bool BedInteract_Prefix(Bed __instance, Humanoid human, bool repeat, ref bool __result)
         {
             if (!TownBed(__instance)) return true;
-            human.Message(MessageHud.MessageType.Center, "Not thy bed!");
             __result = false;
+            if (repeat) return false;
+            if (human is Player p && p == Player.m_localPlayer && Inns.MayRest(p, __instance))
+            {
+                Sleep.LieDown(p, __instance.m_spawnPoint != null ? __instance.m_spawnPoint : __instance.transform, __instance.gameObject);
+                return false;
+            }
+            human.Message(MessageHud.MessageType.Center, "Not thy bed!");
             return false;
         }
 
         static bool BedHover_Prefix(Bed __instance, ref string __result)
         {
             if (!TownBed(__instance)) return true;
-            __result = Localization.instance.Localize(__instance.GetHoverName());
+            var me = Player.m_localPlayer;
+            __result = Localization.instance.Localize(__instance.GetHoverName()
+                + (me != null && Inns.MayRest(me, __instance) ? "\n[<color=yellow><b>$KEY_Use</b></color>] Sleep" : ""));
             return false;
         }
 

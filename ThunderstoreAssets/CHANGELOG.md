@@ -23,6 +23,10 @@ Britain, Lord British's castle and Iolo's hut):
   its slopes. North Britanny's stream runs in a ditch into its pond.
 - Drawbridges: bridge planks with water at both ends are wooden decks over the river that swing
   up at night and down in the morning.
+- Inns: pay the innkeeper for a night's rest (the original's price and words) and sleep in one of
+  the inn's beds until morning. Everyone must be in bed for the night to pass.
+- Camping: H pitches a lean-to and a campfire out in the wild; sleep under the lean-to (by day too:
+  eight hours pass). A sleeping camp may be ambushed.
 - Barrels are big brewing barrels (they block a passage); floors are glass where a ladder climbs
   through; secret walls show their rune only up close.
 - Lighthouse lights burn in iron braziers on stacks of marble rounds; stone columns reach the
