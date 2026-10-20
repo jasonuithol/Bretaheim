@@ -24,7 +24,7 @@ Giant Spider    => Morgen ?
 Insect Swarm    => Many tiny mosquitos
 
 Giant Rat       => Boar, or even a shrunken bear with lowered stats.
-Snake           => Leech ?
+Snake           => Replace with necks, make them spit and bite poison.
 Bat             *
 Ghost           *
 
@@ -33,14 +33,14 @@ Skeleton        *
 Orc             => Fuling
 Shark           => A big fish of some kind
 
-Gazer           => Skugg
+Gazer           => Gjall, reshaded pink and purple
 Headless        => Shaman (can we remove the head from the shaman ?)
 Corpser         => Root again (different color perhaps >)
 Troll           => Brute
 
 Ettin           => Troll.  If you can pull it off, give it two heads, side by side.
-Seahorse        => Replace with giant pufferfish
-Squid           =>
+Seahorse        => Replace with giant pufferfish that can jump out of the water and turn themselves into a projectile.
+Squid           => Big leeches that can spit poison
 Mongbat         => Drake, reshaded brown
 
 Wisp            *
@@ -49,16 +49,16 @@ Reaper          => Possibly an immobilised Elder
 Gargoyle        => Golem
 
 Sea Serpent     => Serpent
-Deamon          => Brenna / Surtling
+Deamon          => A fallen Valkyrie with Brenna / Surtling flame effect.
 Sand Trap       => A cluster of Roots (yellow) and a Lox head (yellow) in the middle
 Dragon          => Moder.  Have different attack types, reshaded appropriately, just for fun.  Red -> fire, Green -> Poison, Blue -> Frost, Black -> tar spit, White -> Lightning
 
-Pirate Ship     => A longboat full of pirates.
+Pirate Ship     => A longboat full of human pirates OR SOMETIMES fulings (who will technically also be pirates)
 
 [lord british]
 
-apparition      => Odin, light blue and translucent
-blackthorn      =>
+apparition      => A full bearded, long haired, blonde NPC with mage and fighter clothing and a crown - but a ghost, so light blue and translucent.
+blackthorn      => A short bearded, short haired, brunette NPC with mage and fighter clothing and a crown.
 
 [Static Assets]
 
@@ -190,7 +190,7 @@ Skull Key     => Swamp key, untouched.
 Black Badge   => An Iron Brooch trinket, reshaded to be made of black metal.  Equip it to stop Blackthorn’s guards from attacking.
 
 Magic Sheet Music                         => A reel of linen in the same manner as a Scroll.
-Sandalwood Box                            => Pulled Bear.  It's square, don't judge me.
+Sandalwood Box                            => One of hildrs quest chests.
 HMS Cape Plans                            => A reel of linen in the same manner as a Scroll.
 Shards of Falsehood, Hatred and Cowardice => Use valheims ruby, and reshade to be made of Black Metal ?
 

@@ -200,7 +200,8 @@ town populations when their zone loads.
   locked doors glow blue; iron gates are guard-operated, shut 22:00–06:00, never jimmied), and the
   furniture/fixture list (anvils, the interactable telescope = spyglass, shelves, torture tables
   and stocks, grates, cannonball pyramids, graves with eulogies and a dig spot to the south,
-  trapdoors, the playable harpsichord, guillotine, chairs/tables consolidated into runs, standing
+  trapdoors, the playable harpsichord, guillotine (mead kettle with a head in it, a battle axe
+  leaning on it, two posts and a cross beam over it), chairs/tables consolidated into runs, standing
   mirrors incl. the end-game one, indoor signposts, the coin-taking wishing well, hitching posts,
   firewood, searchable desks and barrels, beds in two-tile runs, dressers, braziers and wall
   torches, camp/hearth cooking setups, ballistas for cannons, traversable hearths in walls (smoke
@@ -219,6 +220,10 @@ town populations when their zone loads.
 ### 5.3 NPCs and conversation
 - Prefab per NPC type from the mapping (child → Hildir; guard → iron armour + bronze spear; etc.),
   spawned per settlement from the `.NPC` file; names/jobs from the `.TLK` records.
+  Lord British: long blonde hair, full beard, mage robe and fighter's gear, a gold crown; his
+  apparition (the level-up visit) is himself as a ghost, light blue and translucent (no longer
+  Odin). Blackthorn: short brunette hair, short beard, mage robe and fighter's gear, a crown.
+  Prisoners (everyone whose day is spent in a jail cell) are in rags and keep to their cells.
 - `TownNpc` MonoBehaviour implements the original eight-state movement machine
   (`analysis/ovl_NPC.md`): schedule slot by hour (Valheim day mapped to 24 U5 hours), target
   (x,y,floor), BFS path over the location's walkability grid (derived from the same tile table),
@@ -243,14 +248,18 @@ town populations when their zone loads.
 ### 5.4 Creatures and spawning
 - `assets/mappings/monsters.json`: U5 creature → Valheim prefab (+ optional recolour/scale) + stat
   override derived from DATA.OVL monster stats (HP, attack, armour, speed, specials: poison, sleep,
-  ranged, fly, swim). Per the asset mapping: Gazer → Skugg, Headless → Shaman (headless if we can),
-  Ettin → Troll with two heads side by side if achievable, Seahorse → giant pufferfish, Mongbat →
+  ranged, fly, swim). Per the asset mapping: Gazer → Gjall re-shaded pink and purple, Headless → Shaman (headless
+  if we can), Ettin → its own red Troll prefab with a second head (built), Snake → Necks that spit
+  and bite poison, Squid → big Leeches that spit poison, Seahorse → giant pufferfish that leap out
+  of the water and hurl themselves like a projectile, Daemon → a Fallen Valkyrie wreathed in
+  Brenna's / the Surtling's flame, Mongbat →
   brown-shaded Drake, Mimic → the wild (non-craftable) chests, Reaper → immobilised Elder,
   Dragon → Moder re-shaded by attack type (red fire, green poison, blue frost, black tar, white
-  lightning), Sand trap → yellow Root cluster around a yellow Lox head, Pirate ship → longboat crew.
+  lightning), Sand trap → yellow Root cluster around a yellow Lox head, Pirate ship → a longboat full of human pirates or,
+  sometimes, Fulings (pirates too).
 - Overworld spawner replaces Valheim's for the Britannia surface: U5 rules by terrain, time of
   day and level (`spawn_rate_for_terrain`, `choose_spawn_monster`, `SPAWN_RULES.md`), groups of
-  1–9. Pirate ships → longboat with a Fuling crew (mapping).
+  1–9. Pirate ships → longboat with a crew of human pirates or Fulings (mapping).
 - Dungeon rooms: encounter rooms with the room's monster set from DUNGEON.CBT.
 
 ### 5.5 Items, equipment, magic
@@ -268,7 +277,7 @@ town populations when their zone loads.
   faithfully from the original's formula because quests depend on it); Pocket watch → Iron Brooch
   trinket (time via the message system); Grapple → iron pickaxe (equipped: climb slopes beyond
   ~45°, see §5.11 Klimb); Black Badge → black-metal Iron Brooch (equipped: Blackthorn's guards stand
-  down); Sandalwood Box → Pulled Bear; Shards → black-metal rubies; Crown/Sceptre/Amulet of Lord
+  down); Sandalwood Box → one of Hildir's quest chests; Shards → black-metal rubies; Crown/Sceptre/Amulet of Lord
   British → gold-reshaded Dvergr circlet / bronze mace / silver necklace. Keys → swamp key
   re-shaded bronze; Skull keys → the swamp key as is (locks: see §5.11 Jimmy).
 - Magic (decided): premixed spells are bowls of raw mead and are **equipped like a stack of arrows**

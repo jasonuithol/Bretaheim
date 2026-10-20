@@ -15,8 +15,9 @@ namespace U5InValheim.WorldGen
     {
         public const string PrefabName = "Ettin";
         /// <summary>Where the second head sits from the first, in the troll's own frame (x right, y up, z forward), and its size.</summary>
-        static readonly Vector3 HeadOffset = new Vector3(0.75f, -0.05f, 0f);
-        const float HeadScale = 1.1f;
+        /// <summary>(The troll's head is about 1.3 m across; the trophy head about 0.6 m: twice its size, clear of the first.)</summary>
+        static readonly Vector3 HeadOffset = new Vector3(1.45f, -0.15f, 0.05f);
+        const float HeadScale = 2.4f, HeadTurn = 15f;
 
         public static void Register() => PrefabManager.OnVanillaPrefabsAvailable += Create;
 
@@ -37,8 +38,7 @@ namespace U5InValheim.WorldGen
                 second.transform.SetParent(head, false);
                 // placed in the troll's frame (the head bone's own axes are the rig's), facing forward
                 second.transform.position = head.position + root.TransformVector(HeadOffset);
-                second.transform.rotation = root.rotation;
-                second.transform.localScale = Vector3.one * HeadScale;
+                second.transform.rotation = root.rotation * Quaternion.Euler(0, HeadTurn, 0);
                 second.transform.localScale = new Vector3(HeadScale / head.lossyScale.x, HeadScale / head.lossyScale.y, HeadScale / head.lossyScale.z);
                 if (Plugin.SelfTest.Value)
                     Plugin.Log.LogInfo($"Ettin: second head at {root.InverseTransformPoint(second.transform.position)} (the troll's head {root.InverseTransformPoint(head.position)}, head scale {head.lossyScale}), {second.GetComponentsInChildren<Renderer>(true).Length} renderers");
@@ -56,7 +56,7 @@ namespace U5InValheim.WorldGen
             var copy = Object.Instantiate(prefab, holder.transform);
             for (int pass = 0; pass < 4; pass++)
                 foreach (var c in copy.GetComponentsInChildren<Component>(true))
-                    if (c is MonoBehaviour || c is Rigidbody || c is Collider) Object.DestroyImmediate(c);
+                    if (c is MonoBehaviour || c is Rigidbody || c is Collider || c.GetType().Name.StartsWith("ParticleSystem")) Object.DestroyImmediate(c);
             copy.transform.SetParent(null, false);
             Object.Destroy(holder);
             copy.SetActive(true);

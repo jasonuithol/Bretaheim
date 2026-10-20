@@ -1,8 +1,8 @@
 {
   "_doc": "U5 creature type (DATA.OVL g_monster_stats index 0..47) -> Valheim prefab. Stats come from DATA.OVL at runtime; 'tint' and 'scale' are visual overrides; 'status' = direct (one Valheim creature), reshade (recolour/rescale), custom (needs a built composite), open (no decision yet; see docs/MAPPING_DECISIONS.md). People (types 0..15) are dressed humans, see npcs.json. Prefab names verified against the Valheim prefab inventory (tools/data/valheim_prefabs.txt).",
   "creatures": [
-    { "type": 16, "u5": "Sea Horse",    "prefab": "Fish12",          "status": "reshade", "scale": 4.0,  "note": "giant pufferfish" },
-    { "type": 17, "u5": "Squid",        "prefab": "BonemawSerpent",  "status": "direct",  "note": "the Ashlands serpent (Bonemaw)" },
+    { "type": 16, "u5": "Sea Horse",    "prefab": "Fish12",          "status": "custom",  "scale": 4.0,  "note": "giant pufferfish that leaps out of the water and hurls itself at you as a projectile" },
+    { "type": 17, "u5": "Squid",        "prefab": "Leech",           "status": "custom",  "scale": 2.5,  "note": "big leeches that spit poison" },
     { "type": 18, "u5": "Sea Serpent",  "prefab": "Serpent",         "status": "direct" },
     { "type": 19, "u5": "Shark",        "prefab": "Fish9",           "status": "reshade", "scale": 6.0,  "note": "'a big fish of some kind'; needs an attack" },
     { "type": 20, "u5": "Giant Rat",    "prefab": "Boar",            "status": "direct",  "alt": { "prefab": "Bjorn", "scale": 0.5 } },
@@ -19,11 +19,11 @@
     { "type": 31, "u5": "Insect Swarm", "prefab": "Deathsquito",     "status": "reshade", "scale": 0.4, "group": 6, "note": "many tiny mosquitos" },
     { "type": 32, "u5": "Orc",          "prefab": "Goblin",          "status": "direct" },
     { "type": 33, "u5": "Skeleton",     "prefab": "Skeleton",        "status": "direct" },
-    { "type": 34, "u5": "Python",       "prefab": "Leech",           "status": "direct",  "note": "U5 'snake'" },
+    { "type": 34, "u5": "Python",       "prefab": "Neck",            "status": "custom",  "note": "U5 'snake': necks that spit and bite poison" },
     { "type": 35, "u5": "Ettin",        "prefab": "Ettin",           "status": "custom",  "note": "the Ettin prefab: a troll with a forest troll's head beside its own, red skin (World/Ettin.cs)" },
     { "type": 36, "u5": "Headless",     "prefab": "GoblinShaman",    "status": "custom",  "note": "remove the head if we can" },
     { "type": 37, "u5": "Wisp",         "prefab": "Wraith",          "status": "reshade", "tint": "#40f0ff", "alpha": 0.45, "emission": 3.0, "note": "very glowy, translucent, bright cyan" },
-    { "type": 38, "u5": "Daemon",       "prefab": "Skeleton_Hildir", "status": "direct",  "alt": { "prefab": "Surtling" }, "note": "Brenna" },
+    { "type": 38, "u5": "Daemon",       "prefab": "FallenValkyrie",  "status": "custom",  "note": "a fallen Valkyrie wreathed in Brenna's / the Surtling's flame" },
     { "type": 39, "u5": "Dragon",       "prefab": "Dragon",          "status": "reshade", "variants": [
         { "tint": "#b02020", "attack": "fire" }, { "tint": "#2f8f2f", "attack": "poison" },
         { "tint": "#3060c0", "attack": "frost" }, { "tint": "#202020", "attack": "tar" },

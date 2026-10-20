@@ -14,8 +14,8 @@
     { "type": 11, "u5": "Beggar",       "base": "human", "outfit": ["ArmorRagsChest"], "status": "direct", "note": "rag tunic only" },
     { "type": 12, "u5": "Guard",        "base": "human", "outfit": ["ArmorIronChest", "ArmorIronLegs", "HelmetIron", "SpearBronze"], "status": "direct" },
     { "type": 13, "u5": "Wanderer",     "base": "human", "status": "unused", "note": "no settlement NPC uses this type" },
-    { "type": 14, "u5": "Blackthorn",   "base": "human", "outfit": ["ArmorMageChest_Ashlands", "ArmorIronLegs", "SwordBlackmetal"], "status": "derived", "note": "SpellSword: mage robe over fighter's legs and blade, dark" },
-    { "type": 15, "u5": "Lord British", "base": "human", "outfit": ["ArmorMageChest", "ArmorIronLegs", "SwordSilver", "HelmetDverger"], "tint": { "HelmetDverger": "#d4af37" }, "status": "derived", "note": "SpellSword: mage robe, fighter's legs and blade, gold circlet (his crown); his apparition is Odin, light blue and translucent", "apparition": { "base": "odin", "tint": "#a0d0ff", "alpha": 0.5 } }
+    { "type": 14, "u5": "Blackthorn",   "base": "human", "outfit": ["ArmorMageChest_Ashlands", "ArmorIronLegs", "SwordBlackmetal", "HelmetDverger"], "tint": { "HelmetDverger": "#4a4a52" }, "hair": "short", "hair_color": "brunette", "beard": "short", "status": "derived", "note": "SpellSword: mage robe over fighter's legs and blade, dark; a crown (a dark circlet); short brunette hair and a short beard" },
+    { "type": 15, "u5": "Lord British", "base": "human", "outfit": ["ArmorMageChest", "ArmorIronLegs", "SwordSilver", "HelmetDverger"], "tint": { "HelmetDverger": "#d4af37" }, "status": "derived", "hair": "long", "hair_color": "blonde", "beard": "full", "note": "SpellSword: mage robe, fighter's legs and blade, gold circlet (his crown); long blonde hair, full beard. His apparition is himself as a ghost: light blue and translucent", "apparition": { "base": "human", "as": "Lord British", "tint": "#a0d0ff", "alpha": 0.5 } }
   ],
   "hildir_questionnaire": { "base": "Hildir", "note": "stands beside the player in Iolo's hut until the virtue questions are answered (plan §5.13)" }
 }

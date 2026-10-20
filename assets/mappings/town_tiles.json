@@ -83,7 +83,7 @@
     "8b": {"kind": "prop", "parts": [{"prefab": "piece_table", "place": "stand", "look": "bloody"}, {"prefab": "itemstandh", "x": -1.0, "z": -0.15, "y": 0.85, "yaw": 90, "tilt": 90, "place": "pivot", "item": "AxeBronze", "look": "bare_stand", "spin": 90}, {"prefab": "itemstandh", "x": 0.05, "z": 0.25, "y": 0.84, "yaw": 90, "place": "pivot", "item": "KnifeFlint", "look": "bare_stand"}, {"prefab": "woodiron_beam", "z": 0, "y": 4, "place": "top"}, {"prefab": "dvergrprops_hooknchain", "x": 0.6, "z": 0, "y": 3.7, "yaw": 0, "place": "top", "scale": [0.7, 0.55, 0.7]}]},
     "8c": {"kind": "ground", "paint": "paved", "trapdoor": true},
     "8d": {"kind": "prop", "prefab": "blackforge"},
-    "8e": {"kind": "prop", "prefab": "piece_MeadCauldron"},
+    "8e": {"kind": "prop", "parts": [{"prefab": "piece_MeadCauldron", "place": "stand"}, {"prefab": "itemstandh", "y": 0.62, "place": "pivot", "item": "TrophyDraugr", "look": "bare_stand"}, {"prefab": "itemstandh", "x": 0.62, "z": 0.35, "y": 0.14, "yaw": 90, "tilt": -18, "place": "pivot", "item": "Battleaxe", "look": "bare_stand"}, {"prefab": "wood_pole2", "x": -0.85, "place": "stand", "scale": [1, 1.6, 1]}, {"prefab": "wood_pole2", "x": 0.85, "place": "stand", "scale": [1, 1.6, 1]}, {"prefab": "wood_beam", "y": 3.3, "scale": [0.95, 1, 1]}]},
     "90": {"kind": "chair", "facing": "n"},
     "91": {"kind": "chair", "facing": "e"},
     "92": {"kind": "chair", "facing": "s"},

@@ -179,6 +179,17 @@ namespace U5InValheim.DevTools
                 var ettin = Instantiate(ettinPrefab, castle.Origin + new Vector3(0, 2f, -70f), Quaternion.identity).GetComponent<Character>();
                 yield return new WaitForSeconds(1f);
                 var es = UltimaCreatures.Of(ettin);
+                var second = ettin.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "u5_second_head");
+                if (second != null)
+                {
+                    var rs = second.GetComponentsInChildren<Renderer>(true);
+                    string Bx(Bounds b) => $"centre {ettin.transform.InverseTransformPoint(b.center)}, size {b.size}";
+                    Plugin.Log.LogInfo($"townsfolk self-test ettin head: active {second.gameObject.activeInHierarchy}, {rs.Length} renderers ({string.Join(", ", rs.Select(r => $"{r.name} enabled {r.enabled} {r.GetType().Name} {Bx(r.bounds)}"))}); scale {second.lossyScale}");
+                    foreach (var smr in ettin.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                        Plugin.Log.LogInfo($"townsfolk self-test ettin body: {smr.name} {Bx(smr.bounds)}");
+                    var headBone = second.parent;
+                    Plugin.Log.LogInfo($"townsfolk self-test ettin bones: head {ettin.transform.InverseTransformPoint(headBone.position)}, neck {(headBone.parent != null ? ettin.transform.InverseTransformPoint(headBone.parent.position).ToString() : "-")}");
+                }
                 Plugin.Log.LogInfo($"townsfolk self-test ettin: {ettin.m_name} ({(es == null ? "not Ultima" : Plugin.U5.Ovl.CreatureName(es.Type))}) hp {ettin.GetHealth():0}/{ettin.GetMaxHealth():0}, second head {ettin.GetComponentsInChildren<Transform>(true).Any(t => t.name == "u5_second_head")}, red look {ettin.GetComponent<EttinLook>() != null}");
                 ZNetScene.instance.Destroy(ettin.gameObject);
             }
@@ -371,6 +382,25 @@ namespace U5InValheim.DevTools
                     }
                 }
                 Plugin.Log.LogInfo($"townsfolk self-test jail: prisoners outside their cells {outside}/{samples} samples over 90 s");
+            }
+            // the guillotine (18,12): the head in the kettle, the axe leaning on it, posts and beam
+            {
+                var g = At(0, 18, 12);
+                Bounds? Of(GameObject go) { var rs = go.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToList(); if (rs.Count == 0) return null; var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds); return b; }
+                foreach (var v in FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, g) < 2.2f && v.transform.position.y < g.y + 4.5f && v.transform.position.y > g.y - 0.5f))
+                {
+                    var st = v.GetComponent<ItemStand>();
+                    var b = st != null ? Of(st.m_attachOther.gameObject) : Of(v.gameObject);
+                    Plugin.Log.LogInfo($"townsfolk self-test guillotine: {v.name}{(st != null ? " holding " + Name(v.GetZDO().GetInt(ZDOVars.s_item)) : "")}: {(b.HasValue ? $"y {b.Value.min.y - g.y:0.00}..{b.Value.max.y - g.y:0.00}, x {b.Value.min.x - g.x:0.00}..{b.Value.max.x - g.x:0.00}, z {b.Value.min.z - g.z:0.00}..{b.Value.max.z - g.z:0.00}" : "nothing shown")}");
+                }
+                var names = new System.Collections.Generic.List<string>();
+                foreach (var kind in new[] { "Hair", "Beard" })
+                    for (int n = 0; n <= 40; n++)
+                    {
+                        var it = ObjectDB.instance.GetItemPrefab(kind + n)?.GetComponent<ItemDrop>();
+                        if (it != null) names.Add($"{kind}{n}={it.m_itemData.m_shared.m_name}");
+                    }
+                Plugin.Log.LogInfo($"townsfolk self-test looks: {string.Join(" ", names)}");
             }
             var landon = Plugin.U5.NpcsOf(yew.Location)[13];
             var ls = landon.Schedule;
