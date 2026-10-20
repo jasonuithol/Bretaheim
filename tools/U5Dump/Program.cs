@@ -193,6 +193,18 @@ if (argv.Count > 0 && argv[0] == "town")
         Console.WriteLine(new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Probe(loc, int.Parse(argv[3]), int.Parse(argv[4]), int.Parse(argv[5])));
         return 0;
     }
+    if (outPath == "inn")
+    {
+        // town <location> inn: the inn's rooms (I) and the beds on that storey (b in them, B outside)
+        foreach (var kv in plan.InnRooms)
+        {
+            Console.WriteLine($"inn rooms, floor {kv.Key}");
+            var beds = new System.Collections.Generic.HashSet<int>(plan.Seats.Where(s => s.Key.z == kv.Key && s.Value.Bed).Select(s => s.Key.cell));
+            for (int y = 0; y < 32; y++)
+                Console.WriteLine(string.Concat(Enumerable.Range(0, 32).Select(x => { int c = y * 32 + x; return beds.Contains(c) ? (kv.Value[c] ? 'b' : 'B') : kv.Value[c] ? 'I' : '.'; })));
+        }
+        return 0;
+    }
     if (outPath == "floors")
     {
         Console.Write(new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).DescribeFloors(loc));

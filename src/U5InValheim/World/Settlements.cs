@@ -61,6 +61,9 @@ namespace U5InValheim.WorldGen
             harmony.Patch(place, postfix: new HarmonyMethod(typeof(Settlements), nameof(PlaceLocations_Postfix)));
         }
 
+        /// <summary>How far past a settlement's slopes the wild's trees and rocks are kept away (m).</summary>
+        const float ClearMargin = 20f;
+
         /// <summary>Room left between two settlement squares for their slopes.</summary>
         const float SiteGap = 16f;
 
@@ -191,13 +194,15 @@ namespace U5InValheim.WorldGen
         {
             if (Britannia.Active == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
 
-            // keep the wild vegetation out of every built settlement touching this zone
+            // keep the wild vegetation out of every built settlement touching this zone: its square, its
+            // slopes and a margin, so no big tree or boulder standing outside reaches in (a beech's
+            // crown or a boulder is up to ~17 m across from where it stands)
             var zonePos = ZoneSystem.GetZonePos(zoneID);
             foreach (var b in All)
             {
-                float reach = b.Site.Half + 32f;
-                if (Mathf.Abs(zonePos.x - b.Origin.x) < reach + 32f && Mathf.Abs(zonePos.z - b.Origin.z) < reach + 32f)
-                    clearAreas.Add(Activator.CreateInstance(clearAreaType, b.Origin, b.Site.Half * 1.45f));
+                float clear = b.Site.Half + b.Site.Blend + ClearMargin;
+                if (Mathf.Abs(zonePos.x - b.Origin.x) < clear + 32f && Mathf.Abs(zonePos.z - b.Origin.z) < clear + 32f)
+                    clearAreas.Add(Activator.CreateInstance(clearAreaType, b.Origin, clear));
             }
 
             // the people live in the zone of their settlement's middle

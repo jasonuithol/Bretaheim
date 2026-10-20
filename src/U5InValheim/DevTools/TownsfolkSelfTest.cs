@@ -516,6 +516,18 @@ namespace U5InValheim.DevTools
             yield return new WaitForSeconds(5f);
             var near = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, town.Origin) < town.Site.Half + 5f).ToList();
             Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name}: {near.Count} objects ({near.Count(v => v.name.StartsWith(Structures.PrefabName))} structures); top kinds {string.Join(", ", near.GroupBy(v => Utils.GetPrefabName(v.gameObject)).OrderByDescending(g => g.Count()).Take(12).Select(g => $"{g.Key} {g.Count()}"))}");
+            // the wild's things (not the settlement's) reaching into its square
+            foreach (var v in FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
+            {
+                var z = v.GetZDO();
+                if (z == null || z.GetBool(Settlements.FixedKey) || v.GetComponent<Character>() != null || v.name.StartsWith(Structures.PrefabName)) continue;
+                var cols = v.GetComponentsInChildren<Collider>().Where(c => c.enabled && !c.isTrigger).ToList();
+                if (cols.Count == 0) continue;
+                var bb = cols[0].bounds; foreach (var c in cols) bb.Encapsulate(c.bounds);
+                float h = town.Site.Half;
+                if (bb.max.x < town.Origin.x - h || bb.min.x > town.Origin.x + h || bb.max.z < town.Origin.z - h || bb.min.z > town.Origin.z + h) continue;
+                Plugin.Log.LogInfo($"townsfolk self-test town: wild {Utils.GetPrefabName(v.gameObject)} at {v.transform.position - town.Origin} reaches {bb.min - town.Origin}..{bb.max - town.Origin} (square ±{h:0})");
+            }
             foreach (var t in FindObjectsByType<CreatureTalker>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, town.Origin) < town.Site.Half + 5f))
             {
                 var c = t.GetComponent<Character>();
@@ -578,7 +590,8 @@ namespace U5InValheim.DevTools
         /// <summary>An inn's room (Britain's Wayfarer Inn) and a camp out in the wild, with a stand-in player.</summary>
         IEnumerator Sleeping()
         {
-            var britain = Settlements.Get(2);
+            // (U5_SLEEP_TOWN: another inn's settlement than Britain)
+            var britain = Settlements.Get(int.TryParse(System.Environment.GetEnvironmentVariable("U5_SLEEP_TOWN"), out int innTown) ? innTown : 2);
             yield return Generate(britain.Origin);
             yield return new WaitForSeconds(3f);
             var inn = Inns.InnOf(britain);

@@ -1662,24 +1662,49 @@ namespace U5InValheim.WorldGen.Core
         {
             var keeper = data.NpcsOf(loc).FirstOrDefault(n => n.Exists && n.IsShopkeeper && n.Trade == ShopTrade.Inn);
             if (keeper == null) return;
-            var (bx, by) = data.Shops.InnBed(data.Shops.Of(loc, keeper));
+            var inn = data.Shops.Of(loc, keeper);
+            var (bx, by) = data.Shops.InnBed(inn);
+            int roomCount = data.Shops.InnRoomCount(inn);
             int bed = by * N + bx;
-            var lv = levels.FirstOrDefault(l => l.Rule[bed].Kind == TileKind.BedHead || l.Rule[bed].Kind == TileKind.BedFoot);
-            if (lv == null) return;
-            bool Indoors(int c) => lv.Interior[c] || (lv.Rule[c].Kind == TileKind.Door && Neighbours4(c).Any(n => lv.Interior[n]));
-            var rooms = new bool[N * N];
-            var q = new Queue<int>();
-            rooms[bed] = true;
-            q.Enqueue(bed);
-            while (q.Count > 0)
+            var start = levels.FirstOrDefault(l => l.Rule[bed].Kind == TileKind.BedHead || l.Rule[bed].Kind == TileKind.BedFoot);
+            if (start == null) return;
+            // (through doors and open doorways between rooms, up and down the stairs; upstairs, inside is
+            // what the stairs reach; a one-tile corridor reads as a doorway and is inside too; a doorway
+            // or door out to the street ends the rooms, the street beyond it not being inside)
+            Level At(int z) => levels.FirstOrDefault(l => l.Z == z);
+            bool Inside(Level lv, int c) => lv.Walked != null ? lv.Walked[c] && !lv.Barrier[c] : lv.Interior[c] || lv.Doorway[c];
+            bool Indoors(Level lv, int c) => Inside(lv, c) || (lv.Rule[c].Kind == TileKind.Door && Neighbours4(c).Any(n => Inside(lv, n)));
+            var q = new Queue<(int z, int c)>();
+            void Add(int z, int c)
             {
-                int c = q.Dequeue();
-                // (through a door only into more of the inside: a door out to the street is the edge)
-                if (lv.Rule[c].Kind == TileKind.Door && Neighbours4(c).Count(n => lv.Interior[n]) < 2) continue;
-                foreach (int n in Neighbours4(c))
-                    if (!rooms[n] && Indoors(n)) { rooms[n] = true; q.Enqueue(n); }
+                if (!plan.InnRooms.TryGetValue(z, out var rooms)) plan.InnRooms[z] = rooms = new bool[N * N];
+                if (rooms[c]) return;
+                rooms[c] = true;
+                q.Enqueue((z, c));
             }
-            plan.InnRooms[lv.Z] = rooms;
+            // (beds found so far: one per bed, its head and foot sharing a seat)
+            int Beds() => plan.Seats.Where(s => s.Value.Bed && plan.InnRooms.TryGetValue(s.Key.z, out var r) && r[s.Key.cell])
+                .Select(s => (s.Value.X, s.Value.Y, s.Value.Z)).Distinct().Count();
+            // every room on the bed's own storey; up or down the stairs only while the inn has fewer
+            // beds than the original's rooms (Skara Brae's are upstairs; Britain's stairs lead elsewhere)
+            var climbs = new Queue<(int z, int c)>();
+            Add(start.Z, bed);
+            while (true)
+            {
+                while (q.Count > 0)
+                {
+                    var (z, c) = q.Dequeue();
+                    var lv = At(z);
+                    if (lv.Rule[c].Kind == TileKind.Door && Neighbours4(c).Count(n => Inside(lv, n)) < 2) continue;
+                    foreach (int n in Neighbours4(c))
+                        if (Indoors(lv, n)) Add(z, n);
+                    foreach (var link in plan.Links)
+                        if (link.Z == z && link.Cell == c && At(link.ToZ) != null) climbs.Enqueue((link.ToZ, c));
+                }
+                if (climbs.Count == 0 || Beds() >= roomCount) break;
+                var (cz, cc) = climbs.Dequeue();
+                Add(cz, cc);
+            }
         }
 
         /// <summary>
