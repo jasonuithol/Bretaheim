@@ -535,15 +535,10 @@ namespace U5InValheim.DevTools
                 Plugin.Log.LogInfo($"townsfolk self-test town: at noon (night {EnvMan.IsNight()}): {string.Join("; ", ports.Select(p => $"at {p.transform.position - town.Origin}, down {p.IsDown}, drawn {p.GetComponentsInChildren<Renderer>().Any(r => r.enabled)}, solid {p.GetComponentsInChildren<Collider>().Any(c => c.enabled)}, bodies {string.Join(",", p.GetComponentsInChildren<Rigidbody>(true).Select(r => $"{r.name} kin {r.isKinematic} at {(r.position - town.Origin).y:0.0}"))}"))}");
                 env.m_debugTimeOfDay = false;
             }
-            var glass = near.Where(v => v.name.StartsWith("crystal_wall_1x1")).ToList();
-            foreach (var g in glass.Take(4))
-            {
-                var cols = g.GetComponentsInChildren<Collider>().Where(c => c.enabled).ToList();
-                var gb = cols.Count > 0 ? cols[0].bounds : new Bounds(g.transform.position, Vector3.zero);
-                foreach (var c in cols) gb.Encapsulate(c.bounds);
-                Plugin.Log.LogInfo($"townsfolk self-test town: glass floor at {g.transform.position - town.Origin}: solid y {gb.min.y - town.Origin.y:0.00}..{gb.max.y - town.Origin.y:0.00}, {gb.size.x:0.0} x {gb.size.z:0.0}");
-            }
-            if (glass.Count > 0) Plugin.Log.LogInfo($"townsfolk self-test town: {glass.Count} glass floor tiles");
+            // floors a ladder passes through: the floor piece, its material faded
+            var clear = near.Where(v => v.GetZDO()?.GetString(Settlements.LookKey) == "see_through").ToList();
+            if (clear.Count > 0)
+                Plugin.Log.LogInfo($"townsfolk self-test town: {clear.Count} see-through floors ({string.Join(", ", clear.GroupBy(v => Utils.GetPrefabName(v.gameObject)).Select(g => $"{g.Key} {g.Count()}"))}); e.g. {clear[0].name} at {clear[0].transform.position - town.Origin}, materials {string.Join(", ", clear[0].GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).Where(m => m != null).Select(m => $"{m.name} queue {m.renderQueue}").Distinct().Take(3))}");
             foreach (var f in near.Where(v => v.name.StartsWith("fermenter")).Take(6))
             {
                 var cols = f.GetComponentsInChildren<Collider>().Where(c => c.enabled && !c.isTrigger).ToList();

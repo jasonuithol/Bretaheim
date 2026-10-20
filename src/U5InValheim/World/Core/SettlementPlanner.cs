@@ -884,9 +884,9 @@ namespace U5InValheim.WorldGen.Core
                 p.Basement[c] = true;
                 p.GroundPaint[c] = Paint.Paved;
                 p.Water[c] = false;
-                // (a ladder climbing through the slab: glass)
-                if (Climbs(b.Rule[c].Kind) || (ground != null && Climbs(ground.Rule[c].Kind))) { GlassFloor(ctx, CellX(p, c), 0, CellZ(p, c)); continue; }
                 ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
+                // (a ladder climbing through the slab: semi-transparent)
+                if (Climbs(b.Rule[c].Kind) || (ground != null && Climbs(ground.Rule[c].Kind))) ctx.Last(pl => { pl.Look = SeeThrough; return pl; });
                 // a trapdoor above: the stone underfoot drops whoever steps on it into the basement
                 if (ground != null && ground.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
                 // (a grate is the only cover over its hole)
@@ -910,9 +910,9 @@ namespace U5InValheim.WorldGen.Core
                 bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Walked != null && lv.Walked[c])
                                || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
                 if (!floored || Solid(below, c) || lv.Rule[c].Grate) continue;
-                // (where a ladder climbs through, the floor is glass)
-                if (Climbs(lv.Rule[c].Kind) || Climbs(below.Rule[c].Kind)) { GlassFloor(ctx, CellX(p, c), y, CellZ(p, c)); continue; }
                 ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
+                // (where a ladder climbs through, the floor is semi-transparent)
+                if (Climbs(lv.Rule[c].Kind) || Climbs(below.Rule[c].Kind)) ctx.Last(pl => { pl.Look = SeeThrough; return pl; });
                 if (lv.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
             }
         }
@@ -1136,19 +1136,8 @@ namespace U5InValheim.WorldGen.Core
 
         const string ViewportDoor = "wood_door", ViewportGrate = "iron_floor_2x2";
 
-        /// <summary>
-        /// A glass floor tile (Valheim's 1 m crystal wall laid flat, stretched to the 2 m tile), its top
-        /// at y: where a ladder passes through a floor you see it go on.
-        /// </summary>
-        static void GlassFloor(Ctx ctx, float x, float y, float z)
-        {
-            if (!ctx.Known(Glass)) { ctx.Top("wood_floor", x, y, z, 0); return; }
-            // laid flat (turned 90° about east–west), its 1 m × 1 m face spans the tile, 0.15 m thick
-            ctx.Pivot(Glass, x - 0.02f, y - 0.074f, z - 1.028f, 0, 2, 2, 0.5f);
-            ctx.Last(pl => { pl.Tilt = 90; return pl; });
-        }
-
-        const string Glass = "crystal_wall_1x1";
+        /// <summary>The look of a floor a ladder passes through: its own material, semi-transparent.</summary>
+        const string SeeThrough = "see_through";
         /// <summary>The portcullis: Valheim's iron grate (2 m × 3 m, its pivot a metre up), how far south of the arch's middle it hangs.</summary>
         const string PortcullisGrate = "iron_grate";
         const float PortcullisSouth = 0.85f;

@@ -30,6 +30,7 @@ namespace U5InValheim.WorldGen
                 case "passable": Passable(go); break;
                 case "rune": Rune(go); break;
                 case "bare_stand": BareStand(go); break;
+                case "see_through": SeeThrough(go); break;
                 case "bloody": Bloody(go); break;
                 case "portcullis": go.AddComponent<Portcullis>(); break;
                 case "ghost": foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false; break;
@@ -113,6 +114,43 @@ namespace U5InValheim.WorldGen
             tex.SetPixels32(px);
             tex.Apply();
             return tex;
+        }
+
+        static readonly Dictionary<Material, Material> faded = new Dictionary<Material, Material>();
+        const float SeeThroughAlpha = 0.45f;
+
+        /// <summary>
+        /// A floor a ladder passes through: its own material faded to semi-transparent (the
+        /// piece shader's standard blend settings, as Unity's Fade mode); the piece stays solid.
+        /// </summary>
+        static void SeeThrough(GameObject go)
+        {
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null || !m.HasProperty("_SrcBlend")) continue;
+                    if (!faded.TryGetValue(m, out var copy))
+                    {
+                        copy = new Material(m) { name = m.name + " (see-through)" };
+                        copy.SetFloat("_Mode", 2f);
+                        copy.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        copy.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        copy.SetInt("_ZWrite", 0);
+                        copy.DisableKeyword("_ALPHATEST_ON");
+                        copy.EnableKeyword("_ALPHABLEND_ON");
+                        copy.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                        copy.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                        if (copy.HasProperty("_Color")) { var c = copy.GetColor("_Color"); c.a = SeeThroughAlpha; copy.SetColor("_Color", c); }
+                        faded[m] = copy;
+                    }
+                    mats[i] = copy;
+                }
+                r.sharedMaterials = mats;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
         }
 
         /// <summary>An item stand that shows only its item (laid on a table): its own disc is hidden.</summary>
