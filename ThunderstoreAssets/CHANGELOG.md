@@ -50,9 +50,15 @@ Britain, Lord British's castle and Iolo's hut):
   townsfolk have the keys.
 - Secret doors: a wall with rune-marked (blue-grey) bricks; hit it and the bricks vanish, showing
   the door behind ("a hidden door!").
-- Trapdoors are stone floors you fall through; shackles hang chains from the ceiling; torture
-  tables carry an axe and a knife under a hanging chain; the Gypsy's sphere is a round table with a
-  Moder tear on it.
+- Trapdoors are stone floors you fall through; floor grates are the top of a ladder down (an iron
+  grate, no stone under it, a ladder back up below); shackles hang slender chains from an iron-wood
+  beam; torture tables are blood-stained, with an axe and a knife lying flat under a hanging chain;
+  the Gypsy's sphere is a round table with a Moder tear on it.
+- Prisoners never open locked doors or leave their cells. Yew's Landon spends his evening in the
+  basement, out of the way of the secret door.
+- Guards fight you on your storey (they climb to you rather than swinging from below); after a
+  minute's fight a guard appears beside you and you wake in the jail of Yew.
+- Ballista firing ports are three tiles wide.
 - Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at
   the original prices in Valheim's trade window; armourers buy your arms; healers heal and cure. Guards run down and kill
   monsters that come into town.

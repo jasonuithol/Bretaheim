@@ -239,6 +239,41 @@ namespace U5InValheim.DevTools
                 Plugin.Log.LogInfo($"townsfolk self-test rogue t={i + 1}s: {fighting} guards fighting, health {body.GetHealth():0}/{hp0:0}");
                 if (body.GetHealth() < hp0) { Plugin.Log.LogInfo($"townsfolk self-test rogue: a guard's blow landed at {i + 1}s"); break; }
             }
+            // upstairs: the guards climb to them, and strike only on their storey
+            body.SetMaxHealth(1e6f);
+            body.SetHealth(1e6f);
+            var plan = castle.Plan;
+            var walk1 = plan.Walk.TryGetValue(1, out var w1) ? w1 : null;
+            // (a floor-1 tile the guards can reach by the ladders, from where they stand in the courtyard)
+            int yard = plan.CellAt(0, -6f);
+            int up = walk1 == null ? -1 : Enumerable.Range(0, walk1.Length).Where(c => walk1[c] && plan.Walk[0][c] && TownPath.Find(plan, 0, yard, 1, c) != null)
+                .OrderBy(c => { var (px, _, pz) = plan.TilePos(1, c); return new Vector2(px, pz + 6f).magnitude; }).DefaultIfEmpty(-1).First();
+            if (up >= 0)
+            {
+                var (ux, uy, uz) = plan.TilePos(1, up);
+                body.transform.position = castle.Origin + new Vector3(ux, uy + 0.3f, uz);
+                body.GetComponent<Rigidbody>().position = body.transform.position;
+                float hp1 = body.GetHealth();
+                Plugin.Log.LogInfo($"townsfolk self-test rogue upstairs: on floor 1 at tile ({up % 32},{up / 32}), {body.transform.position - castle.Origin}");
+                for (int i = 0; i < 45; i++)
+                {
+                    yield return new WaitForSeconds(1f);
+                    var near = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Duty == Duty.Fight).OrderBy(n => Vector3.Distance(n.transform.position, body.transform.position)).FirstOrDefault();
+                    var d = near != null ? near.transform.position - body.transform.position : Vector3.zero;
+                    if (i % 3 == 2 || body.GetHealth() < hp1)
+                        Plugin.Log.LogInfo($"townsfolk self-test rogue upstairs t={i + 1}s: nearest fighting guard {(near != null ? $"floor {near.Floor}, {new Vector2(d.x, d.z).magnitude:0.0} m across, {d.y:0.0} m up" : "none")}; health {body.GetHealth():0}");
+                    if (body.GetHealth() < hp1) { Plugin.Log.LogInfo($"townsfolk self-test rogue upstairs: a blow landed at {i + 1}s from {d.y:0.0} m up"); break; }
+                }
+            }
+            // a minute's fight: a guard appears beside them and takes them to Yew
+            var take = HarmonyLib.AccessTools.Method(typeof(Crime), "Overpowered");
+            var before = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Length;
+            Plugin.Instance.StartCoroutine((IEnumerator)take.Invoke(null, new object[] { body, castle }));
+            yield return new WaitForSeconds(0.5f);
+            var captor = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.IsReinforcement && n.IsGuard && n.Duty == Duty.Arrest).OrderBy(n => Vector3.Distance(n.transform.position, body.transform.position)).FirstOrDefault();
+            Plugin.Log.LogInfo($"townsfolk self-test overpowered: hostile {Crime.HostileTo(body)}, a guard appeared {(captor != null ? $"{Vector3.Distance(captor.transform.position, body.transform.position):0.0} m from them" : "no")}");
+            yield return new WaitForSeconds(9f);
+            Plugin.Log.LogInfo($"townsfolk self-test overpowered: the guard gone {captor == null}, they are at {body.transform.position - castle.Origin}");
             zdo.Set("u5_hostile", 0);
             ZNetScene.instance.Destroy(body.gameObject);
             // the jail of Yew
@@ -270,6 +305,24 @@ namespace U5InValheim.DevTools
                 var chest = n.GetComponent<Humanoid>().GetInventory().GetEquippedItems().Select(i => i.m_dropPrefab?.name);
                 Plugin.Log.LogInfo($"townsfolk self-test jail: {n.GetHoverName()} at tile ({tx},{ty}) in a cell {inCell}, prisoner {n.IsPrisoner}, guard {n.IsGuard}, wearing {string.Join(",", chest)}");
             }
+            // a prisoner sent out into the hall stays behind the locked door
+            var jerone = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).FirstOrDefault(n => n.Location == 4 && n.IsPrisoner && n.GetHoverName() == "Jerone");
+            if (jerone != null)
+            {
+                jerone.RunTo(0, 8 * 32 + 25);
+                yield return new WaitForSeconds(12f);
+                var jl = jerone.transform.position - yew.Origin;
+                int jx = Mathf.RoundToInt((jl.x + 31) / 2), jy = Mathf.RoundToInt((31 - jl.z) / 2);
+                var cd = FindObjectsByType<Door>(FindObjectsSortMode.None).OrderBy(d => Vector3.Distance(d.transform.position, At(0, 25, 6))).First();
+                Plugin.Log.LogInfo($"townsfolk self-test jail: Jerone told to run to the hall (a prisoner: refused) is at tile ({jx},{jy}), in his cell {cells[jy * 32 + jx]}, the cell door state {cd.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_state)}");
+                jerone.RunTo(0, 4 * 32 + 25);
+                yield return new WaitForSeconds(6f);
+                Plugin.Log.LogInfo($"townsfolk self-test jail: Jerone sent across his cell to (25,4): at {jerone.transform.position - At(0, 25, 4)} from it");
+                if (false) Plugin.Log.LogInfo($"townsfolk self-test jail: Jerone sent to the hall is at tile ({jx},{jy}), in his cell {cells[jy * 32 + jx]}, the cell door state {cd.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_state)}");
+            }
+            var landon = Plugin.U5.NpcsOf(yew.Location)[13];
+            var ls = landon.Schedule;
+            Plugin.Log.LogInfo($"townsfolk self-test jail: Landon's places {string.Join(" ", Enumerable.Range(0, 3).Select(i => $"({ls.X[i]},{ls.Y[i]},{ls.Z[i]}){(plan.Seats.ContainsKey((ls.Z[i], ls.Y[i] * 32 + ls.X[i])) ? " seat" : "")}"))}, walkable {plan.Walk.TryGetValue(-1, out var wb) && wb[1 * 32 + 22]}");
             // the cell's door, shut and locked: a player can't open it
             var doorAt = At(0, 25, 6);
             var door = FindObjectsByType<Door>(FindObjectsSortMode.None).OrderBy(d => Vector3.Distance(d.transform.position, doorAt)).FirstOrDefault();
@@ -304,8 +357,29 @@ namespace U5InValheim.DevTools
                 bool land = Physics.Raycast(top, Vector3.down, out var h, 12f, solid);
                 Plugin.Log.LogInfo($"townsfolk self-test jail: falling at ({x},{y}) lands on {(land ? $"{h.collider.name} {h.point.y - yew.Origin.y:0.0} m" : "nothing")}");
             }
-            foreach (var cp in FindObjectsByType<ClimbPoint>(FindObjectsSortMode.None).Where(c => Vector3.Distance(c.transform.position, yew.Origin) < 50f))
-                Plugin.Log.LogInfo($"townsfolk self-test jail: ladder at {cp.transform.position - yew.Origin} ({cp.Verb}) to {cp.Target - yew.Origin}");
+            foreach (var cp in FindObjectsByType<ClimbPoint>(FindObjectsSortMode.None).Where(c => Vector3.Distance(c.transform.position, yew.Origin) < 50f && c.name.StartsWith("iron_floor")))
+                Plugin.Log.LogInfo($"townsfolk self-test jail: grate at {cp.transform.position - yew.Origin} ({cp.Verb}) to {cp.Target - yew.Origin}");
+            var grate = At(0, 25, 9);
+            var under = Physics.RaycastAll(grate + Vector3.up * 1f, Vector3.down, 8f, solid).OrderBy(h => h.distance).Select(h => $"{h.collider.transform.root.name} {h.point.y - yew.Origin.y:0.0}");
+            Plugin.Log.LogInfo($"townsfolk self-test jail: down through the grate (25,9): {string.Join(", ", under)}; ladders back up {FindObjectsByType<ClimbPoint>(FindObjectsSortMode.None).Count(c => Vector3.Distance(c.transform.position, grate) < 2.5f && c.Verb == "Climb up")} pieces");
+            // the torture table in the hall (21,8): the axe and knife flat on it, blood on the top, the chain over it
+            foreach (var tableAt in new[] { At(0, 21, 8), At(0, 29, 8) })
+            foreach (var st in FindObjectsByType<ItemStand>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, tableAt) < 2f))
+            {
+                var vis = st.m_attachOther.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToList();
+                var bounds = vis.Count > 0 ? vis.Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; }) : new Bounds();
+                Plugin.Log.LogInfo($"townsfolk self-test torture: ({(tableAt - yew.Origin).x:0}) {Name(st.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_item))} lies {bounds.min.y - tableAt.y - 0.817f:0.00}..{bounds.max.y - tableAt.y - 0.817f:0.00} m above the table top, {bounds.size.x:0.00} x {bounds.size.z:0.00} m; stand disc shown {st.GetComponentsInChildren<Renderer>().Any(r => r.enabled && !r.transform.IsChildOf(st.m_attachOther))}");
+            }
+            var table = At(0, 21, 8);
+            var tb = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => v.name.StartsWith("piece_table(")).OrderBy(v => Vector3.Distance(v.transform.position, table)).FirstOrDefault();
+            if (tb != null)
+            {
+                var stains = tb.GetComponentsInChildren<MeshRenderer>().Where(r => r.name == "u5_blood").ToList();
+                Plugin.Log.LogInfo($"townsfolk self-test torture: blood stains {stains.Count}{(stains.Count > 0 ? $", {stains[0].bounds.center.y - table.y - 0.817f:0.000} m above the top, shader {stains[0].sharedMaterial.shader.name}" : "")}");
+            }
+            var near = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, table) < 4f && (v.name.StartsWith("CastleKit_decal") || v.name.StartsWith("dvergrprops_hooknchain") || v.name.StartsWith("woodiron_beam")));
+            foreach (var v in near)
+                Plugin.Log.LogInfo($"townsfolk self-test torture: {v.name} at {v.transform.position - table} scale {v.transform.localScale}, components {string.Join(",", v.GetComponents<Component>().Select(c => c.GetType().Name))}");
         }
 
         static void BoltHit(Projectile __instance, Collider collider, Vector3 hitPoint)

@@ -41,6 +41,11 @@ namespace U5InValheim.WorldGen.Core
         public int Secret;
         /// <summary>The door behind a secret wall: hidden until that wall (the same group) is hit, or 0.</summary>
         public int Hidden;
+        /// <summary>Degrees turned about its own east–west axis after the yaw (0: upright).</summary>
+        public float Tilt;
+        /// <summary>Degrees about its own up axis, then its own north–south axis, before the tilt.</summary>
+        public float Spin, Roll;
+        public bool Turned => Tilt != 0 || Spin != 0 || Roll != 0;
 
         public override string ToString() => $"{Prefab} ({X:0.##}, {Y:0.##}, {Z:0.##}) yaw {Yaw}";
     }
@@ -125,6 +130,17 @@ namespace U5InValheim.WorldGen.Core
             this.data = data;
             this.tiles = tiles;
             this.geo = geo;
+            // townsfolk moved out of the way (town_tiles.json npc_places)
+            foreach (var kv in tiles.NpcPlaces)
+            {
+                var (locNo, slot, place) = kv.Key;
+                var loc = data.Location(locNo);
+                if (loc == null) continue;
+                var s = data.NpcsOf(loc)[slot].Schedule;
+                s.X[place] = (byte)kv.Value.x;
+                s.Y[place] = (byte)kv.Value.y;
+                s.Z[place] = (sbyte)kv.Value.z;
+            }
         }
 
         const int N = SettlementPlan.Size;
@@ -663,6 +679,7 @@ namespace U5InValheim.WorldGen.Core
                     }
                     if (part.Look != null) Last(pl => { pl.Look = part.Look; return pl; });
                     if (part.Item != null) Last(pl => { pl.StandItem = part.Item; return pl; });
+                    if (part.Tilt != 0 || part.Spin != 0 || part.Roll != 0) Last(pl => { pl.Tilt = part.Tilt; pl.Spin = part.Spin; pl.Roll = part.Roll; return pl; });
                 }
             }
 
@@ -864,6 +881,8 @@ namespace U5InValheim.WorldGen.Core
                 ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
                 // a trapdoor above: the stone underfoot drops whoever steps on it into the basement
                 if (ground != null && ground.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
+                // (a grate is the only cover over its hole)
+                if (ground != null && ground.Rule[c].Grate) p.Pieces.RemoveAt(p.Pieces.Count - 1);
             }
             // the tiles round the dug ones (the basement's walls) dip to its floor at their dug
             // edges, under walls that stop at the slab: the slab covers them too
@@ -882,7 +901,7 @@ namespace U5InValheim.WorldGen.Core
                 var k = lv.Rule[c].Kind;
                 bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Walked != null && lv.Walked[c])
                                || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
-                if (!floored || Solid(below, c)) continue;
+                if (!floored || Solid(below, c) || lv.Rule[c].Grate) continue;
                 ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
                 if (lv.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
             }
@@ -1143,15 +1162,20 @@ namespace U5InValheim.WorldGen.Core
             }
         }
 
-        /// <summary>A cannon (0xb4..0xb7: facing N, E, S, W) on a tile next to this one faces it.</summary>
+        /// <summary>
+        /// A cannon's (0xb4..0xb7: facing N, E, S, W) firing port: the walk tile it faces and one
+        /// either side of that, for a wide arc of fire.
+        /// </summary>
         static bool CannonFacing(Level lv, int x, int y)
         {
             foreach (var (dx, dy, facing) in new[] { (0, 1, 0), (-1, 0, 1), (0, -1, 2), (1, 0, 3) })
-            {
-                int nx = x + dx, ny = y + dy;
-                if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
-                if (lv.Raw[ny * N + nx] == 0xb4 + facing) return true;
-            }
+                for (int side = -1; side <= 1; side++)
+                {
+                    // (the port runs across the cannon's line of fire)
+                    int nx = x + dx + (dx == 0 ? side : 0), ny = y + dy + (dy == 0 ? side : 0);
+                    if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+                    if (lv.Raw[ny * N + nx] == 0xb4 + facing) return true;
+                }
             return false;
         }
 
@@ -1474,6 +1498,10 @@ namespace U5InValheim.WorldGen.Core
                         ClimbPoint(ctx, lv, levels, c, r.Kind, x, y, z);
                         break;
                 }
+                // under a floor grate: the ladder back up to it
+                int li = levels.IndexOf(lv);
+                if (li + 1 < levels.Count && levels[li + 1].Rule[c].Grate && r.Kind == TileKind.Ground && !lv.Barrier[c])
+                    ClimbPoint(ctx, lv, levels, c, TileKind.LadderUp, x, y, z);
             }
         }
 
@@ -1597,11 +1625,18 @@ namespace U5InValheim.WorldGen.Core
             float lx = x - dx * LadderBack, lz = z - dz * LadderBack, yaw = dx != 0 ? 90 : 0;
             float height = p.Storey / 2 + LadderSink, bottom = y + (up ? p.Storey / 2 : -LadderSink);
             int first = p.Pieces.Count;
-            Ctx.Rotate(LadderHalfWidth, 0, yaw, out float rx, out float rz);
-            foreach (int side in new[] { -1, 1 })
-                ctx.Stand("wood_pole2", lx + side * rx, bottom, lz + side * rz, yaw, LadderRail, height / 2, LadderRail);
-            for (float h = up ? 0.15f : LadderSink + LadderRungStep; h < height - (up ? LadderSink : 0.15f); h += LadderRungStep)
-                ctx.Centre("wood_beam_1", lx, bottom + h, lz, yaw, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
+            bool grate = !up && lv.Rule[c].Grate;
+            if (grate)
+                // a floor grate: the iron grate over the hole is the way down (stood on, not walked through)
+                ctx.Top("iron_floor_2x2", x, y + 0.02f, z, 0);
+            else
+            {
+                Ctx.Rotate(LadderHalfWidth, 0, yaw, out float rx, out float rz);
+                foreach (int side in new[] { -1, 1 })
+                    ctx.Stand("wood_pole2", lx + side * rx, bottom, lz + side * rz, yaw, LadderRail, height / 2, LadderRail);
+                for (float h = up ? 0.15f : LadderSink + LadderRungStep; h < height - (up ? LadderSink : 0.15f); h += LadderRungStep)
+                    ctx.Centre("wood_beam_1", lx, bottom + h, lz, yaw, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
+            }
             bool climb = target >= 0 && target < levels.Count;
             if (climb) p.Links.Add((lv.Z, c, levels[target].Z));
             // stand the arrival a step off the ladder, on a floor tile of the target level
@@ -1609,7 +1644,7 @@ namespace U5InValheim.WorldGen.Core
             for (int i = first; i < p.Pieces.Count; i++)
             {
                 var pl = p.Pieces[i];
-                pl.Look = "passable";
+                if (!grate) pl.Look = "passable";
                 if (climb)
                 {
                     pl.Climb = true;

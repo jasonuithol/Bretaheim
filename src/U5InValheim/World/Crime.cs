@@ -19,6 +19,8 @@ namespace U5InValheim.WorldGen
     {
         /// <summary>How close a guard comes to make the arrest.</summary>
         public const float Reach = 2.5f;
+        /// <summary>How long the guards fight a player who would not come quietly before one appears beside them and takes them anyway.</summary>
+        public const float FightFor = 60f;
         const string WantedKey = "u5_wanted", HostileKey = "u5_hostile", JailRpc = "U5_Jail";
         /// <summary>The jail of Yew (guard_arrest: location 4, x 25, y 4, level 0).</summary>
         public const int JailLocation = 4, JailX = 25, JailY = 4;
@@ -99,6 +101,25 @@ namespace U5InValheim.WorldGen
             Plugin.Instance.StartCoroutine(Jail(me));
         }
 
+        /// <summary>
+        /// A minute of fighting and the rogue still stands: a guard appears beside them (as the
+        /// ballistas' crews do), strikes them unconscious, and they wake in the jail of Yew.
+        /// </summary>
+        static IEnumerator Overpowered(Player me, Settlements.Built town)
+        {
+            Clear(me);
+            var ovl = Plugin.U5.Ovl;
+            var at = me.transform.position - me.transform.forward * 1.2f;
+            var face = Quaternion.LookRotation(Vector3.ProjectOnPlane(me.transform.position - at, Vector3.up)).eulerAngles.y;
+            var captor = TownsfolkSpawner.SpawnCrew(town, at, face, null);
+            Plugin.Log.LogInfo($"{town.Location.Name}: a guard appears and takes {me.GetPlayerName()} after a minute's fight");
+            me.Message(MessageHud.MessageType.Center, ovl.CStr(SArrest).Trim());
+            yield return new WaitForSeconds(1.5f);
+            me.Message(MessageHud.MessageType.Center, ovl.CStr(SStruck).Trim());
+            yield return Jail(me);
+            if (captor != null && captor.GetComponent<ZNetView>()?.GetZDO() != null && captor.IsOwned) ZNetScene.instance.Destroy(captor.gameObject);
+        }
+
         /// <summary>Struck unconscious; awakening in Yew's jail at 8 o'clock.</summary>
         static IEnumerator Jail(Player me)
         {
@@ -138,7 +159,8 @@ namespace U5InValheim.WorldGen
         /// <summary>The local player's side: the guard's reach brings the question; leaving the settlement or dying ends it all.</summary>
         public class Watch : MonoBehaviour
         {
-            float checkAt;
+            float checkAt, hostileSince = -1f;
+            bool taking;
 
             void Update()
             {
@@ -147,11 +169,19 @@ namespace U5InValheim.WorldGen
                 var me = Player.m_localPlayer;
                 if (me == null || Britannia.Active == null) return;
                 int wanted = WantedBy(me), hostile = HostileTo(me);
+                if (hostile == 0) hostileSince = -1f;
+                else if (hostileSince < 0) hostileSince = Time.time;
                 if (wanted == 0 && hostile == 0) return;
                 var town = Settlements.Get(wanted != 0 ? wanted : hostile);
                 if (me.IsDead() || town == null || OutOf(town, me.transform.position))
                 {
                     Clear(me);
+                    return;
+                }
+                if (hostile != 0 && Time.time - hostileSince >= FightFor && !taking)
+                {
+                    taking = true;
+                    StartCoroutine(Take(me, town));
                     return;
                 }
                 if (wanted == 0 || TalkPanel.IsOpen) return;
@@ -163,6 +193,12 @@ namespace U5InValheim.WorldGen
                     TalkPanel.OpenArrest(npc);
                     return;
                 }
+            }
+
+            IEnumerator Take(Player me, Settlements.Built town)
+            {
+                yield return Overpowered(me, town);
+                taking = false;
             }
 
             static bool OutOf(Settlements.Built town, Vector3 p)

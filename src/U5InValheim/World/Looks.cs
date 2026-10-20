@@ -29,6 +29,8 @@ namespace U5InValheim.WorldGen
                 case "fountain": Fountain(go); break;
                 case "passable": Passable(go); break;
                 case "rune": Rune(go); break;
+                case "bare_stand": BareStand(go); break;
+                case "bloody": Bloody(go); break;
                 default:
                     if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
                     else if (look.StartsWith("drawbridge:")) Drawbridge.Add(go, look.Substring(11));
@@ -45,6 +47,78 @@ namespace U5InValheim.WorldGen
         {
             int layer = LayerMask.NameToLayer("piece_nonsolid");
             foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.gameObject.layer = layer;
+        }
+
+        static Material blood;
+
+        /// <summary>
+        /// A torture table splattered with blood: flat stains (a texture of dark red blots and
+        /// droplets drawn here) lying on its top.
+        /// </summary>
+        static void Bloody(GameObject go)
+        {
+            if (blood == null)
+            {
+                var shader = Shader.Find("Sprites/Default");
+                if (shader == null) return;
+                blood = new Material(shader) { name = "u5_blood", mainTexture = BloodTexture() };
+            }
+            const float Top = 0.82f;
+            foreach (var (x, z, size, turn) in new[] { (-0.35f, 0.05f, 0.75f, 20f), (0.35f, -0.22f, 0.45f, 140f), (0.8f, 0.3f, 0.3f, 260f), (-0.95f, -0.3f, 0.25f, 75f) })
+            {
+                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Object.DestroyImmediate(quad.GetComponent<Collider>());
+                quad.name = "u5_blood";
+                quad.transform.SetParent(go.transform, false);
+                quad.transform.localPosition = new Vector3(x, Top, z);
+                quad.transform.localRotation = Quaternion.Euler(90, turn, 0);
+                quad.transform.localScale = new Vector3(size, size, 1);
+                var r = quad.GetComponent<MeshRenderer>();
+                r.sharedMaterial = blood;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
+        /// <summary>Dark red blots with ragged edges and a spray of droplets, on clear.</summary>
+        static Texture2D BloodTexture()
+        {
+            const int S = 128;
+            var px = new Color32[S * S];
+            var rng = new System.Random(1349);
+            var blots = new List<(float x, float y, float r)> { (0.5f, 0.5f, 0.26f) };
+            for (int i = 0; i < 7; i++) blots.Add((0.5f + (float)(rng.NextDouble() - 0.5) * 0.4f, 0.5f + (float)(rng.NextDouble() - 0.5) * 0.4f, 0.08f + (float)rng.NextDouble() * 0.1f));
+            for (int i = 0; i < 26; i++)
+            {
+                double a = rng.NextDouble() * Math.PI * 2, d = 0.3 + rng.NextDouble() * 0.17;
+                blots.Add((0.5f + (float)(Math.Cos(a) * d), 0.5f + (float)(Math.Sin(a) * d), 0.008f + (float)rng.NextDouble() * 0.022f));
+            }
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float u = (x + 0.5f) / S, v = (y + 0.5f) / S, best = 0;
+                    foreach (var b in blots)
+                    {
+                        float dx = u - b.x, dy = v - b.y;
+                        // a ragged rim: the radius wobbles with the angle
+                        float wob = 1 + 0.18f * Mathf.Sin(Mathf.Atan2(dy, dx) * 7 + b.x * 40);
+                        best = Mathf.Max(best, 1 - Mathf.Sqrt(dx * dx + dy * dy) / (b.r * wob));
+                    }
+                    byte alpha = (byte)(best <= 0 ? 0 : Mathf.Clamp(best * 6f, 0, 1) * 215);
+                    byte red = (byte)(70 + 40 * Mathf.Clamp01(1 - best));
+                    px[y * S + x] = new Color32(red, 4, 6, alpha);
+                }
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { name = "u5_blood", wrapMode = TextureWrapMode.Clamp };
+            tex.SetPixels32(px);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>An item stand that shows only its item (laid on a table): its own disc is hidden.</summary>
+        static void BareStand(GameObject go)
+        {
+            var attach = go.GetComponent<ItemStand>()?.m_attachOther;
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+                if (attach == null || !r.transform.IsChildOf(attach)) r.enabled = false;
         }
 
         static readonly Color RuneTint = new Color(0.62f, 0.68f, 0.85f);

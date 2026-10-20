@@ -215,7 +215,9 @@ namespace U5InValheim.WorldGen
                 // children are placed at their own world positions when it is rebuilt
                 var pos = structure ? new Vector3(zonePos.x, b.Origin.y, zonePos.z) : b.Origin + new Vector3(p.X, p.Y, p.Z);
                 if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
-                var go = UnityEngine.Object.Instantiate(prefab, pos, Quaternion.Euler(0, p.Yaw, 0));
+                var rot = Quaternion.Euler(0, p.Yaw, 0);
+                if (p.Turned) rot *= Quaternion.Euler(p.Tilt, 0, 0) * Quaternion.Euler(0, p.Spin, 0) * Quaternion.Euler(0, 0, p.Roll);
+                var go = UnityEngine.Object.Instantiate(prefab, pos, rot);
                 var scale = p.Scaled ? new Vector3(p.SX, p.SY, p.SZ) : Vector3.zero;
                 if (p.Scaled) go.transform.localScale = scale;
                 var zdo = go.GetComponent<ZNetView>()?.GetZDO();

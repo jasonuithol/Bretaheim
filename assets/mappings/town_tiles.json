@@ -72,15 +72,15 @@
     "6d": {"kind": "water", "river": true, "prefab": "forge_ext5"},
     "6e": {"kind": "water", "river": true, "prefab": "forge_ext5"},
     "6f": {"kind": "water", "river": true, "prefab": "forge_ext5"},
-    "80": {"kind": "prop", "parts": [{"prefab": "piece_table", "place": "stand"}, {"prefab": "itemstandh", "x": -0.55, "y": 0.817, "place": "stand", "item": "AxeBronze"}, {"prefab": "itemstandh", "x": 0.05, "y": 0.817, "place": "stand", "item": "KnifeFlint"}, {"prefab": "dvergrprops_hooknchain", "x": 0.5, "y": 4, "place": "top", "scale": [1, 0.6, 1]}]},
+    "80": {"kind": "prop", "parts": [{"prefab": "piece_table", "place": "stand", "look": "bloody"}, {"prefab": "itemstandh", "x": -1.0, "z": -0.15, "y": 0.85, "yaw": 90, "tilt": 90, "place": "pivot", "item": "AxeBronze", "look": "bare_stand", "spin": 90}, {"prefab": "itemstandh", "x": 0.05, "z": 0.25, "y": 0.84, "yaw": 90, "place": "pivot", "item": "KnifeFlint", "look": "bare_stand"}, {"prefab": "woodiron_beam", "z": 0, "y": 4, "place": "top"}, {"prefab": "dvergrprops_hooknchain", "x": 0.6, "z": 0, "y": 3.7, "yaw": 0, "place": "top", "scale": [0.7, 0.55, 0.7]}]},
     "84": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "x": -0.9, "place": "stand"}, {"prefab": "wood_pole2", "x": 0.9, "place": "stand"}, {"prefab": "wood_beam", "y": 1.0}, {"prefab": "wood_beam_26", "y": 1.5}]},
-    "85": {"kind": "ground", "paint": "paved", "parts": [{"prefab": "dvergrprops_hooknchain", "x": -0.45, "z": 0.3, "y": 4, "place": "top", "scale": [1, 0.8, 1]}, {"prefab": "dvergrprops_hooknchain", "x": 0.4, "z": -0.3, "y": 4, "yaw": 90, "place": "top", "scale": [1, 0.8, 1]}]},
-    "86": {"kind": "prop", "parts": [{"prefab": "iron_floor_2x2", "y": 0.02, "place": "top"}]},
+    "85": {"kind": "ground", "paint": "paved", "parts": [{"prefab": "woodiron_beam", "z": 0, "y": 4, "place": "top"}, {"prefab": "dvergrprops_hooknchain", "x": -0.5, "z": 0, "y": 3.7, "yaw": 0, "place": "top", "scale": [0.7, 0.8, 0.7]}, {"prefab": "dvergrprops_hooknchain", "x": 0.5, "z": 0, "y": 3.7, "yaw": 90, "place": "top", "scale": [0.7, 0.8, 0.7]}]},
+    "86": {"kind": "ladder_down", "grate": true},
     "87": {"kind": "arch"},
     "88": {"kind": "prop", "prefab": "stone_pile"},
     "89": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "place": "stand"}, {"prefab": "wood_beam_1", "y": 1.4}]},
     "8a": {"kind": "prop", "parts": [{"prefab": "stone_wall_1x1", "y": 0.5, "scale": [0.9, 1, 0.25]}]},
-    "8b": {"kind": "prop", "parts": [{"prefab": "piece_table", "place": "stand"}, {"prefab": "itemstandh", "x": -0.55, "y": 0.817, "place": "stand", "item": "AxeBronze"}, {"prefab": "itemstandh", "x": 0.05, "y": 0.817, "place": "stand", "item": "KnifeFlint"}, {"prefab": "dvergrprops_hooknchain", "x": 0.5, "y": 4, "place": "top", "scale": [1, 0.6, 1]}]},
+    "8b": {"kind": "prop", "parts": [{"prefab": "piece_table", "place": "stand", "look": "bloody"}, {"prefab": "itemstandh", "x": -1.0, "z": -0.15, "y": 0.85, "yaw": 90, "tilt": 90, "place": "pivot", "item": "AxeBronze", "look": "bare_stand", "spin": 90}, {"prefab": "itemstandh", "x": 0.05, "z": 0.25, "y": 0.84, "yaw": 90, "place": "pivot", "item": "KnifeFlint", "look": "bare_stand"}, {"prefab": "woodiron_beam", "z": 0, "y": 4, "place": "top"}, {"prefab": "dvergrprops_hooknchain", "x": 0.6, "z": 0, "y": 3.7, "yaw": 0, "place": "top", "scale": [0.7, 0.55, 0.7]}]},
     "8c": {"kind": "ground", "paint": "paved", "trapdoor": true},
     "8d": {"kind": "prop", "prefab": "blackforge"},
     "8e": {"kind": "prop", "prefab": "piece_MeadCauldron"},
@@ -200,6 +200,10 @@
     "5": {"fe": "27"},
     "17": {"fe": "27"},
     "31": {"fe": "27"}
+  },
+  "npc_places": {
+    "_doc": "Townsfolk moved from a place of their schedule, by location number, then .NPC slot, then place (0..2): [x, y, z]. Yew: Landon stood in the corridor behind the cells, in the way of the secret door out of the jail; his evening is in the basement corridor under it.",
+    "4": {"13": {"1": [22, 1, -1]}}
   },
   "help_from": {
     "_doc": "Where a settlement without guards sends for help when monsters come into town, by location number: its villager runs out towards that settlement and its guards come back with them. Only the Britannys, from Lord British's castle; other towns without guards wait for the reinforcements.",

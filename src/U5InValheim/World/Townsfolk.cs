@@ -170,7 +170,8 @@ namespace U5InValheim.WorldGen
             Dress(zdo, b.Location, guard);
             var npc = go.GetComponent<TownNpc>();
             npc.Init();
-            npc.Crew(ballista);
+            if (ballista != null) npc.Crew(ballista);
+            else npc.Duty = Duty.Arrest;
             var fx = ZNetScene.instance.GetPrefab("fx_summon_spirit_spawn");
             if (fx != null) Object.Instantiate(fx, at, Quaternion.identity);
             return npc;
@@ -350,13 +351,19 @@ namespace U5InValheim.WorldGen
         public int Floor => walker?.Floor ?? nview.GetZDO()?.GetInt(TownsfolkSpawner.FloorKey) ?? 0;
         public int Cell => walker?.Cell ?? 0;
         /// <summary>Gone home to hide (and arrived).</summary>
-        public bool IsPrisoner => npc != null && home != null && TownsfolkSpawner.Prisoner(home.Location, npc);
+        bool? prisoner;
+        public bool IsPrisoner => prisoner ?? (bool)(prisoner = npc != null && home != null && TownsfolkSpawner.Prisoner(home.Location, npc));
         public bool Hidden => duty == Duty.Hide && walker != null && walker.Arrived;
         public float Health => human != null ? human.GetHealth() : 0f;
         public float MaxHealth => human != null ? human.GetMaxHealth() : 1f;
 
         /// <summary>Hurrying to a tile (out of town for help).</summary>
-        public void RunTo(int z, int cell) => walker?.Chase(z, cell);
+        public void RunTo(int z, int cell)
+        {
+            // a prisoner goes nowhere outside their cell
+            if (IsPrisoner && !(home.Plan.Cells.TryGetValue(z, out var cells) && cells[cell])) return;
+            walker?.Chase(z, cell);
+        }
         public bool ArrivedAt(int cell) => walker != null && walker.Arrived && walker.Cell == cell;
 
         /// <summary>Hurrying to another townsperson (with news, or to fetch them).</summary>
@@ -666,6 +673,8 @@ namespace U5InValheim.WorldGen
             {
                 var door = nearby[i] != null ? nearby[i].GetComponentInParent<Door>() : null;
                 if (door == null || opened.Contains(door) || DoorOpen(door)) continue;
+                // (prisoners have no keys)
+                if (IsPrisoner && door.GetComponent<ZNetView>()?.GetZDO()?.GetString(Settlements.LockKey).Length > 0) continue;
                 if (Vector3.Dot(door.transform.position - transform.position, dir) <= 0) continue;
                 door.Interact(human, false, false);
                 opened.Add(door);
@@ -739,11 +748,14 @@ namespace U5InValheim.WorldGen
             }
             Rearm();
             var to = foe.transform.position - transform.position;
+            // (on another storey it is not in reach, however close above or below)
+            bool level = Mathf.Abs(to.y) < SameLevel;
             to.y = 0;
             // in reach as Valheim's creatures judge it: the weapon's AI range plus both bodies
             var held = human.GetCurrentWeapon()?.m_shared;
             float reach = Mathf.Max(held?.m_aiAttackRange ?? 2f, held?.m_attack.m_attackRange ?? 1.5f) + human.GetRadius() + foe.GetRadius();
             bool seen = InSight(foe);
+            if (!level) to = to.normalized * Mathf.Max(to.magnitude, reach + 1f);
             if (to.magnitude >= ThrowFrom && to.magnitude <= ThrowTo && Time.time >= throwAt && CanThrow() && seen)
             {
                 throwAt = Time.time + ThrowEvery;
@@ -755,14 +767,14 @@ namespace U5InValheim.WorldGen
             if (to.magnitude > reach)
             {
                 // the last stretch straight at it, when nothing is in the way; else along the streets
-                if (to.magnitude < 6f && seen)
+                if (to.magnitude < 6f && seen && level)
                 {
                     Steer(to.normalized);
                     human.SetLookDir(to.normalized);
                     return;
                 }
                 var local = foe.transform.position - home.Origin;
-                walker.Chase(0, home.Plan.CellAt(local.x, local.z));
+                walker.Chase(FloorOf(foe.transform.position), home.Plan.CellAt(local.x, local.z));
                 return;
             }
             Steer(Vector3.zero);
@@ -805,21 +817,39 @@ namespace U5InValheim.WorldGen
             var who = home.Watch.WantedNear(transform.position);
             if (who == null) { walker.Halt(); return; }
             var to = who.transform.position - transform.position;
+            bool level = Mathf.Abs(to.y) < SameLevel;
             to.y = 0;
-            if (to.magnitude > Crime.Reach * 0.7f)
+            if (to.magnitude > Crime.Reach * 0.7f || !level)
             {
-                if (to.magnitude < 6f && InSight(who))
+                if (to.magnitude < 6f && InSight(who) && level)
                 {
                     Steer(to.normalized);
                     human.SetLookDir(to.normalized);
                     return;
                 }
                 var local = who.transform.position - home.Origin;
-                walker.Chase(Mathf.Max(0, Mathf.RoundToInt(local.y / home.Plan.Storey)), home.Plan.CellAt(local.x, local.z));
+                walker.Chase(FloorOf(who.transform.position), home.Plan.CellAt(local.x, local.z));
                 return;
             }
             Steer(Vector3.zero);
             human.SetLookDir(to.normalized);
+        }
+
+        /// <summary>Heights closer than this are the same storey.</summary>
+        const float SameLevel = 1.8f;
+
+        /// <summary>The storey a point in town is on: the highest built floor at or just below it.</summary>
+        int FloorOf(Vector3 world)
+        {
+            float y = world.y - home.Origin.y;
+            int best = 0;
+            float bestY = float.MinValue;
+            foreach (int z in home.Plan.Walk.Keys)
+            {
+                float fy = home.Plan.LevelY(z);
+                if (fy <= y + 0.6f && fy > bestY) { best = z; bestY = fy; }
+            }
+            return best;
         }
 
         /// <summary>Their weapon throws (a spear's secondary attack is its throw).</summary>

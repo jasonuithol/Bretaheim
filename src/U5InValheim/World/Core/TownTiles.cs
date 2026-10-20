@@ -30,6 +30,10 @@ namespace U5InValheim.WorldGen.Core
         public string Look;
         /// <summary>The item an item stand holds, or null.</summary>
         public string Item;
+        /// <summary>Degrees turned about its own east–west axis after its yaw (an item stand laid on its side lays its item flat).</summary>
+        public float Tilt;
+        /// <summary>Degrees turned about its own up axis before the tilt, and about its own north–south axis before that.</summary>
+        public float Spin, Roll;
     }
 
     public class TileRule
@@ -47,6 +51,8 @@ namespace U5InValheim.WorldGen.Core
         public bool Secret;
         /// <summary>A trapdoor (0x8c): a stone floor with no collision, dropping whoever steps on it to the storey below.</summary>
         public bool Trapdoor;
+        /// <summary>A floor grate (0x86): the top of a ladder down, an iron grate over the hole with no stone under it.</summary>
+        public bool Grate;
         /// <summary>Yaw in degrees the piece faces (n 0, e 90, s 180, w 270).</summary>
         public float Yaw;
         public WallBuild Build;
@@ -145,6 +151,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<int, string> DrawbridgeHinge = new Dictionary<int, string>();
         /// <summary>Where a settlement without guards sends for help, by location number (the Britannys: Lord British's castle).</summary>
         public readonly Dictionary<int, int> HelpFrom = new Dictionary<int, int>();
+        /// <summary>Townsfolk moved from a place of their schedule: (location, slot, place) → (x, y, z).</summary>
+        public readonly Dictionary<(int, int, int), (int x, int y, int z)> NpcPlaces = new Dictionary<(int, int, int), (int, int, int)>();
         /// <summary>Tiles a settlement's maps are read as instead, by location number (tile → tile).</summary>
         public readonly Dictionary<int, Dictionary<byte, byte>> TileAs = new Dictionary<int, Dictionary<byte, byte>>();
 
@@ -170,6 +178,7 @@ namespace U5InValheim.WorldGen.Core
                     Merlons = !o.ContainsKey("merlons") || Json.Bool(o, "merlons"),
                     Secret = Json.Bool(o, "secret"),
                     Trapdoor = Json.Bool(o, "trapdoor"),
+                    Grate = Json.Bool(o, "grate"),
                     Candles = Json.Get(o, "candles") is double candles ? (int)candles : 0,
                     SignPost = Json.Str(o, "signpost"),
                     River = Json.Bool(o, "river"),
@@ -245,6 +254,17 @@ namespace U5InValheim.WorldGen.Core
                     var map = t.TileAs[int.Parse(kv.Key)] = new Dictionary<byte, byte>();
                     foreach (var m in Json.Obj(kv.Value)) map[byte.Parse(m.Key, NumberStyles.HexNumber)] = byte.Parse((string)m.Value, NumberStyles.HexNumber);
                 }
+            if (root.TryGetValue("npc_places", out var np))
+                foreach (var loc in Json.Obj(np))
+                {
+                    if (loc.Key.StartsWith("_")) continue;
+                    foreach (var slot in Json.Obj(loc.Value))
+                        foreach (var place in Json.Obj(slot.Value))
+                        {
+                            var xyz = (List<object>)place.Value;
+                            t.NpcPlaces[(int.Parse(loc.Key), int.Parse(slot.Key), int.Parse(place.Key))] = ((int)(double)xyz[0], (int)(double)xyz[1], (int)(double)xyz[2]);
+                        }
+                }
             if (root.TryGetValue("help_from", out var hf))
                 foreach (var kv in Json.Obj(hf))
                     if (!kv.Key.StartsWith("_")) t.HelpFrom[int.Parse(kv.Key)] = (int)(double)kv.Value;
@@ -282,6 +302,9 @@ namespace U5InValheim.WorldGen.Core
                         : Json.Str(o, "place") == "pivot" ? PartPlace.Pivot : PartPlace.Centre,
                 Look = Json.Str(o, "look"),
                 Item = Json.Str(o, "item"),
+                Tilt = F("tilt"),
+                Spin = F("spin"),
+                Roll = F("roll"),
             };
             if (Json.Get(o, "scale") is List<object> s)
             {
