@@ -20,7 +20,7 @@ namespace U5InValheim.WorldGen
         /// three times the first head and hung its face; at 0.8 a little small; a foot higher and 20°
         /// less upturned, the cut of its neck showed from behind).
         /// </summary>
-        static readonly Vector3 HeadOffset = new Vector3(1.15f, -0.35f, 0.1f);
+        static readonly Vector3 HeadOffset = new Vector3(1.15f, -0.2f, 0.25f);
         const float HeadScale = 1.2f, HeadTurn = 15f, HeadLookUp = 60f;
 
         public static void Register() => PrefabManager.OnVanillaPrefabsAvailable += Create;
