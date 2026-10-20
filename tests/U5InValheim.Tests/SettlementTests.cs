@@ -444,7 +444,9 @@ namespace U5InValheim.Tests
             }));
             for (int c = 0; c < 32 * 32; c++)
                 if (NearDug(c))
-                    Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Math.Abs(pc.X - p.LocalX(c % 32)) < 0.1f && Math.Abs(pc.Z - p.LocalZ(c / 32)) < 0.1f);
+                    // (glass where a ladder climbs through: the crystal wall laid flat, its pivot at its edge)
+                    Assert.Contains(p.Pieces, pc => (pc.Prefab == "stone_floor_2x2" && Math.Abs(pc.X - p.LocalX(c % 32)) < 0.1f && Math.Abs(pc.Z - p.LocalZ(c / 32)) < 0.1f)
+                        || (pc.Prefab == "crystal_wall_1x1" && Math.Abs(pc.X - p.LocalX(c % 32) + 0.02f) < 0.1f && Math.Abs(pc.Z - p.LocalZ(c / 32) + 1.028f) < 0.1f));
             // the corner towers' ladders lead down and back up
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a pole's pivot is its middle)
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y < -2 && Math.Abs(pc.ClimbY - 0.2f) < 0.01f);
