@@ -93,7 +93,10 @@ namespace U5InValheim.WorldGen
             int hour = TownNpc.Hour(), n = 0;
             foreach (var npc in Plugin.U5.NpcsOf(b.Location))
             {
-                if (npc.Slot == 0 || !npc.Exists || npc.CreatureType < 0 || npc.CreatureType == 3) continue;
+                // people only (creature types 0..15): the rest of the slots are the original's monsters
+                // and objects living in the place (rats, bats, daemons, gargoyles, shadow lords, the
+                // Crown), not townsfolk
+                if (npc.Slot == 0 || !npc.Exists || npc.CreatureType < 0 || npc.CreatureType == 3 || npc.CreatureType > 15) continue;
                 var s = npc.Schedule;
                 int place = s.PlaceAt(hour), z = s.Z[place], cell = s.Y[place] * SettlementPlan.Size + s.X[place];
                 var (x, y, lz) = b.Plan.TilePos(z, cell);

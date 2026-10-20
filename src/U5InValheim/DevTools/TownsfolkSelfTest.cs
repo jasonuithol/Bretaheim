@@ -34,7 +34,8 @@ namespace U5InValheim.DevTools
             var only = System.Environment.GetEnvironmentVariable("U5_SELFTEST") ?? "";
             if (only.StartsWith("town:"))
             {
-                yield return Town(int.Parse(only.Substring(5)));
+                var list = only.Substring(5).Split(',').Select(int.Parse).ToList();
+                foreach (int n in list) yield return Town(n, list.Count > 1 ? 1 : 3);
                 holding = false;
                 yield break;
             }
@@ -500,7 +501,7 @@ namespace U5InValheim.DevTools
         }
 
         /// <summary>One settlement: its pieces, its people (where they stand, whether on their walkable floors), its statues.</summary>
-        IEnumerator Town(int number)
+        IEnumerator Town(int number, int rounds = 3)
         {
             var town = Settlements.Get(number);
             if (town == null) { Plugin.Log.LogWarning($"townsfolk self-test town {number}: not built"); yield break; }
@@ -510,7 +511,7 @@ namespace U5InValheim.DevTools
             Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name}: {near.Count} objects ({near.Count(v => v.name.StartsWith(Structures.PrefabName))} structures); top kinds {string.Join(", ", near.GroupBy(v => Utils.GetPrefabName(v.gameObject)).OrderByDescending(g => g.Count()).Take(12).Select(g => $"{g.Key} {g.Count()}"))}");
             foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");
-            for (int round = 0; round < 3; round++)
+            for (int round = 0; round < rounds; round++)
             {
                 yield return new WaitForSeconds(20f);
                 var folk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == number).ToList();

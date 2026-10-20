@@ -436,6 +436,10 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   its tool chest, crafting table and barley plot.
 - Exit: Britain, the castle and the hut are walkable and look like the mapping says; new players
   spawn in the hut.
+- Status (2026-10-20): every settlement of the Britannia surface is built (31 of them; Ararat is in
+  the Underworld); the server self-test builds each and checks its people keep to their floors.
+  The original's creatures and objects in settlement NPC slots (rats, bats, daemons, gargoyles,
+  shadow lords, the Crown; Sin'Vraal and Grendel talk) are not spawned yet.
 - Status (2026-10-18): built and walked in-game: Britain, Lord British's castle, Iolo's hut and West/North/East Britanny,
   plus the overworld pass (beaches, river banks, paths, edge dressing, biome borders). Every
   decision is in `docs/MAPPING_DECISIONS.md`; the changes are in `ThunderstoreAssets/CHANGELOG.md`
