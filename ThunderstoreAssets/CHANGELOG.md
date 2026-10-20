@@ -59,6 +59,10 @@ Britain, Lord British's castle and Iolo's hut):
 - Guards fight you on your storey (they climb to you rather than swinging from below); after a
   minute's fight a guard appears beside you and you wake in the jail of Yew.
 - Ballista firing ports are three tiles wide.
+- Cell doors (single doors with a viewport) are a 2 m door under a metre of iron grate: you can
+  talk through a locked one to whoever is behind it. Townsfolk in plain view answer from 9 m.
+- The Ettin is its own creature (`spawn ettin`): a red troll with a second head.
+- Prisoners never leave their cells, whatever their schedule's wandering.
 - Attacking townsfolk is a crime: the guards come to arrest you. A villager you strike cries
   "Guards! Guards!" and runs home, back to their day after 45 s.
 - Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at

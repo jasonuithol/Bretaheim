@@ -19,7 +19,7 @@ namespace U5InValheim.WorldGen
     public static class TalkPanel
     {
         const int LogLines = 16;
-        const float WalkAway = 6f;
+        const float WalkAway = 10f;
 
         static GameObject panel;
         static Text title, log, prompt;

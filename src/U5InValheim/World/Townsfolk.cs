@@ -532,6 +532,8 @@ namespace U5InValheim.WorldGen
             {
                 var local = transform.position - home.Origin;
                 walker = new TownWalker(home.Plan, npc.Schedule, zdo.GetInt(TownsfolkSpawner.FloorKey), local.x, local.z, home.Location.Number * 32 + npc.Slot, home.Crowd);
+                // a prisoner keeps to their cell (no way out through its locked door, however stuck)
+                if (IsPrisoner) walker.Confine = (z, c) => home.Plan.Cells.TryGetValue(z, out var cells) && cells[c];
                 bodyFloor = walker.Floor;
             }
             home.Watch.Tick();

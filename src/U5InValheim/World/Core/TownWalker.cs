@@ -76,6 +76,7 @@ namespace U5InValheim.WorldGen.Core
             chaseFloor = floor;
             chaseCell = cell;
             path = TownPath.Find(plan, Floor, Cell, floor, cell);
+            if (path != null && !Within(path)) path = null;
             pace = Hurry;
         }
 
@@ -102,6 +103,11 @@ namespace U5InValheim.WorldGen.Core
             path = null;
         }
 
+        /// <summary>Where they may go at all (z, cell), or null for anywhere: a prisoner keeps to their cell.</summary>
+        public Func<int, int, bool> Confine;
+
+        bool Within(List<(int z, int cell)> way) => Confine == null || way.TrueForAll(st => Confine(st.z, st.cell));
+
         /// <summary>Advances dt seconds at the given hour of the day (0..23).</summary>
         public void Tick(float dt, int hour)
         {
@@ -127,7 +133,7 @@ namespace U5InValheim.WorldGen.Core
                 int target = ty * N + tx, z = schedule.Z[place];
                 // the whole way stays near the post, on its storey (the original wanders a step at a time)
                 var way = Floor == z && TownPath.Walkable(plan, z, target) && !(crowd?.Taken(z, target, this) ?? false) ? TownPath.Find(plan, Floor, Cell, z, target) : null;
-                if (way != null && way.TrueForAll(st => st.z == z && Math.Max(Math.Abs(st.cell % N - post % N), Math.Abs(st.cell / N - post / N)) <= reach))
+                if (way != null && Within(way) && way.TrueForAll(st => st.z == z && Math.Max(Math.Abs(st.cell % N - post % N), Math.Abs(st.cell / N - post / N)) <= reach))
                 {
                     Leave();
                     path = way;
@@ -151,7 +157,7 @@ namespace U5InValheim.WorldGen.Core
             {
                 int free = crowd.NearestFree(plan, Floor, c, this);
                 var way = free >= 0 ? TownPath.Find(plan, Floor, c, Floor, free) : null;
-                if (way != null)
+                if (way != null && Within(way))
                 {
                     path = way;
                     pace = Speed;
@@ -208,6 +214,7 @@ namespace U5InValheim.WorldGen.Core
         {
             Leave();
             path = TownPath.Find(plan, Floor, Cell, z, cell);
+            if (path != null && !Within(path)) path = null;
             if (path == null) Place(z, cell);
             pace = path == null ? Speed : Math.Max(Speed, Math.Min(Hurry, path.Count * plan.Tile / TripTime));
         }

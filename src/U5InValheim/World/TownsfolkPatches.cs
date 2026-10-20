@@ -30,6 +30,42 @@ namespace U5InValheim.WorldGen
             Patch(harmony, typeof(Projectile), "Setup", postfix: nameof(ProjectileSetup_Postfix));
             Patch(harmony, typeof(Character), "GetHoverText", prefix: nameof(GetHoverText_Prefix));
             Patch(harmony, typeof(Character), "GetHoverName", prefix: nameof(GetHoverName_Prefix));
+            Patch(harmony, typeof(Player), "FindHoverObject", postfix: nameof(FindHoverObject_Postfix));
+        }
+
+        /// <summary>How far away a townsperson you look straight at can be talked to (through a cell door's grate to the back of the cell).</summary>
+        const float TalkReach = 9f;
+
+        /// <summary>A townsperson in plain view a little beyond Valheim's 5 m reach can still be talked to.</summary>
+        static void FindHoverObject_Postfix(Player __instance, ref UnityEngine.GameObject hover, Character hoverCreature)
+        {
+            if (hover == null && Of(hoverCreature) != null)
+            {
+                if (UnityEngine.Vector3.Distance(__instance.GetEyePoint(), hoverCreature.GetCenterPoint()) <= TalkReach) hover = hoverCreature.gameObject;
+                return;
+            }
+            // a locked door with a viewport (a cell door): you talk through its grate to whoever
+            // stands behind it where you look
+            var door = hover != null ? hover.GetComponentInParent<Door>() : null;
+            if (door == null || door.GetComponent<U5Fixed>() == null || !Utils.GetPrefabName(door.gameObject).StartsWith("wood_door")) return;
+            var zdo = door.GetComponent<ZNetView>()?.GetZDO();
+            if (zdo == null || zdo.GetString(Settlements.LockKey).Length == 0) return;
+            var cam = GameCamera.instance != null ? GameCamera.instance.transform : null;
+            if (cam == null) return;
+            var eye = __instance.GetEyePoint();
+            float side = UnityEngine.Vector3.Dot(eye - door.transform.position, door.transform.forward);
+            Character best = null;
+            float bestAngle = 25f;
+            foreach (var kv in folk)
+            {
+                var c = kv.Key;
+                if (c == null || kv.Value.IsDead || UnityEngine.Vector3.Distance(eye, c.GetCenterPoint()) > TalkReach) continue;
+                // (on the far side of the door)
+                if (UnityEngine.Vector3.Dot(c.transform.position - door.transform.position, door.transform.forward) * side >= 0) continue;
+                float angle = UnityEngine.Vector3.Angle(cam.forward, c.GetCenterPoint() - cam.position);
+                if (angle < bestAngle) { bestAngle = angle; best = c; }
+            }
+            if (best != null) hover = best.gameObject;
         }
 
         static void Patch(Harmony h, Type t, string m, string prefix = null, string postfix = null)

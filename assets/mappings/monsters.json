@@ -20,7 +20,7 @@
     { "type": 32, "u5": "Orc",          "prefab": "Goblin",          "status": "direct" },
     { "type": 33, "u5": "Skeleton",     "prefab": "Skeleton",        "status": "direct" },
     { "type": 34, "u5": "Python",       "prefab": "Leech",           "status": "direct",  "note": "U5 'snake'" },
-    { "type": 35, "u5": "Ettin",        "prefab": "Troll",           "status": "custom",  "note": "two heads side by side if achievable" },
+    { "type": 35, "u5": "Ettin",        "prefab": "Ettin",           "status": "custom",  "note": "the Ettin prefab: a troll with a forest troll's head beside its own, red skin (World/Ettin.cs)" },
     { "type": 36, "u5": "Headless",     "prefab": "GoblinShaman",    "status": "custom",  "note": "remove the head if we can" },
     { "type": 37, "u5": "Wisp",         "prefab": "Wraith",          "status": "reshade", "tint": "#40f0ff", "alpha": 0.45, "emission": 3.0, "note": "very glowy, translucent, bright cyan" },
     { "type": 38, "u5": "Daemon",       "prefab": "Skeleton_Hildir", "status": "direct",  "alt": { "prefab": "Surtling" }, "note": "Brenna" },

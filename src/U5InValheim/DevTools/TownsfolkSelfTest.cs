@@ -171,6 +171,17 @@ namespace U5InValheim.DevTools
             if (castle == null) { Plugin.Log.LogWarning("townsfolk self-test crime: the castle is not built"); yield break; }
             yield return Generate(castle.Origin);
             yield return new WaitForSeconds(3f);
+            // the ettin: its own prefab (spawn ettin), two heads, the Ettin's numbers
+            var ettinPrefab = ZNetScene.instance.GetPrefab(Ettin.PrefabName);
+            if (ettinPrefab == null) Plugin.Log.LogWarning("townsfolk self-test ettin: no Ettin prefab");
+            else
+            {
+                var ettin = Instantiate(ettinPrefab, castle.Origin + new Vector3(0, 2f, -70f), Quaternion.identity).GetComponent<Character>();
+                yield return new WaitForSeconds(1f);
+                var es = UltimaCreatures.Of(ettin);
+                Plugin.Log.LogInfo($"townsfolk self-test ettin: {ettin.m_name} ({(es == null ? "not Ultima" : Plugin.U5.Ovl.CreatureName(es.Type))}) hp {ettin.GetHealth():0}/{ettin.GetMaxHealth():0}, second head {ettin.GetComponentsInChildren<Transform>(true).Any(t => t.name == "u5_second_head")}, red look {ettin.GetComponent<EttinLook>() != null}");
+                ZNetScene.instance.Destroy(ettin.gameObject);
+            }
             // the gypsy's sphere (tile 0x29): a Moder tear on a stand on a round table
             foreach (var st in FindObjectsByType<ItemStand>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, castle.Origin) < 60f))
             {
@@ -344,6 +355,23 @@ namespace U5InValheim.DevTools
                 Plugin.Log.LogInfo($"townsfolk self-test jail: Jerone sent across his cell to (25,4): at {jerone.transform.position - At(0, 25, 4)} from it");
                 if (false) Plugin.Log.LogInfo($"townsfolk self-test jail: Jerone sent to the hall is at tile ({jx},{jy}), in his cell {cells[jy * 32 + jx]}, the cell door state {cd.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_state)}");
             }
+            // the prisoners keep to their cells (wandering, settling) for a minute and a half
+            {
+                var prisoners = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 4 && n.IsPrisoner).ToList();
+                int samples = 0, outside = 0;
+                for (int i = 0; i < 90; i++)
+                {
+                    yield return new WaitForSeconds(1f);
+                    foreach (var pr in prisoners)
+                    {
+                        var pl = pr.transform.position - yew.Origin;
+                        int px = Mathf.RoundToInt((pl.x + 31) / 2), py = Mathf.RoundToInt((31 - pl.z) / 2);
+                        samples++;
+                        if (px < 0 || py < 0 || px >= 32 || py >= 32 || !cells[py * 32 + px]) { outside++; Plugin.Log.LogInfo($"townsfolk self-test jail: {pr.GetHoverName()} out of the cells at ({px},{py})"); }
+                    }
+                }
+                Plugin.Log.LogInfo($"townsfolk self-test jail: prisoners outside their cells {outside}/{samples} samples over 90 s");
+            }
             var landon = Plugin.U5.NpcsOf(yew.Location)[13];
             var ls = landon.Schedule;
             Plugin.Log.LogInfo($"townsfolk self-test jail: Landon's places {string.Join(" ", Enumerable.Range(0, 3).Select(i => $"({ls.X[i]},{ls.Y[i]},{ls.Z[i]}){(plan.Seats.ContainsKey((ls.Z[i], ls.Y[i] * 32 + ls.X[i])) ? " seat" : "")}"))}, walkable {plan.Walk.TryGetValue(-1, out var wb) && wb[1 * 32 + 22]}");
@@ -358,6 +386,20 @@ namespace U5InValheim.DevTools
                 door.Interact(body, false, false);
                 yield return new WaitForSeconds(1f);
                 Plugin.Log.LogInfo($"townsfolk self-test jail: cell door {Vector3.Distance(door.transform.position, doorAt):0.0} m from (25,6), lock \"{dz.GetString(Settlements.LockKey)}\", state after a player's try {dz.GetInt(ZDOVars.s_state)}, hover \"{door.GetHoverText().Replace("\n", " ")}\" (\"{TownDoors.LockedText("key")}\")");
+            }
+            // the cell door is a 2 m door under a metre of grate you can talk through
+            {
+                var dAt = At(0, 25, 6);
+                var pieces = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, dAt) < 2.6f && (v.name.StartsWith("wood_door") || v.name.StartsWith("iron_floor"))).ToList();
+                Plugin.Log.LogInfo($"townsfolk self-test jail: cell door pieces {string.Join(", ", pieces.Select(v => $"{v.name} at {(v.transform.position - dAt).y:0.0} m, colliders on {v.GetComponentsInChildren<Collider>(true).Count(c => c.enabled)}"))}");
+                var cam = At(0, 25, 8) + Vector3.up * 2.4f;
+                var who = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.IsPrisoner && n.Location == 4).OrderBy(n => Vector3.Distance(n.transform.position, dAt)).FirstOrDefault();
+                if (who != null)
+                {
+                    var target = who.GetComponent<Character>().GetEyePoint();
+                    var hits = Physics.RaycastAll(cam, target - cam, Vector3.Distance(cam, target) + 0.3f, LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "piece_nonsolid", "terrain", "character", "character_net", "character_noenv", "vehicle")).OrderBy(h => h.distance).ToList();
+                    Plugin.Log.LogInfo($"townsfolk self-test jail: looking from the hall (camera 2.4 m up) at {who.GetHoverName()}'s head {Vector3.Distance(cam, target):0.0} m away, first hit {(hits.Count > 0 ? hits[0].collider.transform.root.name : "nothing")}");
+                }
             }
             // the secret wall behind the cell (25,2): rune-marked bricks; a blow shows the door
             var wallAt = At(0, 25, 2);

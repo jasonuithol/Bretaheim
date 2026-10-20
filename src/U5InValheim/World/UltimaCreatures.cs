@@ -66,6 +66,8 @@ namespace U5InValheim.WorldGen
         {
             Body(0);
             foreach (var kv in bodies.OrderBy(kv => kv.Key)) if (kv.Value.prefab == prefab) return kv.Key;
+            // Valheim's own troll is the ettin it is made into
+            if (prefab == "Troll") return TypeOfBody(Ettin.PrefabName);
             return -1;
         }
 

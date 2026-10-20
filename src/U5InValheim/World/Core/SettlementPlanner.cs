@@ -1040,7 +1040,7 @@ namespace U5InValheim.WorldGen.Core
                     }
                     case TileKind.Door:
                         if (r.Gate && ctx.Known(style.Gate)) ctx.Centre(style.Gate, cx, y0 + 1.5f, cz, yaw);
-                        else Door(ctx, lv, style, c, along[c], y0);
+                        else Door(ctx, lv, style, c, along[c], y0, viewport: r.Viewport);
                         if (r.Lock != null) ctx.Last(pl => { pl.Lock = r.Lock; return pl; });
                         break;
                 }
@@ -1054,7 +1054,7 @@ namespace U5InValheim.WorldGen.Core
         /// own would put a post in the middle), each hinged on the side away from the other so the
         /// pair opens from the middle.
         /// </summary>
-        static void Door(Ctx ctx, Level lv, TownStyle style, int c, bool alongX, float y0, bool single = false)
+        static void Door(Ctx ctx, Level lv, TownStyle style, int c, bool alongX, float y0, bool single = false, bool viewport = false)
         {
             var p = ctx.Plan;
             float cx = CellX(p, c), cz = CellZ(p, c), yaw = alongX ? 0 : 90;
@@ -1075,12 +1075,23 @@ namespace U5InValheim.WorldGen.Core
                 ctx.Pivot(style.DoubleDoor, cx, y0 + 1, cz, yaw);
                 return;
             }
+            if (viewport && ctx.Known(ViewportDoor) && ctx.Known(ViewportGrate))
+            {
+                // a door with a viewport (a cell door): a 2 m door under a metre of iron grate (no
+                // colliders: you talk through it to whoever is on the other side), the stone above
+                ctx.Centre(ViewportGrate, cx, y0 + 2.5f, cz, alongX ? 0 : 90, 1, 1, 0.5f);
+                ctx.Last(pl => { pl.Tilt = 90; pl.Look = "ghost"; return pl; });
+                ctx.Centre(ViewportDoor, cx, y0 + 1, cz, yaw);
+                return;
+            }
             // the single door's leaf reaches from its pivot (the hinge) along its local −x
             ctx.Pivot(style.Door, cx + ux * p.Tile / 2, y0, cz + uz * p.Tile / 2, yaw);
         }
 
         /// <summary>A secret wall's group: its tile on its storey (never 0).</summary>
         static int SecretGroup(Level lv, int c) => (lv.Z + 2) * N * N + c + 1;
+
+        const string ViewportDoor = "wood_door", ViewportGrate = "iron_floor_2x2";
 
         static bool Climbs(TileKind k) => k == TileKind.LadderUp || k == TileKind.LadderDown || k == TileKind.Stairs;
 

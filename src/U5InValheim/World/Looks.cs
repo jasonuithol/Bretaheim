@@ -31,6 +31,7 @@ namespace U5InValheim.WorldGen
                 case "rune": Rune(go); break;
                 case "bare_stand": BareStand(go); break;
                 case "bloody": Bloody(go); break;
+                case "ghost": foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false; break;
                 default:
                     if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
                     else if (look.StartsWith("drawbridge:")) Drawbridge.Add(go, look.Substring(11));
