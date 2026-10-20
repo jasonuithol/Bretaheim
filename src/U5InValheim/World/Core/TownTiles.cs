@@ -28,6 +28,8 @@ namespace U5InValheim.WorldGen.Core
         public PartPlace Place;
         /// <summary>A changed look applied in game ("white_marble", "fountain"), or null.</summary>
         public string Look;
+        /// <summary>The item an item stand holds, or null.</summary>
+        public string Item;
     }
 
     public class TileRule
@@ -276,6 +278,7 @@ namespace U5InValheim.WorldGen.Core
                 Place = Json.Str(o, "place") == "stand" ? PartPlace.Stand : Json.Str(o, "place") == "top" ? PartPlace.Top
                         : Json.Str(o, "place") == "pivot" ? PartPlace.Pivot : PartPlace.Centre,
                 Look = Json.Str(o, "look"),
+                Item = Json.Str(o, "item"),
             };
             if (Json.Get(o, "scale") is List<object> s)
             {

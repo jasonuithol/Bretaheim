@@ -171,6 +171,13 @@ namespace U5InValheim.DevTools
             if (castle == null) { Plugin.Log.LogWarning("townsfolk self-test crime: the castle is not built"); yield break; }
             yield return Generate(castle.Origin);
             yield return new WaitForSeconds(3f);
+            // the gypsy's sphere (tile 0x29): a Moder tear on a stand on a round table
+            foreach (var st in FindObjectsByType<ItemStand>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, castle.Origin) < 60f))
+            {
+                var held = HarmonyLib.Traverse.Create(st).Field("m_visualItem").GetValue<GameObject>();
+                bool table = Physics.RaycastAll(st.transform.position + Vector3.up * 0.3f, Vector3.down, 1f).Any(h => h.collider.GetComponentInParent<Piece>()?.name.StartsWith("piece_table_round") == true);
+                Plugin.Log.LogInfo($"townsfolk self-test sphere: stand {st.name} at {st.transform.position - castle.Origin} holds {Name(st.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_item))} (shown {(held != null ? held.name : "nothing")}), on a round table {table}, removable {st.m_canBeRemoved}");
+            }
             var ballistas = FindObjectsByType<TownBallista>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, castle.Origin) < 60f).ToList();
             Plugin.Log.LogInfo($"townsfolk self-test ballista: {ballistas.Count} ballistas at the castle");
             // the one facing south over the gate: an orc 20 m in front of it, outside the walls

@@ -274,6 +274,7 @@ The low wall can be a 2x1x1 stone wall. Make sure to make the wall flush with th
 
 All furniture lives in the wall zone and so must fit in a 2m x 2m x 3m space.
 
+41: Gypsies Sphere: A small table with a Moder Tear on it
 88: Anvil       => There's a few to choose from in Valheim, maybe just randomly pick one each time.
 
 89: Telescope   => We can construct with with a wooden tripod 1m high, then attach a 2m 26 degree oak wood piece to the top of the tripod.  Reshade the oak a really dark stained wood or some such.  Interacting with the telescope will be like using a Spyglass.  Whilst interacting with the telescope, you cannot walk around, but you can look all around the sky like normal.  Walking away will stop the interaction and hence the Spyglass effect.

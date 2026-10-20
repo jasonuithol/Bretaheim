@@ -655,6 +655,7 @@ namespace U5InValheim.WorldGen.Core
                         default: Centre(part.Prefab, x + px, py, z + pz, pyaw, part.SX, part.SY, part.SZ); break;
                     }
                     if (part.Look != null) Last(pl => { pl.Look = part.Look; return pl; });
+                    if (part.Item != null) Last(pl => { pl.StandItem = part.Item; return pl; });
                 }
             }
 
