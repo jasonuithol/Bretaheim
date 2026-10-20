@@ -53,6 +53,8 @@ namespace U5InValheim.WorldGen.Core
         public bool Trapdoor;
         /// <summary>A floor grate (0x86): the top of a ladder down, an iron grate over the hole with no stone under it.</summary>
         public bool Grate;
+        /// <summary>An arch over a gate (0x87): a portcullis just south of it, down at night (the drawbridges' hours).</summary>
+        public bool Portcullis;
         /// <summary>Yaw in degrees the piece faces (n 0, e 90, s 180, w 270).</summary>
         public float Yaw;
         public WallBuild Build;
@@ -179,6 +181,7 @@ namespace U5InValheim.WorldGen.Core
                     Secret = Json.Bool(o, "secret"),
                     Trapdoor = Json.Bool(o, "trapdoor"),
                     Grate = Json.Bool(o, "grate"),
+                    Portcullis = Json.Bool(o, "portcullis"),
                     Candles = Json.Get(o, "candles") is double candles ? (int)candles : 0,
                     SignPost = Json.Str(o, "signpost"),
                     River = Json.Bool(o, "river"),

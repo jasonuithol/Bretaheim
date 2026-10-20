@@ -42,6 +42,13 @@ namespace U5InValheim.WorldGen
         /// <summary>A shut locked door stays shut for players (an open one may be closed).</summary>
         static bool Interact_Prefix(Door __instance, Humanoid character, bool hold, ref bool __result)
         {
+            // a portcullis is no door: nobody opens it
+            if (__instance.GetComponent<Portcullis>() != null)
+            {
+                if (character is Player p && !hold) p.Message(MessageHud.MessageType.Center, "The portcullis is down.");
+                __result = false;
+                return false;
+            }
             if (hold || !(character is Player)) return true;
             string kind = Lock(__instance);
             if (kind.Length == 0 || !Shut(__instance)) return true;
@@ -53,6 +60,7 @@ namespace U5InValheim.WorldGen
 
         static void Hover_Postfix(Door __instance, ref string __result)
         {
+            if (__instance.GetComponent<Portcullis>() != null) { __result = "Portcullis"; return; }
             string kind = Lock(__instance);
             if (kind.Length == 0 || !Shut(__instance)) return;
             __result = Localization.instance.Localize(__instance.m_name) + "\n(" + (kind == "magic" ? "magically sealed" : "locked") + ")";

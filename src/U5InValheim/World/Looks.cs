@@ -31,6 +31,7 @@ namespace U5InValheim.WorldGen
                 case "rune": Rune(go); break;
                 case "bare_stand": BareStand(go); break;
                 case "bloody": Bloody(go); break;
+                case "portcullis": go.AddComponent<Portcullis>(); break;
                 case "ghost": foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false; break;
                 default:
                     if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
@@ -353,6 +354,63 @@ namespace U5InValheim.WorldGen
             var turn = Quaternion.AngleAxis(angle, axis);
             transform.SetPositionAndRotation(hinge + turn * (homePos - hinge), turn * homeRot);
         }
+    }
+
+    /// <summary>
+    /// A magic portcullis (look "portcullis", one of the two stacked iron grates under a gate's
+    /// arch): down at night, the drawbridges' hours; in the morning it slides up and vanishes, and
+    /// at dusk it appears above the gate and slides down. Every peer works it out from the shared
+    /// clock. It is not a door anyone can open.
+    /// </summary>
+    public class Portcullis : MonoBehaviour
+    {
+        /// <summary>How far it rises (m) before it is gone, and how fast it moves.</summary>
+        const float Lift = 3f, Speed = 1f;
+        Vector3 down;
+        float lift;
+        bool ready, shown = true;
+        Renderer[] renderers;
+        Collider[] colliders;
+        Rigidbody body;
+
+        void Start()
+        {
+            down = transform.position;
+            // (the grate's physics body puts it back where the body is, unless the body moves too)
+            body = GetComponent<Rigidbody>();
+            renderers = GetComponentsInChildren<Renderer>(true);
+            colliders = GetComponentsInChildren<Collider>(true);
+            lift = EnvMan.IsNight() ? 0 : Lift; // already where it should be when it loads
+            ready = true;
+            Pose();
+        }
+
+        void Update()
+        {
+            if (!ready) return;
+            float target = EnvMan.IsNight() ? 0 : Lift;
+            if (Mathf.Approximately(lift, target)) return;
+            lift = Mathf.MoveTowards(lift, target, Speed * Time.deltaTime);
+            Pose();
+        }
+
+        void Pose()
+        {
+            transform.position = down + Vector3.up * lift;
+            if (body != null) body.position = transform.position;
+            // (fully up it is gone; it bars the way only while mostly down)
+            bool show = lift < Lift - 0.01f;
+            if (show != shown)
+            {
+                shown = show;
+                foreach (var r in renderers) if (r != null) r.enabled = show;
+            }
+            bool bar = lift < 1f;
+            foreach (var c in colliders) if (c != null && c.enabled != bar) c.enabled = bar;
+        }
+
+        /// <summary>Down (barring the gate) now.</summary>
+        public bool IsDown => lift < 1f;
     }
 
     /// <summary>Marks a piece whose look has been changed.</summary>

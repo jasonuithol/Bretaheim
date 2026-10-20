@@ -515,6 +515,19 @@ namespace U5InValheim.DevTools
                 var session = t.Script != null ? new Data.TalkSession(t.Script, Plugin.U5.Ovl, new PlayerTalkWorld(t)) : null;
                 Plugin.Log.LogInfo($"townsfolk self-test town: talking creature {t.GetHoverName()} ({Utils.GetPrefabName(t.gameObject)}) at {t.transform.position - town.Origin}, faction {c.GetFaction()}, AI on {t.GetComponents<BaseAI>().Any(a => a.enabled)}, hp {c.GetHealth():0}, hover \"{c.GetHoverText().Replace("\n", " ")}\", says \"{session?.TakeOutput().Replace("\n", " ").Trim()}\"");
             }
+            var ports = FindObjectsByType<Portcullis>(FindObjectsSortMode.None).Where(p => Vector3.Distance(p.transform.position, town.Origin) < town.Site.Half + 5f).ToList();
+            if (ports.Count > 0)
+                Plugin.Log.LogInfo($"townsfolk self-test town: {ports.Count} portcullis grates, night {EnvMan.IsNight()} (hour {TownNpc.Hour()}); {string.Join("; ", ports.Take(4).Select(p => $"at {p.transform.position - town.Origin}, down {p.IsDown}, drawn {p.GetComponentsInChildren<Renderer>().Any(r => r.enabled)}, solid {p.GetComponentsInChildren<Collider>().Any(c => c.enabled)}, hover \"{p.GetComponent<Door>()?.GetHoverText()}\""))}");
+            if (ports.Count > 0 && System.Environment.GetEnvironmentVariable("U5_SELFTEST_NOON") == "1")
+            {
+                // noon: up and gone
+                var env = EnvMan.instance;
+                env.m_debugTimeOfDay = true;
+                env.m_debugTime = 0.5f;
+                yield return new WaitForSeconds(6f);
+                Plugin.Log.LogInfo($"townsfolk self-test town: at noon (night {EnvMan.IsNight()}): {string.Join("; ", ports.Select(p => $"at {p.transform.position - town.Origin}, down {p.IsDown}, drawn {p.GetComponentsInChildren<Renderer>().Any(r => r.enabled)}, solid {p.GetComponentsInChildren<Collider>().Any(c => c.enabled)}, bodies {string.Join(",", p.GetComponentsInChildren<Rigidbody>(true).Select(r => $"{r.name} kin {r.isKinematic} at {(r.position - town.Origin).y:0.0}"))}"))}");
+                env.m_debugTimeOfDay = false;
+            }
             foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");
             for (int round = 0; round < rounds; round++)

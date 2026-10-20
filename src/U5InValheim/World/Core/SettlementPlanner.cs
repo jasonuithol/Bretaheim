@@ -1055,6 +1055,18 @@ namespace U5InValheim.WorldGen.Core
                         ctx.Last(pl => { pl.Hidden = group; return pl; });
                         break;
                     }
+                    case TileKind.Arch when r.Portcullis && ctx.Known(PortcullisGrate):
+                    {
+                        // a portcullis against the arch's south face: two iron grates stacked, the lower
+                        // one sunk into the ground, filling floor to wall top when down (at night)
+                        Ctx.Rotate(0, -PortcullisSouth, 0, out float ox, out float oz);
+                        foreach (float pivotY in new[] { -1f, 2f })
+                        {
+                            ctx.Pivot(PortcullisGrate, cx + ox, y0 + pivotY, cz + oz, along[c] ? 0 : 90);
+                            ctx.Last(pl => { pl.Look = "portcullis"; return pl; });
+                        }
+                        break;
+                    }
                     case TileKind.Door:
                         if (r.Gate && ctx.Known(style.Gate)) ctx.Centre(style.Gate, cx, y0 + 1.5f, cz, yaw);
                         else Door(ctx, lv, style, c, along[c], y0, viewport: r.Viewport);
@@ -1109,6 +1121,9 @@ namespace U5InValheim.WorldGen.Core
         static int SecretGroup(Level lv, int c) => (lv.Z + 2) * N * N + c + 1;
 
         const string ViewportDoor = "wood_door", ViewportGrate = "iron_floor_2x2";
+        /// <summary>The portcullis: Valheim's iron grate (2 m × 3 m, its pivot a metre up), how far south of the arch's middle it hangs.</summary>
+        const string PortcullisGrate = "iron_grate";
+        const float PortcullisSouth = 0.85f;
 
         static bool Climbs(TileKind k) => k == TileKind.LadderUp || k == TileKind.LadderDown || k == TileKind.Stairs;
 

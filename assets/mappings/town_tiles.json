@@ -90,7 +90,7 @@
     "84": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "x": -0.9, "place": "stand"}, {"prefab": "wood_pole2", "x": 0.9, "place": "stand"}, {"prefab": "wood_beam", "y": 1.0}, {"prefab": "wood_beam_26", "y": 1.5}]},
     "85": {"kind": "ground", "paint": "paved", "parts": [{"prefab": "woodiron_beam", "z": 0, "y": 4, "place": "top"}, {"prefab": "dvergrprops_hooknchain", "x": -0.5, "z": 0, "y": 3.7, "yaw": 0, "place": "top", "scale": [0.7, 0.8, 0.7]}, {"prefab": "dvergrprops_hooknchain", "x": 0.5, "z": 0, "y": 3.7, "yaw": 90, "place": "top", "scale": [0.7, 0.8, 0.7]}]},
     "86": {"kind": "ladder_down", "grate": true},
-    "87": {"kind": "arch"},
+    "87": {"kind": "arch", "portcullis": true},
     "88": {"kind": "prop", "prefab": "stone_pile"},
     "89": {"kind": "prop", "parts": [{"prefab": "wood_pole2", "place": "stand"}, {"prefab": "wood_beam_1", "y": 1.4}]},
     "8a": {"kind": "prop", "parts": [{"prefab": "stone_wall_1x1", "y": 0.5, "scale": [0.9, 1, 0.25]}]},
