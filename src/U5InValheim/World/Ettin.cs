@@ -14,8 +14,11 @@ namespace U5InValheim.WorldGen
     public static class Ettin
     {
         public const string PrefabName = "Ettin";
-        /// <summary>Where the second head sits from the first, in the troll's own frame (x right, y up, z forward), and its size.</summary>
-        /// <summary>(The troll's head is about 1.3 m across; the trophy head about 0.6 m: twice its size, clear of the first.)</summary>
+        /// <summary>
+        /// Where the second head sits from the first, in the troll's own frame (x right, y up, z
+        /// forward), its size and turn (the troll's head is about 1.3 m across, the trophy head about
+        /// 0.6 m: twice its size, clear of the first).
+        /// </summary>
         static readonly Vector3 HeadOffset = new Vector3(1.45f, -0.15f, 0.05f);
         const float HeadScale = 2.4f, HeadTurn = 15f;
 
@@ -28,18 +31,12 @@ namespace U5InValheim.WorldGen
             var character = prefab != null ? prefab.GetComponent<Character>() : null;
             if (character == null) { Plugin.Log.LogError("Ettin: no Troll prefab to make it from"); return; }
             character.m_name = "Ettin";
-            // (the game's own trophy: a lookup by name can find an empty stand-in of the same name)
-            var trophy = ZNetScene.instance?.GetPrefab("TrophyForestTroll") ?? ObjectDB.instance?.GetItemPrefab("TrophyForestTroll") ?? PrefabManager.Instance.GetPrefab("TrophyForestTroll");
-            foreach (var mf in trophy != null ? trophy.GetComponentsInChildren<MeshFilter>(true) : new MeshFilter[0])
-                Plugin.Log.LogInfo($"Ettin: the trophy's {mf.name}: mesh {(mf.sharedMesh != null ? $"{mf.sharedMesh.name} ({mf.sharedMesh.vertexCount} vertices, {mf.sharedMesh.bounds.size})" : "none")}, material {mf.GetComponent<Renderer>()?.sharedMaterial?.name ?? "none"}");
-            AddHead(prefab, trophy);
             prefab.AddComponent<EttinLook>();
             // its body when it falls: the troll's ragdoll, made over the same way (else a blue, one-headed corpse)
             foreach (var effect in character.m_deathEffects.m_effectPrefabs ?? new EffectList.EffectData[0])
             {
                 if (effect?.m_prefab == null || effect.m_prefab.GetComponent<Ragdoll>() == null) continue;
                 var ragdoll = PrefabManager.Instance.CreateClonedPrefab(PrefabName + "_ragdoll", effect.m_prefab);
-                AddHead(ragdoll, trophy);
                 ragdoll.AddComponent<EttinLook>();
                 PrefabManager.Instance.AddPrefab(new CustomPrefab(ragdoll, false));
                 effect.m_prefab = ragdoll;
@@ -47,44 +44,28 @@ namespace U5InValheim.WorldGen
             PrefabManager.Instance.AddPrefab(new CustomPrefab(prefab, false));
         }
 
-        /// <summary>The second head: the trophy's look on the body's head bone, beside the first.</summary>
-        static void AddHead(GameObject body, GameObject trophy)
+        /// <summary>
+        /// The second head, made as each ettin (or its corpse) appears: the forest troll's trophy made as an item stand
+        /// makes it (its attach object, live, with its own scripts) on the body's head bone, beside the
+        /// first; only its colliders and physics go. A copy made at the menu comes without a mesh.
+        /// </summary>
+        public static Transform AddHead(GameObject body)
         {
-            var heads = body.GetComponentsInChildren<Transform>(true).Where(t => t.name == "Head").ToList();
-            var head = heads.FirstOrDefault();
-            if (head == null || trophy == null) { Plugin.Log.LogWarning($"Ettin: {(head == null ? $"no Head bone in {body.name}" : "no TrophyForestTroll")}: one head only"); return; }
-            var second = Visual(trophy);
-            second.name = "u5_second_head";
+            var head = body.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Head");
+            var trophy = ObjectDB.instance?.GetItemPrefab("TrophyForestTroll");
+            var attach = trophy != null ? ItemStand.GetAttachPrefab(trophy) : null;
+            if (head == null || attach == null) { Plugin.Log.LogWarning($"Ettin: {(head == null ? $"no Head bone in {body.name}" : "no trophy to make a head of")}: one head only"); return null; }
             var root = body.transform;
-            second.transform.SetParent(head, false);
-            // placed in the troll's frame (the head bone's own axes are the rig's), facing forward
+            var second = Object.Instantiate(ItemStand.GetAttachGameObject(attach), head);
+            second.name = "u5_second_head";
+            foreach (var c in second.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);
+            foreach (var rb in second.GetComponentsInChildren<Rigidbody>(true)) Object.Destroy(rb);
+            // placed in the body's frame (the head bone's own axes are the rig's), facing forward
             second.transform.position = head.position + root.TransformVector(HeadOffset);
             second.transform.rotation = root.rotation * Quaternion.Euler(0, HeadTurn, 0);
-            second.transform.localScale = new Vector3(HeadScale / head.lossyScale.x, HeadScale / head.lossyScale.y, HeadScale / head.lossyScale.z);
-            Plugin.Log.LogInfo($"Ettin: second head on {body.name}'s {HeadPath(head, root)} ({heads.Count} called Head) at {root.InverseTransformPoint(second.transform.position)}, its head bone at {root.InverseTransformPoint(head.position)}; {second.GetComponentsInChildren<Renderer>(true).Length} renderers, layer {LayerMask.LayerToName(second.layer)}");
-        }
-
-        static string HeadPath(Transform t, Transform root)
-        {
-            var parts = new List<string>();
-            for (; t != null && t != root; t = t.parent) parts.Add(t.name);
-            parts.Reverse();
-            return string.Join("/", parts);
-        }
-
-        /// <summary>A prefab's look only: no scripts, physics or colliders.</summary>
-        static GameObject Visual(GameObject prefab)
-        {
-            var holder = new GameObject("u5_ettin_holder");
-            holder.SetActive(false);
-            var copy = Object.Instantiate(prefab, holder.transform);
-            for (int pass = 0; pass < 4; pass++)
-                foreach (var c in copy.GetComponentsInChildren<Component>(true))
-                    if (c is MonoBehaviour || c is Rigidbody || c is Collider || c.GetType().Name.StartsWith("ParticleSystem")) Object.DestroyImmediate(c);
-            copy.transform.SetParent(null, false);
-            Object.Destroy(holder);
-            copy.SetActive(true);
-            return copy;
+            var ls = head.lossyScale;
+            second.transform.localScale = new Vector3(HeadScale / ls.x, HeadScale / ls.y, HeadScale / ls.z);
+            return second.transform;
         }
     }
 
@@ -97,11 +78,13 @@ namespace U5InValheim.WorldGen
 
         static bool reported;
 
+        static bool Draws => SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null;
+
         void Start()
         {
-            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
-            var second = GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "u5_second_head");
-            Mend(second);
+            var second = GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "u5_second_head") ?? Ettin.AddHead(gameObject);
+            if (!Draws) return;
+            if (second != null) foreach (var r in second.GetComponentsInChildren<Renderer>(true)) Redden(r);
             if (reported) return;
             reported = true;
             if (second == null) { Plugin.Log.LogWarning($"Ettin: {name} has no second head"); return; }
@@ -114,37 +97,19 @@ namespace U5InValheim.WorldGen
                 Plugin.Log.LogInfo($"Ettin: second head LOD group {lod.name}: size {lod.size}, lods {string.Join(", ", lod.GetLODs().Select(l => $"{l.screenRelativeTransitionHeight:0.000}: {l.renderers.Length}"))}");
         }
 
-        /// <summary>A second head that came without its mesh takes the trophy's, as the running game has it.</summary>
-        static void Mend(Transform second)
-        {
-            if (second == null) return;
-            var trophy = ZNetScene.instance?.GetPrefab("TrophyForestTroll");
-            if (trophy == null) return;
-            var source = trophy.GetComponentsInChildren<MeshFilter>(true);
-            foreach (var mf in second.GetComponentsInChildren<MeshFilter>(true))
-            {
-                if (mf.sharedMesh != null) continue;
-                var from = source.FirstOrDefault(s => s.name == mf.name && s.sharedMesh != null) ?? source.FirstOrDefault(s => s.sharedMesh != null);
-                if (from == null) continue;
-                mf.sharedMesh = from.sharedMesh;
-                var r = mf.GetComponent<Renderer>();
-                var mats = from.GetComponent<Renderer>()?.sharedMaterials;
-                if (r != null && mats != null) r.sharedMaterials = mats.Select(m => m != null ? Red(m) : null).ToArray();
-                Plugin.Log.LogInfo($"Ettin: second head mended with the trophy's {from.sharedMesh.name}");
-            }
-        }
-
         void Awake()
         {
-            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
-            foreach (var r in GetComponentsInChildren<Renderer>(true))
-            {
-                if (r.GetType().Name == "ParticleSystemRenderer") continue;
-                var mats = r.sharedMaterials;
-                for (int i = 0; i < mats.Length; i++)
-                    if (mats[i] != null) mats[i] = Red(mats[i]);
-                r.sharedMaterials = mats;
-            }
+            if (!Draws) return;
+            foreach (var r in GetComponentsInChildren<Renderer>(true)) Redden(r);
+        }
+
+        static void Redden(Renderer r)
+        {
+            if (r.GetType().Name == "ParticleSystemRenderer") return;
+            var mats = r.sharedMaterials;
+            for (int i = 0; i < mats.Length; i++)
+                if (mats[i] != null && !mats[i].name.EndsWith("(ettin)")) mats[i] = Red(mats[i]);
+            r.sharedMaterials = mats;
         }
 
         static Material Red(Material m)
