@@ -191,7 +191,13 @@ namespace U5InValheim.DevTools
                     Plugin.Log.LogInfo($"townsfolk self-test ettin bones: head {ettin.transform.InverseTransformPoint(headBone.position)}, neck {(headBone.parent != null ? ettin.transform.InverseTransformPoint(headBone.parent.position).ToString() : "-")}");
                 }
                 Plugin.Log.LogInfo($"townsfolk self-test ettin: {ettin.m_name} ({(es == null ? "not Ultima" : Plugin.U5.Ovl.CreatureName(es.Type))}) hp {ettin.GetHealth():0}/{ettin.GetMaxHealth():0}, second head {ettin.GetComponentsInChildren<Transform>(true).Any(t => t.name == "u5_second_head")}, red look {ettin.GetComponent<EttinLook>() != null}");
-                ZNetScene.instance.Destroy(ettin.gameObject);
+                // it falls: its body is the ettin's ragdoll (two heads, red), not the troll's
+                ettin.SetHealth(0);
+                ettin.GetType().GetMethod("CheckDeath", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.Invoke(ettin, null);
+                yield return new WaitForSeconds(1.5f);
+                var corpse = FindObjectsByType<Ragdoll>(FindObjectsSortMode.None).Where(r => Vector3.Distance(r.transform.position, castle.Origin + new Vector3(0, 2f, -70f)) < 15f).ToList();
+                Plugin.Log.LogInfo($"townsfolk self-test ettin: fallen, ragdolls {string.Join(", ", corpse.Select(r => $"{r.name} (second head {r.GetComponentsInChildren<Transform>(true).Any(t => t.name == "u5_second_head")}, red look {r.GetComponent<EttinLook>() != null})"))}");
+                if (ettin != null) ZNetScene.instance.Destroy(ettin.gameObject);
             }
             // the gypsy's sphere (tile 0x29): a Moder tear on a stand on a round table
             foreach (var st in FindObjectsByType<ItemStand>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, castle.Origin) < 60f))

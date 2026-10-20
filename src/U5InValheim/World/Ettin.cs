@@ -28,24 +28,45 @@ namespace U5InValheim.WorldGen
             var character = prefab != null ? prefab.GetComponent<Character>() : null;
             if (character == null) { Plugin.Log.LogError("Ettin: no Troll prefab to make it from"); return; }
             character.m_name = "Ettin";
-            var head = prefab.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Head");
             var trophy = PrefabManager.Instance.GetPrefab("TrophyForestTroll");
-            if (head != null && trophy != null)
-            {
-                var second = Visual(trophy);
-                second.name = "u5_second_head";
-                var root = prefab.transform;
-                second.transform.SetParent(head, false);
-                // placed in the troll's frame (the head bone's own axes are the rig's), facing forward
-                second.transform.position = head.position + root.TransformVector(HeadOffset);
-                second.transform.rotation = root.rotation * Quaternion.Euler(0, HeadTurn, 0);
-                second.transform.localScale = new Vector3(HeadScale / head.lossyScale.x, HeadScale / head.lossyScale.y, HeadScale / head.lossyScale.z);
-                if (Plugin.SelfTest.Value)
-                    Plugin.Log.LogInfo($"Ettin: second head at {root.InverseTransformPoint(second.transform.position)} (the troll's head {root.InverseTransformPoint(head.position)}, head scale {head.lossyScale}), {second.GetComponentsInChildren<Renderer>(true).Length} renderers");
-            }
-            else Plugin.Log.LogWarning($"Ettin: {(head == null ? "no Head bone" : "no TrophyForestTroll")}: one head only");
+            AddHead(prefab, trophy);
             prefab.AddComponent<EttinLook>();
+            // its body when it falls: the troll's ragdoll, made over the same way (else a blue, one-headed corpse)
+            foreach (var effect in character.m_deathEffects.m_effectPrefabs ?? new EffectList.EffectData[0])
+            {
+                if (effect?.m_prefab == null || effect.m_prefab.GetComponent<Ragdoll>() == null) continue;
+                var ragdoll = PrefabManager.Instance.CreateClonedPrefab(PrefabName + "_ragdoll", effect.m_prefab);
+                AddHead(ragdoll, trophy);
+                ragdoll.AddComponent<EttinLook>();
+                PrefabManager.Instance.AddPrefab(new CustomPrefab(ragdoll, false));
+                effect.m_prefab = ragdoll;
+            }
             PrefabManager.Instance.AddPrefab(new CustomPrefab(prefab, false));
+        }
+
+        /// <summary>The second head: the trophy's look on the body's head bone, beside the first.</summary>
+        static void AddHead(GameObject body, GameObject trophy)
+        {
+            var heads = body.GetComponentsInChildren<Transform>(true).Where(t => t.name == "Head").ToList();
+            var head = heads.FirstOrDefault();
+            if (head == null || trophy == null) { Plugin.Log.LogWarning($"Ettin: {(head == null ? $"no Head bone in {body.name}" : "no TrophyForestTroll")}: one head only"); return; }
+            var second = Visual(trophy);
+            second.name = "u5_second_head";
+            var root = body.transform;
+            second.transform.SetParent(head, false);
+            // placed in the troll's frame (the head bone's own axes are the rig's), facing forward
+            second.transform.position = head.position + root.TransformVector(HeadOffset);
+            second.transform.rotation = root.rotation * Quaternion.Euler(0, HeadTurn, 0);
+            second.transform.localScale = new Vector3(HeadScale / head.lossyScale.x, HeadScale / head.lossyScale.y, HeadScale / head.lossyScale.z);
+            Plugin.Log.LogInfo($"Ettin: second head on {body.name}'s {HeadPath(head, root)} ({heads.Count} called Head) at {root.InverseTransformPoint(second.transform.position)}, its head bone at {root.InverseTransformPoint(head.position)}; {second.GetComponentsInChildren<Renderer>(true).Length} renderers, layer {LayerMask.LayerToName(second.layer)}");
+        }
+
+        static string HeadPath(Transform t, Transform root)
+        {
+            var parts = new List<string>();
+            for (; t != null && t != root; t = t.parent) parts.Add(t.name);
+            parts.Reverse();
+            return string.Join("/", parts);
         }
 
         /// <summary>A prefab's look only: no scripts, physics or colliders.</summary>
@@ -70,6 +91,23 @@ namespace U5InValheim.WorldGen
         static readonly Dictionary<Material, Material> reddened = new Dictionary<Material, Material>();
         /// <summary>Hue turn: the troll's blue (about 0.6) to red.</summary>
         const float HueTurn = 0.4f;
+
+        static bool reported;
+
+        void Start()
+        {
+            if (reported || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
+            reported = true;
+            var second = GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "u5_second_head");
+            if (second == null) { Plugin.Log.LogWarning($"Ettin: {name} has no second head"); return; }
+            foreach (var r in second.GetComponentsInChildren<Renderer>(true))
+            {
+                var mesh = r.GetComponent<MeshFilter>()?.sharedMesh;
+                Plugin.Log.LogInfo($"Ettin: drawn second head {r.name}: active {r.gameObject.activeInHierarchy}, enabled {r.enabled}, mesh {(mesh != null ? $"{mesh.name} {mesh.vertexCount} vertices, bounds {mesh.bounds.size}" : "none")}, world size {r.bounds.size}, at {transform.InverseTransformPoint(r.bounds.center)}, lossy scale {r.transform.lossyScale}, shader {r.sharedMaterial?.shader?.name}, layer {LayerMask.LayerToName(r.gameObject.layer)}");
+            }
+            foreach (var lod in second.GetComponentsInChildren<LODGroup>(true))
+                Plugin.Log.LogInfo($"Ettin: second head LOD group {lod.name}: size {lod.size}, lods {string.Join(", ", lod.GetLODs().Select(l => $"{l.screenRelativeTransitionHeight:0.000}: {l.renderers.Length}"))}");
+        }
 
         void Awake()
         {
