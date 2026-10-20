@@ -66,7 +66,67 @@ namespace U5InValheim.WorldGen
             second.transform.rotation = root.rotation * Quaternion.Euler(-HeadLookUp, HeadTurn, 0);
             var ls = head.lossyScale;
             second.transform.localScale = new Vector3(HeadScale / ls.x, HeadScale / ls.y, HeadScale / ls.z);
+            // a head of its own: it turns where it will, not with the first one
+            var look = second.AddComponent<EttinHead>();
+            look.Body = root;
+            look.RestPitch = HeadLookUp;
+            look.RestYaw = HeadTurn;
             return second.transform;
+        }
+    }
+
+    /// <summary>
+    /// The second head moves on its own (it rides on the first head's bone, but its turn is its
+    /// own, set in the body's frame after the animation): it watches the ettin's target, a beat
+    /// behind the first head, and otherwise glances about now and then, with a slow sway.
+    /// </summary>
+    public class EttinHead : MonoBehaviour
+    {
+        public Transform Body;
+        /// <summary>Its resting turn in the body's frame: degrees looking up, and turned outward.</summary>
+        public float RestPitch, RestYaw;
+        const float MaxYaw = 70f, MinPitch = -35f, MaxPitch = 45f, Turn = 2.2f, Watch = 30f;
+
+        BaseAI ai;
+        Quaternion current;
+        float yaw, pitch, glanceAt, seed;
+
+        void Start()
+        {
+            ai = GetComponentInParent<BaseAI>();
+            // (a corpse's head lies still)
+            if (ai == null) { enabled = false; return; }
+            current = Quaternion.Euler(-RestPitch, RestYaw, 0);
+            yaw = RestYaw;
+            pitch = RestPitch;
+            seed = Random.value * 100f;
+        }
+
+        void LateUpdate()
+        {
+            if (Body == null) return;
+            float t = Time.time;
+            var target = ai != null ? ai.GetTargetCreature() : null;
+            if (target != null && Vector3.Distance(target.transform.position, Body.position) < Watch)
+            {
+                // the target, in the body's frame
+                var to = Body.InverseTransformDirection(target.GetEyePoint() - transform.position);
+                yaw = Mathf.Clamp(Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg, -MaxYaw, MaxYaw);
+                pitch = Mathf.Clamp(Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg, MinPitch, MaxPitch);
+                glanceAt = t + 1f;
+            }
+            else if (t >= glanceAt)
+            {
+                // a glance somewhere else
+                glanceAt = t + Random.Range(1.5f, 4.5f);
+                yaw = RestYaw + Random.Range(-MaxYaw, MaxYaw) * 0.6f;
+                pitch = RestPitch + Random.Range(MinPitch, MaxPitch) * 0.4f;
+            }
+            // (a slow sway, never quite still)
+            float swayYaw = Mathf.Sin(t * 0.7f + seed) * 6f, swayPitch = Mathf.Sin(t * 0.43f + seed * 2f) * 4f, roll = Mathf.Sin(t * 0.31f + seed) * 5f;
+            var want = Quaternion.Euler(-(pitch + swayPitch), yaw + swayYaw, roll);
+            current = Quaternion.Slerp(current, want, 1f - Mathf.Exp(-Turn * Time.deltaTime));
+            transform.rotation = Body.rotation * current;
         }
     }
 
