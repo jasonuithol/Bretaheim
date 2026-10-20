@@ -8,7 +8,7 @@ namespace U5InValheim.WorldGen
 {
     /// <summary>
     /// The ettin (monsters.json type 35): Valheim's troll with a second head on its shoulders (a
-    /// forest troll's trophy head beside its own) and red skin. Its own prefab, "Ettin", so the
+    /// frost troll's trophy head beside its own) and red skin. Its own prefab, "Ettin", so the
     /// `spawn ettin` dev command finds it.
     /// </summary>
     public static class Ettin
@@ -45,14 +45,15 @@ namespace U5InValheim.WorldGen
         }
 
         /// <summary>
-        /// The second head, made as each ettin (or its corpse) appears: the forest troll's trophy made as an item stand
+        /// The second head, made as each ettin (or its corpse) appears: the frost troll's trophy made as an item stand
         /// makes it (its attach object, live, with its own scripts) on the body's head bone, beside the
         /// first; only its colliders and physics go. A copy made at the menu comes without a mesh.
         /// </summary>
         public static Transform AddHead(GameObject body)
         {
             var head = body.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Head");
-            var trophy = ObjectDB.instance?.GetItemPrefab("TrophyForestTroll");
+            // (the frost troll's: Valheim's forest troll trophy has no mesh or materials on its head)
+            var trophy = ObjectDB.instance?.GetItemPrefab("TrophyFrostTroll");
             var attach = trophy != null ? ItemStand.GetAttachPrefab(trophy) : null;
             if (head == null || attach == null) { Plugin.Log.LogWarning($"Ettin: {(head == null ? $"no Head bone in {body.name}" : "no trophy to make a head of")}: one head only"); return null; }
             var root = body.transform;
