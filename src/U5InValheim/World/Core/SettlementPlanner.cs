@@ -344,6 +344,10 @@ namespace U5InValheim.WorldGen.Core
                 foreach (int n in Neighbours4(c))
                     if (!walked[n] && Passable(n)) { walked[n] = true; q.Enqueue(n); }
             }
+            // a thing standing in the middle of the floor, ringed by it, is on it (a lighthouse's
+            // light over the stone of its shaft: Fogsbane, Stormcrow)
+            for (int c = 0; c < N * N; c++)
+                if (!walked[c] && !tiles[raw[c]].IsBarrier && Neighbours4(c).Count() == 4 && Neighbours4(c).All(n => walked[n])) walked[c] = true;
             return walked;
         }
 

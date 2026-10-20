@@ -22,6 +22,8 @@ Britain, Lord British's castle and Iolo's hut):
   its slopes. North Britanny's stream runs in a ditch into its pond.
 - Drawbridges: bridge planks with water at both ends are wooden decks over the river that swing
   up at night and down in the morning.
+- Lighthouse lights burn in iron braziers on stacks of marble rounds; stone columns reach the
+  ceiling.
 - Magic portcullises: under each gate arch (tile 135) two stacked iron grates appear at dusk and
   slide down to bar the gate; in the morning they slide up and vanish. Nobody can open them.
 - Basements: Lord British's castle (and Blackthorn's palace, Yew, Serpent's Hold) have their cellars
