@@ -16,11 +16,11 @@ namespace U5InValheim.WorldGen
         public const string PrefabName = "Ettin";
         /// <summary>
         /// Where the second head sits from the first, in the troll's own frame (x right, y up, z
-        /// forward), its size and turn (the troll's head is about 1.3 m across, the trophy head about
-        /// 0.6 m: twice its size, clear of the first).
+        /// forward), its size, its turn outward and how far it looks up (tried in game: at 2.4 it was
+        /// three times the first head and hung its face).
         /// </summary>
-        static readonly Vector3 HeadOffset = new Vector3(1.45f, -0.15f, 0.05f);
-        const float HeadScale = 2.4f, HeadTurn = 15f;
+        static readonly Vector3 HeadOffset = new Vector3(1.0f, -0.05f, 0.1f);
+        const float HeadScale = 0.8f, HeadTurn = 15f, HeadLookUp = 40f;
 
         public static void Register() => PrefabManager.OnVanillaPrefabsAvailable += Create;
 
@@ -63,7 +63,7 @@ namespace U5InValheim.WorldGen
             foreach (var rb in second.GetComponentsInChildren<Rigidbody>(true)) Object.Destroy(rb);
             // placed in the body's frame (the head bone's own axes are the rig's), facing forward
             second.transform.position = head.position + root.TransformVector(HeadOffset);
-            second.transform.rotation = root.rotation * Quaternion.Euler(0, HeadTurn, 0);
+            second.transform.rotation = root.rotation * Quaternion.Euler(-HeadLookUp, HeadTurn, 0);
             var ls = head.lossyScale;
             second.transform.localScale = new Vector3(HeadScale / ls.x, HeadScale / ls.y, HeadScale / ls.z);
             return second.transform;
