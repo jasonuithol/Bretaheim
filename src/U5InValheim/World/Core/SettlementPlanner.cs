@@ -929,10 +929,27 @@ namespace U5InValheim.WorldGen.Core
             return Tall(c - N) && Tall(c + N);
         }
 
-        /// <summary>A wall tile runs east–west when it continues that way (or nowhere north–south).</summary>
+        /// <summary>
+        /// A wall tile runs east–west when it continues that way (or nowhere north–south). A door
+        /// (or archway) goes by the way through it first: walked north–south (open on both of those
+        /// sides, other doors counting as open), it spans east–west; so doors in a row along a
+        /// corridor (Buccaneer's Den) stand across it, not along it.
+        /// </summary>
         static bool AlongX(Level lv, int c)
         {
             int x = c % N, y = c / N;
+            var k = lv.Rule[c].Kind;
+            if (k == TileKind.Door || k == TileKind.Arch)
+            {
+                bool Through(int nx, int ny)
+                {
+                    if (nx < 0 || ny < 0 || nx >= N || ny >= N) return true;
+                    var r = lv.Rule[ny * N + nx];
+                    return !r.IsBarrier || r.Kind == TileKind.Door || r.Kind == TileKind.Arch;
+                }
+                bool ns = Through(x, y - 1) && Through(x, y + 1), ew = Through(x - 1, y) && Through(x + 1, y);
+                if (ns != ew) return ns;
+            }
             return WallLike(lv, x - 1, y) || WallLike(lv, x + 1, y) || !(WallLike(lv, x, y - 1) || WallLike(lv, x, y + 1));
         }
 
