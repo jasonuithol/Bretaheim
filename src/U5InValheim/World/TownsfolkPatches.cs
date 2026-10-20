@@ -57,8 +57,19 @@ namespace U5InValheim.WorldGen
         {
             var npc = Of(__instance);
             if (npc == null) return true;
-            // players cannot hurt townsfolk, but for the guards they would not come quietly with
-            if (hit.GetAttacker() is Player p && !(npc.IsGuard && Crime.HostileTo(p) == npc.Location)) return false;
+            if (hit.GetAttacker() is Player p)
+            {
+                // a player's ballista bolts spare the townsfolk
+                if (hit.m_hitType == HitData.HitType.Turret) return false;
+                // attacking a townsperson is a crime: the guards come to arrest them (fighting the
+                // guards they would not come quietly with is the fight itself); a villager cries
+                // for the guards and runs
+                if (!(npc.IsGuard && Crime.HostileTo(p) == npc.Location) && p == Player.m_localPlayer && npc.Home != null)
+                {
+                    Crime.Commit(p, npc.Home);
+                    if (!npc.IsGuard) npc.Frighten();
+                }
+            }
             if (Plugin.SelfTest.Value) Plugin.Log.LogInfo($"townsfolk self-test blow: {npc.GetHoverName()} hit by {hit.GetAttacker()?.m_name ?? "?"} for {hit.GetTotalDamage():0.0} (health {__instance.GetHealth():0})");
             return true;
         }

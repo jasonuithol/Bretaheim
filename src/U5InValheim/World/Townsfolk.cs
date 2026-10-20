@@ -274,6 +274,7 @@ namespace U5InValheim.WorldGen
             freeConstraints = body.constraints;
             zanim = GetComponent<ZSyncAnimation>();
             TownsfolkPatches.Register(human, this);
+            nview.Register(FrightRpc, RPC_Fright);
             if (nview.GetZDO() != null && nview.GetZDO().GetInt(TownsfolkSpawner.LocKey) != 0) Init();
         }
 
@@ -330,6 +331,25 @@ namespace U5InValheim.WorldGen
         }
 
         // ── the town's alarm (TownWatch) ────────────────────────────────────────────────────
+
+        const string FrightRpc = "U5_Fright";
+        /// <summary>How long a villager attacked by a player hides before going back to their day.</summary>
+        const float FrightFor = 45f;
+        float frightUntil;
+
+        /// <summary>Attacked by a player (on the attacker's machine): "Guards! Guards!", and they run home (on their owner's).</summary>
+        public void Frighten()
+        {
+            Chat.instance?.SetNpcText(gameObject, Vector3.up * 2.1f, 20f, 5f, "", "Guards! Guards!", false);
+            nview.InvokeRPC(FrightRpc);
+        }
+
+        void RPC_Fright(long sender)
+        {
+            if (!nview.IsOwner() || IsGuard || IsDead) return;
+            Duty = Duty.Hide;
+            frightUntil = Time.time + FrightFor;
+        }
 
         /// <summary>What they are doing about a monster in town (set by the town's watch).</summary>
         public Duty Duty
@@ -545,6 +565,12 @@ namespace U5InValheim.WorldGen
             int floor = walker.Floor;
             facing = false;
             steering = false;
+            // frightened by a player long enough (and no monsters about): back to their day
+            if (frightUntil > 0 && Time.time > frightUntil)
+            {
+                frightUntil = 0;
+                if (duty == Duty.Hide && !home.Watch.Alarmed) Duty = Duty.None;
+            }
             if (duty != Duty.None) OnDuty();
             if (nview.GetZDO() == null) return; // (left town)
             walker.Tick(dt, Hour());

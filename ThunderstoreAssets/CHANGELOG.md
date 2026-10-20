@@ -37,7 +37,7 @@ Britain, Lord British's castle and Iolo's hut):
   creature of its body. No stamina in Britannia. The townsfolk's beds cannot be claimed. Hit points
   and damage numbers are shown as Ultima counts them (30 at level 1).
 - Townsfolk are real creatures: monsters hunt them, guards fight with their weapons (and throw
-  their spears), the fallen are back the next morning; players cannot hurt them.
+  their spears), the fallen are back the next morning.
 - New Avatars arrive in Britannia with 150 gold.
 - Cannons are ballistas with an open firing port in the parapet. One that sees a monster is
   manned by a guard who appears behind it and fires explosive bolts until it is dead.
@@ -59,6 +59,8 @@ Britain, Lord British's castle and Iolo's hut):
 - Guards fight you on your storey (they climb to you rather than swinging from below); after a
   minute's fight a guard appears beside you and you wake in the jail of Yew.
 - Ballista firing ports are three tiles wide.
+- Attacking townsfolk is a crime: the guards come to arrest you. A villager you strike cries
+  "Guards! Guards!" and runs home, back to their day after 45 s.
 - Shops: shopkeepers keep their hours, greet as in the original and sell their original stock at
   the original prices in Valheim's trade window; armourers buy your arms; healers heal and cure. Guards run down and kill
   monsters that come into town.

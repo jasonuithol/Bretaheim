@@ -276,6 +276,30 @@ namespace U5InValheim.DevTools
             Plugin.Log.LogInfo($"townsfolk self-test overpowered: the guard gone {captor == null}, they are at {body.transform.position - castle.Origin}");
             zdo.Set("u5_hostile", 0);
             ZNetScene.instance.Destroy(body.gameObject);
+            // attacking townsfolk: a villager cries for the guards and runs; either way the guards come to arrest
+            foreach (bool guardFirst in new[] { false, true })
+            {
+                var striker = Instantiate(ZNetScene.instance.GetPrefab("Player"), castle.Origin + new Vector3(0, 0.3f, -6f), Quaternion.identity).GetComponent<Player>();
+                striker.enabled = false;
+                yield return new WaitForSeconds(0.5f);
+                var folk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == 17 && !n.IsDead && !n.IsReinforcement && n.IsGuard == guardFirst && n.Floor == 0)
+                    .OrderBy(n => Vector3.Distance(n.transform.position, striker.transform.position)).FirstOrDefault();
+                if (folk == null) { Plugin.Log.LogWarning($"townsfolk self-test assault: no {(guardFirst ? "guard" : "villager")} to strike"); ZNetScene.instance.Destroy(striker.gameObject); continue; }
+                var victim = folk.GetComponent<Character>();
+                float hpBefore = victim.GetHealth();
+                var blow = new HitData { m_damage = new HitData.DamageTypes { m_blunt = 20 }, m_point = victim.GetCenterPoint(), m_dir = Vector3.forward };
+                blow.SetAttacker(striker);
+                // (the striker plays the local player for the blow: a server has none)
+                Player.m_localPlayer = striker;
+                try { victim.Damage(blow); }
+                finally { Player.m_localPlayer = null; }
+                yield return new WaitForSeconds(3f);
+                var coming = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Count(n => n.Location == 17 && n.Duty == Duty.Arrest);
+                Plugin.Log.LogInfo($"townsfolk self-test assault: {(guardFirst ? "guard" : "villager")} {folk.GetHoverName()} struck (health {hpBefore:0} -> {victim.GetHealth():0}): wanted {Crime.WantedBy(striker)}, their duty {folk.Duty}, {coming} guards coming to arrest");
+                striker.GetComponent<ZNetView>().GetZDO().Set("u5_wanted", 0);
+                yield return new WaitForSeconds(2f);
+                ZNetScene.instance.Destroy(striker.gameObject);
+            }
             // the jail of Yew
             var yew = Settlements.Get(Crime.JailLocation);
             if (yew == null) { Plugin.Log.LogWarning("townsfolk self-test jail: Yew is not built"); yield break; }
