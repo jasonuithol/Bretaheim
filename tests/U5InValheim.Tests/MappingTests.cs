@@ -47,8 +47,9 @@ namespace U5InValheim.Tests
                     foreach (var n in PrefabNames(x)) yield return n;
         }
 
-        // "human"/"player" are our own humanoid bases; "hildir:..." are outfit groups resolved in Phase 3.
-        static bool IsPlaceholder(string n) => n == "human" || n == "player" || n.StartsWith("hildir:");
+        // "human"/"player" are our own humanoid bases; "hildir:..." are outfit groups resolved in Phase 3;
+        // "Ettin" is the mod's own creature (World/Ettin.cs, a troll made over).
+        static bool IsPlaceholder(string n) => n == "human" || n == "player" || n.StartsWith("hildir:") || n == "Ettin";
 
         [Theory]
         [InlineData("monsters.json")]
