@@ -72,7 +72,37 @@ namespace U5InValheim.WorldGen
             look.Body = root;
             look.RestPitch = HeadLookUp;
             look.RestYaw = HeadTurn;
+            // the first head moves over to the left shoulder, so each head has a side
+            if (body.GetComponent<BaseAI>() != null)
+            {
+                var shift = body.AddComponent<EttinShoulders>();
+                shift.Head = head;
+            }
             return second.transform;
+        }
+    }
+
+    /// <summary>
+    /// The ettin's first head, moved off the middle to the left (after the animation, each frame):
+    /// with the second head on the right (it rides on the first head's bone), each has a shoulder.
+    /// </summary>
+    public class EttinShoulders : MonoBehaviour
+    {
+        public Transform Head;
+        /// <summary>How far left of the middle the first head goes (m).</summary>
+        const float Left = 0.55f;
+
+        Vector3 rest;
+        bool ready;
+
+        void LateUpdate()
+        {
+            if (Head == null || Head.parent == null) return;
+            // (set from its resting place on the neck each frame, never added up: an animator that is
+            // not running, on a server or off screen, leaves the bone where it was put)
+            if (!ready) { rest = Head.localPosition; ready = true; }
+            var at = Head.parent.TransformPoint(rest) - transform.right * Left;
+            Head.localPosition = Head.parent.InverseTransformPoint(at);
         }
     }
 
