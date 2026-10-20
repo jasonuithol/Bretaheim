@@ -7,6 +7,7 @@ Britain, Lord British's castle and Iolo's hut):
   wood floors upstairs, hip roofs of thatch, shingle or grausten over buildings only (bounded rooms
   entered by a door, archway or ladder), none under parapets except where the map draws roof tiles.
 - Upper floors hold only what their ladders and stairs reach.
+- Wall-walks and tower tops with parapets are open to the sky (no roof over them).
 - Doors are 3 m tall; double doors are two frameless leaves that open from the middle.
 - Lit wall torches, braziers (raised clear of the floor) and lantern poles that never burn out;
   white marble drinking fountains; candles on candelabra tables; tables of any length laid end to end.

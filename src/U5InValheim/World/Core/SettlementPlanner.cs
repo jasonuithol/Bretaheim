@@ -1233,7 +1233,8 @@ namespace U5InValheim.WorldGen.Core
         /// one floor and not built on the floor above gets a hip roof whose eaves sit on the outer
         /// wall tops. Cobblestone cottages get thatch, other buildings their settlement's roof.
         /// A building with parapets on its top is a flat roof (a wall-walk): it gets no roof, except
-        /// over the tiles the floor above draws as roof.
+        /// over the tiles the floor above draws as roof; so does a walk with parapets beside it on
+        /// its own storey.
         /// </summary>
         void Roofs(Ctx ctx, List<Level> levels, RoofSet roof, RoofSet cottage)
         {
@@ -1243,9 +1244,13 @@ namespace U5InValheim.WorldGen.Core
                 if (lv.Z < 0) continue; // the basement's roof is the ground floor
                 var above = i + 1 < levels.Count ? levels[i + 1] : null;
                 bool Parapet(int c) => above != null && above.Built[c] && above.Rule[c].Kind == TileKind.Battlement;
+                // a walk beside parapets on its own storey is a wall-walk, in the open (Moonglow's town
+                // wall): it and its parapets are left out of the roofs
+                bool OwnParapet(int c) => lv.Built[c] && lv.Rule[c].Kind == TileKind.Battlement;
                 var cells = new bool[N * N];
                 for (int c = 0; c < N * N; c++)
                     cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c] || (above.Walked != null && above.Walked[c])));
+                bool WallWalk(int c) => OwnParapet(c) || (!lv.Barrier[c] && Neighbours4(c).Any(OwnParapet));
                 float baseY = ctx.Plan.Storey * (lv.Z + 1);
                 // a roof tile drawn on the floor above always gets a roof, parapets or not
                 bool RoofTile(int c) => above != null && tiles[above.Raw[c]].Kind == TileKind.Roof;
@@ -1259,7 +1264,17 @@ namespace U5InValheim.WorldGen.Core
                             HipRoof(ctx, IsCottage(lv, part) ? cottage : roof, part, baseY);
                         continue;
                     }
-                    HipRoof(ctx, IsCottage(lv, building) ? cottage : roof, building, baseY);
+                    // (its wall-walks stay open)
+                    var under = new bool[N * N];
+                    for (int c = 0; c < N * N; c++) under[c] = building[c] && !WallWalk(c);
+                    if (under.SequenceEqual(building)) HipRoof(ctx, IsCottage(lv, building) ? cottage : roof, building, baseY);
+                    else
+                        foreach (var part in RoofFootprints(under))
+                        {
+                            // (a scrap of floor with no walls of its own, left in an open tower top: no roof)
+                            if (!Enumerable.Range(0, N * N).Any(c => part[c] && lv.Barrier[c] && !OwnParapet(c))) continue;
+                            HipRoof(ctx, IsCottage(lv, part) ? cottage : roof, part, baseY);
+                        }
                 }
             }
         }
