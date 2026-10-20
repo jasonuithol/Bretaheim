@@ -16,6 +16,18 @@ namespace U5InValheim.WorldGen
     /// (<see cref="TalkSession"/>); what they say also shows as a speech bubble over them, the
     /// way Haldor and Hildir speak. Bye, Escape or walking away ends it.
     /// </summary>
+    /// <summary>Someone to talk to: a townsperson, or one of the original's creatures that talks (Sin'Vraal, Grendel).</summary>
+    public interface ITalker
+    {
+        GameObject gameObject { get; }
+        Transform transform { get; }
+        int Location { get; }
+        int Slot { get; }
+        TlkScript Script { get; }
+        string GetHoverName();
+        void EndTalk();
+    }
+
     public static class TalkPanel
     {
         const int LogLines = 16;
@@ -24,7 +36,7 @@ namespace U5InValheim.WorldGen
         static GameObject panel;
         static Text title, log, prompt;
         static InputField field;
-        static TownNpc npc;
+        static ITalker npc;
         static TalkSession session;
         static readonly List<string> lines = new List<string>();
         /// <summary>The last line shown is a prompt waiting for its answer.</summary>
@@ -32,7 +44,7 @@ namespace U5InValheim.WorldGen
         static int openedFrame;
 
         public static bool IsOpen => panel != null && panel.activeSelf;
-        public static TownNpc With => IsOpen ? npc : null;
+        public static TownNpc With => IsOpen ? npc as TownNpc : null;
 
         public static void Install(Harmony harmony)
         {
@@ -43,7 +55,7 @@ namespace U5InValheim.WorldGen
 
         static bool MenuUpdate_Prefix() => !IsOpen;
 
-        public static void Open(TownNpc who)
+        public static void Open(ITalker who)
         {
             if (!Start(who, who.GetHoverName())) return;
             session = new TalkSession(who.Script, Plugin.U5.Ovl, new PlayerTalkWorld(who));
@@ -85,7 +97,7 @@ namespace U5InValheim.WorldGen
         /// <summary>The shop's choices: Buy, Sell (armourers), the healer's services, Bye.</summary>
         static void ShopButtons()
         {
-            var who = npc;
+            var who = (TownNpc)npc;
             var shop = visit;
             var shops = Plugin.U5.Shops;
             var choices = new List<(string, Action)>();
@@ -108,7 +120,7 @@ namespace U5InValheim.WorldGen
         /// <summary>"What dost thou wish to sell?" in the trade window (the arms carried, at the armourer's offers), or "Thou hast nothing to sell!".</summary>
         static void Sell()
         {
-            var who = npc;
+            var who = (TownNpc)npc;
             var trader = who.SellTrader();
             if (!ShopTrading.FillSell(trader, visit, Intelligence))
             {
@@ -143,7 +155,7 @@ namespace U5InValheim.WorldGen
             Show(cure ? "(Thou art cured.)" : "(Thou art healed.)");
         }
 
-        static bool Start(TownNpc who, string heading)
+        static bool Start(ITalker who, string heading)
         {
             if (IsOpen) Close(farewell: false);
             if (!Build()) return false;
@@ -303,10 +315,10 @@ namespace U5InValheim.WorldGen
     public class PlayerTalkWorld : ITalkWorld
     {
         const string KarmaKey = "u5_karma";
-        readonly TownNpc npc;
+        readonly ITalker npc;
         readonly System.Random random = new System.Random();
 
-        public PlayerTalkWorld(TownNpc npc) { this.npc = npc; }
+        public PlayerTalkWorld(ITalker npc) { this.npc = npc; }
 
         static Player Me => Player.m_localPlayer;
         public string AvatarName => Me?.GetPlayerName() ?? "Avatar";

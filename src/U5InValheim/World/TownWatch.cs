@@ -173,7 +173,8 @@ namespace U5InValheim.WorldGen
             var someone = Player.m_localPlayer ?? (Player.GetAllPlayers().Count > 0 ? Player.GetAllPlayers()[0] : null);
             foreach (var c in Character.GetAllCharacters())
             {
-                if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || c.GetBaseAI() == null) continue;
+                // (the settlement's own creatures live there: no alarm)
+                if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || c.GetBaseAI() == null || ResidentMonster.Is(c)) continue;
                 if (someone != null ? !BaseAI.IsEnemy(c, someone) : c.GetFaction() == Character.Faction.Players) continue;
                 if (!InTown(c.transform.position)) continue;
                 threats.Add(c);

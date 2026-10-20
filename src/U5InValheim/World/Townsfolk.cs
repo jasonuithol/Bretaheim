@@ -96,10 +96,32 @@ namespace U5InValheim.WorldGen
                 // people only (creature types 0..15): the rest of the slots are the original's monsters
                 // and objects living in the place (rats, bats, daemons, gargoyles, shadow lords, the
                 // Crown), not townsfolk
-                if (npc.Slot == 0 || !npc.Exists || npc.CreatureType < 0 || npc.CreatureType == 3 || npc.CreatureType > 15) continue;
+                if (npc.Slot == 0 || !npc.Exists || npc.CreatureType < 0 || npc.CreatureType == 3) continue;
                 var s = npc.Schedule;
                 int place = s.PlaceAt(hour), z = s.Z[place], cell = s.Y[place] * SettlementPlan.Size + s.X[place];
                 var (x, y, lz) = b.Plan.TilePos(z, cell);
+                if (npc.CreatureType > 15)
+                {
+                    // the original's objects in creature slots (the Crown, the Sceptre, the Amulet, a shard): later
+                    if (npc.Type >= 0xb4 && npc.Type <= 0xb7) continue;
+                    if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
+                    GameObject talker;
+                    if (npc.HasConversation)
+                    {
+                        // the creatures that talk stand at their first place
+                        var (fx, fy, fz) = b.Plan.TilePos(s.Z[0], s.Y[0] * SettlementPlan.Size + s.X[0]);
+                        talker = CreatureTalker.Spawn(b, npc, b.Origin + new Vector3(fx, fy + 0.1f, fz), (npc.Slot * 47) % 360);
+                    }
+                    // the silent ones live there as creatures, behaving as their AI type says
+                    else talker = ResidentMonster.Spawn(b, npc, s.Ai[place], b.Origin + new Vector3(x, y + 0.1f, lz));
+                    if (mode == ZoneSystem.SpawnMode.Ghost)
+                    {
+                        if (talker != null) spawnedObjects.Add(talker);
+                        ZNetView.FinishGhostInit();
+                    }
+                    if (talker != null) Plugin.Log.LogInfo($"{b.Location.Name}: {(npc.HasConversation ? Townsfolk.Label(Plugin.U5, b.Location, npc) + " " : "")}({Plugin.U5.Ovl.CreatureName(npc.CreatureType)}, AI {s.Ai[place]}) at its place");
+                    continue;
+                }
                 if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
                 var go = Object.Instantiate(prefab, b.Origin + new Vector3(x, y + 0.05f, lz), Quaternion.Euler(0, (npc.Slot * 47) % 360, 0));
                 var zdo = go.GetComponent<ZNetView>().GetZDO();
@@ -248,7 +270,7 @@ namespace U5InValheim.WorldGen
     /// real. Monsters see and fight townsfolk; a townsperson who falls is gone until the next
     /// morning; players cannot hurt them (crimes come with karma).
     /// </summary>
-    public class TownNpc : MonoBehaviour, Hoverable, Interactable
+    public class TownNpc : MonoBehaviour, Hoverable, Interactable, ITalker
     {
         /// <summary>How much higher a smaller body sits, per unit of scale lost (a 0.7 child sank about 0.5 m).</summary>
         const float ChildSeatLift = 1.6f;

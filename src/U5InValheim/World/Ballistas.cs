@@ -193,7 +193,7 @@ namespace U5InValheim.WorldGen
             float bestD = Range;
             foreach (var c in Character.GetAllCharacters())
             {
-                if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || c.GetComponent<TownNpc>() != null) continue;
+                if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || c.GetComponent<TownNpc>() != null || c.GetComponent<CreatureTalker>() != null || ResidentMonster.Is(c)) continue;
                 if (UltimaCreatures.Of(c) == null && (c.GetBaseAI() == null || c.GetFaction() == Character.Faction.AnimalsVeg || c.GetFaction() == Character.Faction.Players)) continue;
                 var to = c.GetCenterPoint() - eye;
                 float d = to.magnitude;

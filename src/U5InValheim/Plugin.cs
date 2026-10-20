@@ -102,6 +102,8 @@ namespace U5InValheim
                 Ballistas.Install(harmony);
                 Crime.Install(harmony);
                 TownDoors.Install(harmony);
+                CreatureTalker.Install(harmony);
+                ResidentMonster.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<UltimaSpawner>();
                 FixedPieces.Install(harmony);

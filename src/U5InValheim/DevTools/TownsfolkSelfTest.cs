@@ -509,6 +509,12 @@ namespace U5InValheim.DevTools
             yield return new WaitForSeconds(5f);
             var near = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, town.Origin) < town.Site.Half + 5f).ToList();
             Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name}: {near.Count} objects ({near.Count(v => v.name.StartsWith(Structures.PrefabName))} structures); top kinds {string.Join(", ", near.GroupBy(v => Utils.GetPrefabName(v.gameObject)).OrderByDescending(g => g.Count()).Take(12).Select(g => $"{g.Key} {g.Count()}"))}");
+            foreach (var t in FindObjectsByType<CreatureTalker>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, town.Origin) < town.Site.Half + 5f))
+            {
+                var c = t.GetComponent<Character>();
+                var session = t.Script != null ? new Data.TalkSession(t.Script, Plugin.U5.Ovl, new PlayerTalkWorld(t)) : null;
+                Plugin.Log.LogInfo($"townsfolk self-test town: talking creature {t.GetHoverName()} ({Utils.GetPrefabName(t.gameObject)}) at {t.transform.position - town.Origin}, faction {c.GetFaction()}, AI on {t.GetComponents<BaseAI>().Any(a => a.enabled)}, hp {c.GetHealth():0}, hover \"{c.GetHoverText().Replace("\n", " ")}\", says \"{session?.TakeOutput().Replace("\n", " ").Trim()}\"");
+            }
             foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");
             for (int round = 0; round < rounds; round++)
@@ -525,7 +531,14 @@ namespace U5InValheim.DevTools
                     bool level = Mathf.Abs(l.y - floorY) < 1.2f || n.Floor == 0;
                     if (!walk || !level) { off++; Plugin.Log.LogInfo($"townsfolk self-test town: {n.GetHoverName()} floor {n.Floor} at {l} (tile {c % 32},{c / 32}, walkable {walk}, {l.y - floorY:0.0} m off its floor)"); }
                 }
-                Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name} t={(round + 1) * 20}s: {folk.Count} people, {off} off their floors; hour {TownNpc.Hour()}");
+                Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name} t={(round + 1) * 20}s: {folk.Count} people, {off} off their floors; hour {TownNpc.Hour()}; alarm {town.Watch.Alarmed}");
+                foreach (var r in FindObjectsByType<ResidentMonster>(FindObjectsSortMode.None).Where(r => Vector3.Distance(r.transform.position, town.Origin) < town.Site.Half + 10f))
+                {
+                    var c = r.GetComponent<Character>();
+                    var m = r.GetComponent<MonsterAI>();
+                    var target = m != null ? m.GetTargetCreature() : null;
+                    Plugin.Log.LogInfo($"townsfolk self-test town: resident {c.m_name} ({Utils.GetPrefabName(r.gameObject)}) AI {r.GetComponent<ZNetView>().GetZDO().GetInt(ResidentMonster.AiKey)}, its AI on {m != null && m.enabled}, sees {(m != null ? m.m_viewRange : 0):0} m, at {r.transform.position - town.Origin}, hp {c.GetHealth():0}, target {(target != null ? target.GetHoverName() : "none")}");
+                }
             }
         }
 

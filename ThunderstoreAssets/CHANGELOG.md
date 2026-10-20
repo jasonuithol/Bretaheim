@@ -44,6 +44,11 @@ Britain, Lord British's castle and Iolo's hut):
 - Firing a ballista yourself (E) is a crime ("BOOOM!"): the guards come to arrest you. Come
   quietly and you wake in the jail of Yew at 8 o'clock; refuse and they fight you (and you may
   fight back). Leaving the settlement ends it.
+- Sin'Vraal the daemon, Grendel the giant rat and Stonegate's Balinor talk (E), peaceful.
+- The original's creatures live in their settlements: rats (Iolo's hut, Yew's cellars, Windemere),
+  bats (Skara Brae, Stonegate), Blackthorn's daemons and gargoyles, Stonegate's shadow lords. As
+  their original AI says, some stand fixed, some go for you when you come close, some hunt you;
+  they leave the townsfolk alone and raise no alarm.
 - Every settlement of the Britannia surface is built: the eight towns, the dwellings and huts,
   Blackthorn's palace, Paws, Cove and Buccaneer's Den, and the keeps (Ararat, in the Underworld,
   waits). Empath Abbey's gargoyles are evil statues perched on the parapets; Moonglow's and Skara

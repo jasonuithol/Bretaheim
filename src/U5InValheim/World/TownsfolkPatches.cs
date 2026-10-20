@@ -122,6 +122,8 @@ namespace U5InValheim.WorldGen
         /// <summary>The hover finds the creature before the townsperson on the same body: it answers with the townsperson's name and Talk.</summary>
         static bool GetHoverText_Prefix(Character __instance, ref string __result)
         {
+            var talker = __instance.GetComponent<CreatureTalker>();
+            if (talker != null) { __result = talker.GetHoverText(); return false; }
             var npc = Of(__instance);
             if (npc == null) return true;
             __result = npc.GetHoverText();
@@ -130,6 +132,8 @@ namespace U5InValheim.WorldGen
 
         static bool GetHoverName_Prefix(Character __instance, ref string __result)
         {
+            var talker = __instance.GetComponent<CreatureTalker>();
+            if (talker != null) { __result = talker.GetHoverName(); return false; }
             var npc = Of(__instance);
             if (npc == null) return true;
             __result = npc.GetHoverName();
