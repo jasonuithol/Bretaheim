@@ -28,7 +28,10 @@ namespace U5InValheim.WorldGen
             var character = prefab != null ? prefab.GetComponent<Character>() : null;
             if (character == null) { Plugin.Log.LogError("Ettin: no Troll prefab to make it from"); return; }
             character.m_name = "Ettin";
-            var trophy = PrefabManager.Instance.GetPrefab("TrophyForestTroll");
+            // (the game's own trophy: a lookup by name can find an empty stand-in of the same name)
+            var trophy = ZNetScene.instance?.GetPrefab("TrophyForestTroll") ?? ObjectDB.instance?.GetItemPrefab("TrophyForestTroll") ?? PrefabManager.Instance.GetPrefab("TrophyForestTroll");
+            foreach (var mf in trophy != null ? trophy.GetComponentsInChildren<MeshFilter>(true) : new MeshFilter[0])
+                Plugin.Log.LogInfo($"Ettin: the trophy's {mf.name}: mesh {(mf.sharedMesh != null ? $"{mf.sharedMesh.name} ({mf.sharedMesh.vertexCount} vertices, {mf.sharedMesh.bounds.size})" : "none")}, material {mf.GetComponent<Renderer>()?.sharedMaterial?.name ?? "none"}");
             AddHead(prefab, trophy);
             prefab.AddComponent<EttinLook>();
             // its body when it falls: the troll's ragdoll, made over the same way (else a blue, one-headed corpse)
@@ -96,9 +99,11 @@ namespace U5InValheim.WorldGen
 
         void Start()
         {
-            if (reported || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
-            reported = true;
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
             var second = GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "u5_second_head");
+            Mend(second);
+            if (reported) return;
+            reported = true;
             if (second == null) { Plugin.Log.LogWarning($"Ettin: {name} has no second head"); return; }
             foreach (var r in second.GetComponentsInChildren<Renderer>(true))
             {
@@ -107,6 +112,26 @@ namespace U5InValheim.WorldGen
             }
             foreach (var lod in second.GetComponentsInChildren<LODGroup>(true))
                 Plugin.Log.LogInfo($"Ettin: second head LOD group {lod.name}: size {lod.size}, lods {string.Join(", ", lod.GetLODs().Select(l => $"{l.screenRelativeTransitionHeight:0.000}: {l.renderers.Length}"))}");
+        }
+
+        /// <summary>A second head that came without its mesh takes the trophy's, as the running game has it.</summary>
+        static void Mend(Transform second)
+        {
+            if (second == null) return;
+            var trophy = ZNetScene.instance?.GetPrefab("TrophyForestTroll");
+            if (trophy == null) return;
+            var source = trophy.GetComponentsInChildren<MeshFilter>(true);
+            foreach (var mf in second.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh != null) continue;
+                var from = source.FirstOrDefault(s => s.name == mf.name && s.sharedMesh != null) ?? source.FirstOrDefault(s => s.sharedMesh != null);
+                if (from == null) continue;
+                mf.sharedMesh = from.sharedMesh;
+                var r = mf.GetComponent<Renderer>();
+                var mats = from.GetComponent<Renderer>()?.sharedMaterials;
+                if (r != null && mats != null) r.sharedMaterials = mats.Select(m => m != null ? Red(m) : null).ToArray();
+                Plugin.Log.LogInfo($"Ettin: second head mended with the trophy's {from.sharedMesh.name}");
+            }
         }
 
         void Awake()
