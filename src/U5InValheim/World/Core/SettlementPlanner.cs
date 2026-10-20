@@ -980,11 +980,15 @@ namespace U5InValheim.WorldGen.Core
 
             // courses of bricks
             int courses = (int)Math.Round(p.Storey), lintel = courses - 1;
+            var (openCells, low) = Floorless(lv);
             for (int course = 0; course < courses; course++)
             {
                 bool Brick(int c)
                 {
-                    // (no lintel across a ladder's shaft, or under a trapdoor)
+                    // (an enclosure with no floor has walls half a storey high)
+                    if (low[c] && course >= courses / 2) return false;
+                    // (no lintel across a ladder's shaft, or under a trapdoor, or over a floorless enclosure's gap)
+                    if (lv.Doorway[c] && openCells[c]) return false;
                     if (lv.Doorway[c]) return course == lintel && TallFlanks(lv, c) && !Climbs(lv.Rule[c].Kind) && !(above != null && above.Rule[c].Trapdoor);
                     if (!lv.Built[c]) return false;
                     var r = lv.Rule[c];
@@ -1033,7 +1037,7 @@ namespace U5InValheim.WorldGen.Core
                 switch (r.Kind)
                 {
                     case TileKind.Wall when r.Build == WallBuild.Cobble:
-                        CobbleWall(ctx, lv, cobble, c, along[c], y0, posts);
+                        CobbleWall(ctx, lv, cobble, c, along[c], y0, posts, low[c]);
                         break;
                     case TileKind.Wall when r.Build == WallBuild.Shelf && r.Parts != null:
                         ctx.Parts(r.Parts, cx, y0, cz, yaw);
@@ -1154,11 +1158,12 @@ namespace U5InValheim.WorldGen.Core
         /// A cobblestone wall tile: two rows of stone fence, a storey high, in a frame of posts on
         /// the tile corners (shared along a run) with a beam along the top of each open face.
         /// </summary>
-        static void CobbleWall(Ctx ctx, Level lv, CobbleStyle s, int c, bool alongX, float y0, HashSet<(int, int)> posts)
+        static void CobbleWall(Ctx ctx, Level lv, CobbleStyle s, int c, bool alongX, float y0, HashSet<(int, int)> posts, bool low = false)
         {
             var p = ctx.Plan;
             float cx = CellX(p, c), cz = CellZ(p, c), yaw = alongX ? 0 : 90;
-            float storey = p.Storey;
+            // (an enclosure with no floor: half a storey)
+            float storey = low ? p.Storey / 2 : p.Storey;
             for (int course = 0; course < storey; course++)
                 for (int side = -1; side <= 1; side += 2)
                 {
@@ -1287,6 +1292,9 @@ namespace U5InValheim.WorldGen.Core
                 for (int c = 0; c < N * N; c++)
                     cells[c] = lv.Covered[c] && !(above != null && (above.Covered[c] || above.Built[c] || (above.Walked != null && above.Walked[c])));
                 bool WallWalk(int c) => OwnParapet(c) || (!lv.Barrier[c] && Neighbours4(c).Any(OwnParapet));
+                // (nothing roofs an enclosure with no floor, nor its half-height walls)
+                var (open, lowWalls) = Floorless(lv);
+                for (int c = 0; c < N * N; c++) if (open[c] || lowWalls[c]) cells[c] = false;
                 float baseY = ctx.Plan.Storey * (lv.Z + 1);
                 // a roof tile drawn on the floor above always gets a roof, parapets or not
                 bool RoofTile(int c) => above != null && tiles[above.Raw[c]].Kind == TileKind.Roof;
@@ -1313,6 +1321,41 @@ namespace U5InValheim.WorldGen.Core
                         }
                 }
             }
+        }
+
+        /// <summary>
+        /// Enclosures with no floor (Waveguide's wishing well in its ring of wall): a covered group
+        /// with something inside it but no floor anywhere (only props and open ground). They get no
+        /// roof, and their own walls (not shared with a room that has a floor) stop at half height.
+        /// </summary>
+        static (bool[] cells, bool[] lowWalls) Floorless(Level lv)
+        {
+            var cells = new bool[N * N];
+            var floored = new bool[N * N];
+            var seen = new bool[N * N];
+            // (a paved doorway is floor too: Yew's pantry is a barrel and its doorway)
+            bool Floor(int c) => (lv.Interior[c] || lv.Doorway[c]) && lv.Rule[c].Kind != TileKind.Prop && lv.Rule[c].Kind != TileKind.Water && !lv.Rule[c].IsOutdoor;
+            for (int s0 = 0; s0 < N * N; s0++)
+            {
+                if (seen[s0] || !lv.Covered[s0] || lv.Barrier[s0]) continue;
+                var group = new List<int>();
+                var q = new Queue<int>();
+                q.Enqueue(s0); seen[s0] = true;
+                while (q.Count > 0)
+                {
+                    int c = q.Dequeue();
+                    group.Add(c);
+                    foreach (int n in Neighbours4(c))
+                        if (!seen[n] && lv.Covered[n] && !lv.Barrier[n]) { seen[n] = true; q.Enqueue(n); }
+                }
+                bool inside = group.Any(c => lv.Interior[c]), floor = group.Any(Floor);
+                foreach (int c in group) { if (inside && !floor) cells[c] = true; if (floor) floored[c] = true; }
+            }
+            var low = new bool[N * N];
+            for (int c = 0; c < N * N; c++)
+                if (lv.Built[c] && lv.Rule[c].Kind == TileKind.Wall && Neighbours8(c).Any(n => cells[n]) && !Neighbours8(c).Any(n => floored[n]))
+                    low[c] = true;
+            return (cells, low);
         }
 
         /// <summary>A building most of whose walls are cobblestone.</summary>
