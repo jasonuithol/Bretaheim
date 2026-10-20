@@ -17,10 +17,11 @@ namespace U5InValheim.WorldGen
         /// <summary>
         /// Where the second head sits from the first, in the troll's own frame (x right, y up, z
         /// forward), its size, its turn outward and how far it looks up (tried in game: at 2.4 it was
-        /// three times the first head and hung its face; at 0.8 a little small).
+        /// three times the first head and hung its face; at 0.8 a little small; a foot higher and 20°
+        /// less upturned, the cut of its neck showed from behind).
         /// </summary>
-        static readonly Vector3 HeadOffset = new Vector3(1.15f, -0.05f, 0.1f);
-        const float HeadScale = 1.2f, HeadTurn = 15f, HeadLookUp = 40f;
+        static readonly Vector3 HeadOffset = new Vector3(1.15f, -0.35f, 0.1f);
+        const float HeadScale = 1.2f, HeadTurn = 15f, HeadLookUp = 60f;
 
         public static void Register() => PrefabManager.OnVanillaPrefabsAvailable += Create;
 
@@ -85,7 +86,7 @@ namespace U5InValheim.WorldGen
         public Transform Body;
         /// <summary>Its resting turn in the body's frame: degrees looking up, and turned outward.</summary>
         public float RestPitch, RestYaw;
-        const float MaxYaw = 70f, MinPitch = -35f, MaxPitch = 45f, Turn = 2.2f, Watch = 30f;
+        const float MaxYaw = 70f, MinPitch = -35f, MaxPitch = 45f, Turn = 2.2f, Watch = 30f, NeckTuck = 20f;
 
         BaseAI ai;
         Quaternion current;
@@ -112,7 +113,8 @@ namespace U5InValheim.WorldGen
                 // the target, in the body's frame
                 var to = Body.InverseTransformDirection(target.GetEyePoint() - transform.position);
                 yaw = Mathf.Clamp(Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg, -MaxYaw, MaxYaw);
-                pitch = Mathf.Clamp(Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg, MinPitch, MaxPitch);
+                // (tipped up a little more than the line to it, keeping the cut of its neck tucked in)
+                pitch = Mathf.Clamp(Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg + NeckTuck, MinPitch + NeckTuck, MaxPitch + NeckTuck);
                 glanceAt = t + 1f;
             }
             else if (t >= glanceAt)
