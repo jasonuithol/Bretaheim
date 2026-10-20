@@ -22,6 +22,8 @@ Britain, Lord British's castle and Iolo's hut):
   its slopes. North Britanny's stream runs in a ditch into its pond.
 - Drawbridges: bridge planks with water at both ends are wooden decks over the river that swing
   up at night and down in the morning.
+- Barrels are big brewing barrels (they block a passage); floors are glass where a ladder climbs
+  through; secret walls show their rune only up close.
 - Lighthouse lights burn in iron braziers on stacks of marble rounds; stone columns reach the
   ceiling.
 - Magic portcullises: under each gate arch (tile 135) two stacked iron grates appear at dusk and
@@ -92,7 +94,6 @@ Britain, Lord British's castle and Iolo's hut):
 - Shop fronts up to three tiles wide count as doorways, so those shops get their roofs.
 - Window arches are full arches; tables of any length; the `SpawnLocation` setting starts you
   in Iolo's hut (default) or just outside another built settlement.
-- Randotron: dead-end hallways may get a banner or a mounted animal head.
 - Iolo's hut is the spawn point, with its tool chest, workbench and barley plot.
 - Building shells can be merged into one object per zone (`CombinedShells`) to cut piece counts.
 

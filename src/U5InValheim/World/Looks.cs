@@ -123,21 +123,24 @@ namespace U5InValheim.WorldGen
                 if (attach == null || !r.transform.IsChildOf(attach)) r.enabled = false;
         }
 
-        static readonly Color RuneTint = new Color(0.62f, 0.68f, 0.85f);
+        static readonly Color RuneTint = new Color(0.88f, 0.9f, 0.96f), RuneGlow = new Color(0.012f, 0.02f, 0.05f);
         static readonly Dictionary<Material, Material> runed = new Dictionary<Material, Material>();
 
         /// <summary>
-        /// The clue on a secret wall (Constructing world assets 78): its middle bricks are a cold,
-        /// bluish grey and glow faintly, as if a rune were cut into them.
+        /// The clue on a secret wall (Constructing world assets 78): close up (within a few metres)
+        /// its middle bricks are a faintly colder grey with the barest glow, as if a rune were cut
+        /// into them; from further off they are plain stone.
         /// </summary>
         static void Rune(GameObject go)
         {
+            var near = go.AddComponent<RuneNear>();
             foreach (var r in go.GetComponentsInChildren<Renderer>(true))
             {
-                var mats = r.sharedMaterials;
-                for (int i = 0; i < mats.Length; i++)
+                var plain = r.sharedMaterials;
+                var marked = new Material[plain.Length];
+                for (int i = 0; i < plain.Length; i++)
                 {
-                    var m = mats[i];
+                    var m = plain[i];
                     if (m == null) continue;
                     if (!runed.TryGetValue(m, out var copy))
                     {
@@ -146,13 +149,13 @@ namespace U5InValheim.WorldGen
                         if (copy.HasProperty("_EmissionColor"))
                         {
                             copy.EnableKeyword("_EMISSION");
-                            copy.SetColor("_EmissionColor", new Color(0.05f, 0.09f, 0.22f));
+                            copy.SetColor("_EmissionColor", RuneGlow);
                         }
                         runed[m] = copy;
                     }
-                    mats[i] = copy;
+                    marked[i] = copy;
                 }
-                r.sharedMaterials = mats;
+                near.Add(r, plain, marked);
             }
         }
 
@@ -411,6 +414,29 @@ namespace U5InValheim.WorldGen
 
         /// <summary>Down (barring the gate) now.</summary>
         public bool IsDown => lift < 1f;
+    }
+
+    /// <summary>A secret wall's marked brick: the mark shows only to someone within a few metres of it.</summary>
+    public class RuneNear : MonoBehaviour
+    {
+        const float Within = 5f, CheckEvery = 0.3f;
+        readonly List<(Renderer r, Material[] plain, Material[] marked)> parts = new List<(Renderer, Material[], Material[])>();
+        bool showing;
+        float checkAt;
+
+        public void Add(Renderer r, Material[] plain, Material[] marked) => parts.Add((r, plain, marked));
+
+        void Update()
+        {
+            if (Time.time < checkAt) return;
+            checkAt = Time.time + CheckEvery + UnityEngine.Random.value * 0.1f;
+            var me = Player.m_localPlayer;
+            bool near = me != null && Vector3.Distance(me.transform.position, transform.position) < Within;
+            if (near == showing) return;
+            showing = near;
+            foreach (var (r, plain, marked) in parts)
+                if (r != null) r.sharedMaterials = near ? marked : plain;
+        }
     }
 
     /// <summary>Marks a piece whose look has been changed.</summary>

@@ -102,17 +102,6 @@ namespace U5InValheim.WorldGen.Core
         public string Fence, Post, PostShort, Beam;
     }
 
-    /// <summary>Randotron: decorations added where the maps leave a place for them, picked by a hash.</summary>
-    public class Randotron
-    {
-        /// <summary>Chance (0..1) that a dead end of a one-tile hallway gets something on its end wall.</summary>
-        public float HallwayEnd;
-        public string[] Banners = new string[0];
-        /// <summary>Animal heads, hung on TrophyStand.</summary>
-        public string[] Trophies = new string[0];
-        public string TrophyStand;
-    }
-
     /// <summary>Armourers' display walls: item stands of the families of what each one sells.</summary>
     public class ArmouryDisplay
     {
@@ -144,7 +133,6 @@ namespace U5InValheim.WorldGen.Core
         /// <summary>Roof of a cobblestone cottage.</summary>
         public string CottageRoof = "thatch";
         public readonly Dictionary<string, (string walls, string roof)> Settlements = new Dictionary<string, (string, string)>();
-        public Randotron Randotron = new Randotron();
         public ArmouryDisplay Armoury = new ArmouryDisplay();
         public Garden Garden = new Garden();
         /// <summary>Ground height of settlements with water, by location number (others: 1.5 m).</summary>
@@ -233,16 +221,6 @@ namespace U5InValheim.WorldGen.Core
                 if (kv.Key.StartsWith("_")) continue;
                 var o = Json.Obj(kv.Value);
                 t.Settlements[kv.Key] = (Json.Str(o, "walls"), Json.Str(o, "roof"));
-            }
-            if (root.TryGetValue("randotron", out var rnd) && Json.Get(Json.Obj(rnd), "hallway_end") is object he)
-            {
-                var o = Json.Obj(he);
-                string[] List(string k) => Json.Get(o, k) is List<object> l ? l.ConvertAll(x => (string)x).ToArray() : new string[0];
-                t.Randotron = new Randotron
-                {
-                    HallwayEnd = Json.Get(o, "chance") is double ch ? (float)ch : 0,
-                    Banners = List("banners"), Trophies = List("trophies"), TrophyStand = Json.Str(o, "trophy_stand"),
-                };
             }
             if (root.TryGetValue("water_ground", out var wg))
                 foreach (var kv in Json.Obj(wg))

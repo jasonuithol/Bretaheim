@@ -528,6 +528,24 @@ namespace U5InValheim.DevTools
                 Plugin.Log.LogInfo($"townsfolk self-test town: at noon (night {EnvMan.IsNight()}): {string.Join("; ", ports.Select(p => $"at {p.transform.position - town.Origin}, down {p.IsDown}, drawn {p.GetComponentsInChildren<Renderer>().Any(r => r.enabled)}, solid {p.GetComponentsInChildren<Collider>().Any(c => c.enabled)}, bodies {string.Join(",", p.GetComponentsInChildren<Rigidbody>(true).Select(r => $"{r.name} kin {r.isKinematic} at {(r.position - town.Origin).y:0.0}"))}"))}");
                 env.m_debugTimeOfDay = false;
             }
+            var glass = near.Where(v => v.name.StartsWith("crystal_wall_1x1")).ToList();
+            foreach (var g in glass.Take(4))
+            {
+                var cols = g.GetComponentsInChildren<Collider>().Where(c => c.enabled).ToList();
+                var gb = cols.Count > 0 ? cols[0].bounds : new Bounds(g.transform.position, Vector3.zero);
+                foreach (var c in cols) gb.Encapsulate(c.bounds);
+                Plugin.Log.LogInfo($"townsfolk self-test town: glass floor at {g.transform.position - town.Origin}: solid y {gb.min.y - town.Origin.y:0.00}..{gb.max.y - town.Origin.y:0.00}, {gb.size.x:0.0} x {gb.size.z:0.0}");
+            }
+            if (glass.Count > 0) Plugin.Log.LogInfo($"townsfolk self-test town: {glass.Count} glass floor tiles");
+            foreach (var f in near.Where(v => v.name.StartsWith("fermenter")).Take(6))
+            {
+                var cols = f.GetComponentsInChildren<Collider>().Where(c => c.enabled && !c.isTrigger).ToList();
+                if (cols.Count == 0) continue;
+                var bb = cols[0].bounds; foreach (var c in cols) bb.Encapsulate(c.bounds);
+                var l = f.transform.position - town.Origin;
+                int fc = town.Plan.CellAt(l.x, l.z);
+                Plugin.Log.LogInfo($"townsfolk self-test town: barrel at tile ({fc % 32},{fc / 32}) tilted {Vector3.Angle(f.transform.up, Vector3.up):0}°, solid {bb.min.y - town.Origin.y:0.00}..{bb.max.y - town.Origin.y:0.00} m, {bb.size.x:0.0} x {bb.size.z:0.0}");
+            }
             foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");
             for (int round = 0; round < rounds; round++)

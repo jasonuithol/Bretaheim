@@ -197,7 +197,6 @@ namespace U5InValheim.WorldGen.Core
                 Walls(ctx, lv, i + 1 < levels.Count ? levels[i + 1] : null, style, tiles.Cobble);
                 Battlements(ctx, lv, style);
                 Furniture(ctx, lv, levels, biome, Cottages(lv));
-                HallwayEnds(ctx, lv);
             }
             Roofs(ctx, levels, tiles.Roofs[materials.roof], tiles.Roofs[tiles.CottageRoof]);
             Signs(ctx, loc, levels);
@@ -882,6 +881,8 @@ namespace U5InValheim.WorldGen.Core
                 p.Basement[c] = true;
                 p.GroundPaint[c] = Paint.Paved;
                 p.Water[c] = false;
+                // (a ladder climbing through the slab: glass)
+                if (Climbs(b.Rule[c].Kind) || (ground != null && Climbs(ground.Rule[c].Kind))) { GlassFloor(ctx, CellX(p, c), 0, CellZ(p, c)); continue; }
                 ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
                 // a trapdoor above: the stone underfoot drops whoever steps on it into the basement
                 if (ground != null && ground.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
@@ -906,6 +907,8 @@ namespace U5InValheim.WorldGen.Core
                 bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Walked != null && lv.Walked[c])
                                || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
                 if (!floored || Solid(below, c) || lv.Rule[c].Grate) continue;
+                // (where a ladder climbs through, the floor is glass)
+                if (Climbs(lv.Rule[c].Kind) || Climbs(below.Rule[c].Kind)) { GlassFloor(ctx, CellX(p, c), y, CellZ(p, c)); continue; }
                 ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
                 if (lv.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
             }
@@ -1125,6 +1128,20 @@ namespace U5InValheim.WorldGen.Core
         static int SecretGroup(Level lv, int c) => (lv.Z + 2) * N * N + c + 1;
 
         const string ViewportDoor = "wood_door", ViewportGrate = "iron_floor_2x2";
+
+        /// <summary>
+        /// A glass floor tile (Valheim's 1 m crystal wall laid flat, stretched to the 2 m tile), its top
+        /// at y: where a ladder passes through a floor you see it go on.
+        /// </summary>
+        static void GlassFloor(Ctx ctx, float x, float y, float z)
+        {
+            if (!ctx.Known(Glass)) { ctx.Top("wood_floor", x, y, z, 0); return; }
+            // laid flat (turned 90° about east–west), its 1 m × 1 m face spans the tile, 0.15 m thick
+            ctx.Pivot(Glass, x - 0.02f, y - 0.074f, z - 1.028f, 0, 2, 2, 0.5f);
+            ctx.Last(pl => { pl.Tilt = 90; return pl; });
+        }
+
+        const string Glass = "crystal_wall_1x1";
         /// <summary>The portcullis: Valheim's iron grate (2 m × 3 m, its pivot a metre up), how far south of the arch's middle it hangs.</summary>
         const string PortcullisGrate = "iron_grate";
         const float PortcullisSouth = 0.85f;
@@ -1973,52 +1990,7 @@ namespace U5InValheim.WorldGen.Core
             return r;
         }
 
-        /// <summary>
-        /// Randotron: the dead end of a one-tile-wide hallway may get a banner or a mounted animal
-        /// head on its end wall (picked per settlement, floor and tile).
-        /// </summary>
-        void HallwayEnds(Ctx ctx, Level lv)
-        {
-            var rt = tiles.Randotron;
-            if (rt.HallwayEnd <= 0 || rt.Banners.Length + rt.Trophies.Length == 0) return;
-            var p = ctx.Plan;
-            float y = p.LevelY(lv.Z);
-            int salt = 1000 + p.Location.Number * 37 + lv.Z * 7;
-            // a one-tile hallway is all "doorway" tiles (gaps between two walls)
-            bool Floor(int c) => !lv.Barrier[c] && (lv.Walked != null ? lv.Walked[c] : lv.Interior[c] || lv.Doorway[c]);
-            for (int c = 0; c < N * N; c++)
-            {
-                int tx = c % N, ty = c / N;
-                if (tx == 0 || ty == 0 || tx == N - 1 || ty == N - 1) continue;
-                var k = lv.Rule[c].Kind;
-                // an empty floor tile, or the stairs or ladder a hallway so often ends in
-                if (!Floor(c) || (k != TileKind.Ground && k != TileKind.Stairs && k != TileKind.LadderUp && k != TileKind.LadderDown)) continue;
-                // walls on three sides, the hallway on the fourth
-                int open = -1, walls = 0;
-                foreach (int n in Neighbours4(c))
-                    if (Solid(lv, n)) walls++;
-                    else open = n;
-                if (walls != 3 || open < 0 || !Floor(open)) continue;
-                int sx = c % N - open % N, sy = c / N - open / N; // towards the end wall, in tiles (y south)
-                bool corridor = sx != 0 ? lv.Barrier[open - N] && lv.Barrier[open + N] : lv.Barrier[open - 1] && lv.Barrier[open + 1];
-                if (!corridor || Hash(tx, ty, salt) % 1000 >= rt.HallwayEnd * 1000) continue;
-                float side = sx > 0 ? 90 : sx < 0 ? 270 : sy > 0 ? 180 : 0; // yaw of the end wall's direction
-                float dx = sx, dz = -sy, x = CellX(p, c), z = CellZ(p, c);
-                int pick = Hash(tx, ty, salt + 1) % (rt.Banners.Length + rt.Trophies.Length);
-                if (pick < rt.Banners.Length)
-                    // the cloth hangs ~2.9 m under its rod, in the rod's local y–z plane
-                    ctx.Pivot(rt.Banners[pick], x + dx * 0.88f, y + p.Storey - 0.2f, z + dz * 0.88f, side + 90);
-                else if (rt.TrophyStand != null)
-                {
-                    // the stand's front (where the head goes) is its local +z
-                    ctx.Pivot(rt.TrophyStand, x + dx * 0.94f, y + 2.1f, z + dz * 0.94f, side + 180);
-                    string trophy = rt.Trophies[pick - rt.Banners.Length];
-                    ctx.Last(pl => { pl.StandItem = trophy; return pl; });
-                }
-            }
-        }
-
-        static int Hash(int x, int y, int salt)
+static int Hash(int x, int y, int salt)
         {
             unchecked
             {
