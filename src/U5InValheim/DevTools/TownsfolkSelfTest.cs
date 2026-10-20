@@ -30,8 +30,16 @@ namespace U5InValheim.DevTools
                 yield return new WaitForSeconds(1f);
             yield return new WaitForSeconds(5f);
             holding = true; // (a headless server unloads everything with no player near: not during the test)
+            // U5_SELFTEST=town:<location>: only that settlement, built and lived in for a while
+            var only = System.Environment.GetEnvironmentVariable("U5_SELFTEST") ?? "";
+            if (only.StartsWith("town:"))
+            {
+                yield return Town(int.Parse(only.Substring(5)));
+                holding = false;
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
-            if (System.Environment.GetEnvironmentVariable("U5_SELFTEST") == "crime")
+            if (only == "crime")
             {
                 yield return Crimes();
                 holding = false;
@@ -489,6 +497,35 @@ namespace U5InValheim.DevTools
             if (!__instance.name.StartsWith(Ballistas.ProjectileName)) return;
             var castle = Settlements.Get(17);
             Plugin.Log.LogInfo($"townsfolk self-test bolt hit {(collider != null ? collider.name + " of " + collider.transform.root.name : "nothing")} at {hitPoint - (castle?.Origin ?? Vector3.zero)}");
+        }
+
+        /// <summary>One settlement: its pieces, its people (where they stand, whether on their walkable floors), its statues.</summary>
+        IEnumerator Town(int number)
+        {
+            var town = Settlements.Get(number);
+            if (town == null) { Plugin.Log.LogWarning($"townsfolk self-test town {number}: not built"); yield break; }
+            yield return Generate(town.Origin);
+            yield return new WaitForSeconds(5f);
+            var near = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, town.Origin) < town.Site.Half + 5f).ToList();
+            Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name}: {near.Count} objects ({near.Count(v => v.name.StartsWith(Structures.PrefabName))} structures); top kinds {string.Join(", ", near.GroupBy(v => Utils.GetPrefabName(v.gameObject)).OrderByDescending(g => g.Count()).Take(12).Select(g => $"{g.Key} {g.Count()}"))}");
+            foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
+                Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");
+            for (int round = 0; round < 3; round++)
+            {
+                yield return new WaitForSeconds(20f);
+                var folk = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.Location == number).ToList();
+                int off = 0;
+                foreach (var n in folk)
+                {
+                    var l = n.transform.position - town.Origin;
+                    int c = town.Plan.CellAt(l.x, l.z);
+                    bool walk = town.Plan.Walk.TryGetValue(n.Floor, out var w) && c >= 0 && w[c];
+                    float floorY = town.Plan.LevelY(n.Floor);
+                    bool level = Mathf.Abs(l.y - floorY) < 1.2f || n.Floor == 0;
+                    if (!walk || !level) { off++; Plugin.Log.LogInfo($"townsfolk self-test town: {n.GetHoverName()} floor {n.Floor} at {l} (tile {c % 32},{c / 32}, walkable {walk}, {l.y - floorY:0.0} m off its floor)"); }
+                }
+                Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name} t={(round + 1) * 20}s: {folk.Count} people, {off} off their floors; hour {TownNpc.Hour()}");
+            }
         }
 
         static string Name(int hash) => hash == 0 ? "-" : ObjectDB.instance?.GetItemPrefab(hash)?.name ?? ZNetScene.instance?.GetPrefab(hash)?.name ?? hash.ToString();

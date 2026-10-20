@@ -44,7 +44,7 @@ Britain, Lord British's castle and Iolo's hut):
 - Firing a ballista yourself (E) is a crime ("BOOOM!"): the guards come to arrest you. Come
   quietly and you wake in the jail of Yew at 8 o'clock; refuse and they fight you (and you may
   fight back). Leaving the settlement ends it.
-- Yew is built. Its jail: the prisoners in the cells are in rags (no guards in the cells), the
+- Yew is built, and Empath Abbey (its gargoyles are evil statues perched on the parapets). Its jail: the prisoners in the cells are in rags (no guards in the cells), the
   cell doors are locked, a secret door hides behind the cell, and trapdoors drop into the basement.
 - Locked doors stay shut for players ("Locked! No keys!"; magically locked: "Magically sealed.");
   townsfolk have the keys.

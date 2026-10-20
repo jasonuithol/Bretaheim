@@ -1170,8 +1170,18 @@ namespace U5InValheim.WorldGen.Core
                 }
                 foreach (var (qx, qz) in cells)
                     if (!done.Contains((qx, qz))) ctx.Centre(style.BrickSmall, cx + qx * 0.5f, y + 0.5f, cz + qz * 0.5f, 0);
+                // a statue on the parapet (a gargoyle, 0x38), looking out over its open side
+                if (lv.Rule[c].Prefab != null && sides.Count > 0)
+                {
+                    var (sx, sz) = sides[0];
+                    float yaw = (float)(Math.Atan2(sx, sz) * 180 / Math.PI + 360) % 360;
+                    ctx.Pivot(lv.Rule[c].Prefab, cx + sx * 0.5f, y + 1f, cz + sz * 0.5f, yaw, GargoyleScale, GargoyleScale, GargoyleScale);
+                }
             }
         }
+
+        /// <summary>A parapet's statue (the gargoyle): its size against Valheim's.</summary>
+        const float GargoyleScale = 0.6f;
 
         /// <summary>
         /// A cannon's (0xb4..0xb7: facing N, E, S, W) firing port: the walk tile it faces and one

@@ -42,6 +42,7 @@
     "49": {"kind": "ground", "paint": "planks", "drawbridge": true},
     "4a": {"kind": "window", "narrow": true},
     "4b": {"kind": "window"},
+    "38": {"kind": "battlement", "merlons": false, "prefab": "StatueEvil"},
     "4d": {"kind": "wall", "build": "cobble"},
     "4e": {"kind": "wall", "secret": true},
     "4f": {"kind": "wall"},
