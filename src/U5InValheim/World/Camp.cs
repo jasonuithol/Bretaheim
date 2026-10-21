@@ -119,7 +119,7 @@ namespace U5InValheim.WorldGen
             return id.UserID + ":" + id.ID;
         }
 
-        /// <summary>The player's last camp is struck (one camp each).</summary>
+        /// <summary>The player's last camp is struck (one camp each): it falls apart where it stands.</summary>
         static void Strike(Player me)
         {
             if (!me.m_customData.TryGetValue(CampKey, out var ids)) return;
@@ -131,7 +131,18 @@ namespace U5InValheim.WorldGen
                 if (zdo == null) continue;
                 var view = ZNetScene.instance.FindInstance(zdo);
                 zdo.SetOwner(ZDOMan.GetSessionID());
-                if (view != null) ZNetScene.instance.Destroy(view.gameObject);
+                if (view != null)
+                {
+                    // it falls apart as a demolished piece does: its breaking sound and dust, and its
+                    // pieces tumbling (on every peer); nothing is dropped
+                    var wnt = view.GetComponent<WearNTear>();
+                    if (wnt != null)
+                    {
+                        wnt.m_destroyedEffect?.Create(view.transform.position, view.transform.rotation);
+                        view.InvokeRPC(ZNetView.Everybody, "RPC_CreateFragments");
+                    }
+                    ZNetScene.instance.Destroy(view.gameObject);
+                }
                 else ZDOMan.instance.DestroyZDO(zdo);
             }
             me.m_customData.Remove(CampKey);
