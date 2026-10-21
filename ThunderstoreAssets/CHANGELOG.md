@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- Britannia keeps the original's calendar (one Valheim day is one Ultima day, starting 4-5-139) and
+  its moons: by night a moongate rises at every buried moonstone and carries you to the site the
+  moons' phases choose. Moonstones can be dug up (the gate is gone) and buried again (use one).
+  The three Shadowlords travel between the eight towns every midnight; where one is, Falsehood
+  cheats you, Hatred turns the townsfolk on you, Cowardice sends them into hiding. Call one to its
+  flame by yelling its name and cast its shard in to destroy it. `u5 time`, `u5 moons`, `u5 dusk`.
 - A new Britannia world opens with the original's introduction (its 21 pictures and words, read from
   your Ultima V files; Space goes on, Escape skips), then thou standest in Iolo's hut. Hildir waits
   beside thee and the door is locked until thou hast answered the gypsy's seven virtue questions,

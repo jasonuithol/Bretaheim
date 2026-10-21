@@ -231,6 +231,10 @@ namespace U5InValheim.WorldGen
             return go;
         }
 
+        /// <summary>A moonstone buried by a player (Moongates.Bury): a mound to search, as INIT.GAM's.</summary>
+        public static GameObject BuryMoonstone(Vector3 at, int stone)
+            => SpawnSpot(at, new Loot(LootKind.Moonstone, stone), true, MoonstoneBase + stone, true, ZoneSystem.SpawnMode.Full, null);
+
         /// <summary>What lies in a settlement for the taking or the finding (in the zone being made).</summary>
         public static void SpawnSettlement(Settlements.Built b, Vector2s zone, ZoneSystem.SpawnMode mode, List<GameObject> spawned)
         {
@@ -305,7 +309,8 @@ namespace U5InValheim.WorldGen
             for (int i = 0; i < 8 && start != null; i++)
             {
                 var m = start.Moonstone(i);
-                if (m.buried && m.z == 0) Place(m.x, m.y, new Loot(LootKind.Moonstone, i), MoonstoneBase + i);
+                // (unless it has been dug up or moved since: Moongates keeps where it is)
+                if (m.buried && m.z == 0 && Moongates.StillAt(i, m.x, m.y)) Place(m.x, m.y, new Loot(LootKind.Moonstone, i), MoonstoneBase + i);
             }
             for (int i = 0; i < 4; i++)
             {
@@ -364,6 +369,12 @@ namespace U5InValheim.WorldGen
                 nview.ClaimOwnership();
                 zdo.Set(DayKey, day);
                 return;
+            }
+            // a moonstone is dug up only while no gate stands on it; its site is gone with it
+            if (loot.Kind == LootKind.Moonstone)
+            {
+                if (Moongates.GateUpAt(loot.Value & 7)) { Nothing(player); return; }
+                Moongates.DugUp(loot.Value & 7);
             }
             Found(player, Give(inv, loot, player.transform.position));
             nview.ClaimOwnership();

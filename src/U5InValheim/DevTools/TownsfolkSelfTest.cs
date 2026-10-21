@@ -53,6 +53,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=clock: the calendar, moongates and Shadowlords
+            if (only == "clock")
+            {
+                yield return ClockSelfTest.Run(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=hut: Iolo's hut (Hildir and the lock), the restrictions, the introduction's files
             if (only == "hut")
             {

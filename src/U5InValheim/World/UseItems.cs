@@ -23,18 +23,9 @@ namespace U5InValheim.WorldGen
         static bool viewingGem;
 
         /// <summary>The Britannian date the night sky is drawn for (year, month 1..13, day 1..28): the calendar's when it has one; until then INIT.GAM's first day plus Valheim's days.</summary>
-        public static System.Func<(int year, int month, int day)> Date = DefaultDate;
+        public static System.Func<(int year, int month, int day)> Date = () => { var n = Calendar.Now; return (n.Year, n.Month, n.Day); };
         /// <summary>The towns (1..8) the three Shadowlords are at (0 none, 0xff destroyed): INIT.GAM's until the Shadowlords move.</summary>
-        public static System.Func<int[]> ShadowlordTowns = () => Enumerable.Range(0, 3).Select(i => Plugin.U5.InitialGame.ShadowlordTown(i)).ToArray();
-
-        static (int, int, int) DefaultDate()
-        {
-            var g = Plugin.U5.InitialGame;
-            // (Valheim counts its first day as day 1)
-            int days = EnvMan.instance != null ? Mathf.Max(0, EnvMan.instance.GetDay() - 1) : 0;
-            int d = g.Day - 1 + days, m = g.Month - 1 + d / 28, y = g.Year + m / 13;
-            return (y, m % 13 + 1, d % 28 + 1);
-        }
+        public static System.Func<int[]> ShadowlordTowns = () => Enumerable.Range(0, 3).Select(i => Shadowlords.Doomed(i) ? 0xff : Shadowlords.TownOf(i)).ToArray();
 
         public static void Install(Harmony harmony)
         {
@@ -115,7 +106,8 @@ namespace U5InValheim.WorldGen
             return ((int)System.Math.Floor(u) & 0xff, (int)System.Math.Floor(v) & 0xff);
         }
 
-        public static (int hour, int minute) Clock() => ItemUse.Clock(EnvMan.instance != null ? EnvMan.instance.GetDayFraction() : 0.5);
+        /// <summary>Britannia's clock (Calendar: one Valheim day is one Ultima day).</summary>
+        public static (int hour, int minute) Clock() => (Calendar.Hour, Calendar.Minute);
 
         // ── the items ───────────────────────────────────────────────────────────────────────
 

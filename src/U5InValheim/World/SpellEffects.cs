@@ -386,7 +386,8 @@ namespace U5InValheim.WorldGen
                     return Failed;
                 case Magic.VasRelPor:
                     if (GateTravel == null) { Say(SNotHere); return Failed; }
-                    return GateTravel(me, (int)(EnvMan.instance != null ? EnvMan.instance.GetDay() % 8 : 0)) ? Silent : Failed;
+                    // ("To phase: " is asked by the hook: the answer comes later)
+                    return GateTravel(me, -1) ? Silent : Failed;
                 case Magic.AnTym: return StopTime(me, fromItem);
             }
             return Failed;

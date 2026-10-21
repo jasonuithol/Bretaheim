@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again",
+            new Terminal.ConsoleCommand("u5; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -82,6 +82,7 @@ namespace U5InValheim
                 else harp.SetText(string.Join("", args.Skip(1)));
                 return;
             }
+            if (Plugin.U5 != null && WorldGen.ClockCommands.Run(args, Print)) return;
             if (args.Length > 0 && (args[0] == "intro" || args[0] == "karma" || args[0] == "unmake"))
             {
                 // u5 intro: the introduction again; u5 karma [n]: show (set, devcommands); u5 unmake (devcommands): the Avatar unmade, for Hildir
