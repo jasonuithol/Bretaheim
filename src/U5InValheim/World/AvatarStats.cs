@@ -169,7 +169,7 @@ namespace U5InValheim.WorldGen
             var elements = Traverse.Create(__instance).Field("m_elements").GetValue<List<GameObject>>();
             if (elements == null || elements.Count == 0) return;
             var a = Mine;
-            int karma = player.m_customData.TryGetValue("u5_karma", out var k) && int.TryParse(k, out int kv) ? kv : 50;
+            int karma = Karma.Get(player.m_customData);
             int next = a.Level >= Avatar.MaxLevel ? a.Experience : 100 << (a.Level - 1);
             var rows = new (string name, string value, float bar, string tip)[]
             {

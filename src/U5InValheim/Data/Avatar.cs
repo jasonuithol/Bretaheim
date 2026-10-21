@@ -6,8 +6,10 @@ namespace U5InValheim.Data
     /// <summary>
     /// A player's Ultima character (party record 0): strength, dexterity, intelligence, mana,
     /// level and experience; hit points are 30 a level. Kept in the Valheim character's custom
-    /// data (one per character, MASTER_PLAN §5.9). Until the virtue questionnaire sets them
-    /// (§5.13), a new Avatar starts at 15 in each.
+    /// data (one per character, MASTER_PLAN §5.9). A new character's Avatar is not made yet: all
+    /// of strength, dexterity, intelligence and mana are 0 until the gypsy's virtue questions in
+    /// Iolo's hut make it (§5.13, <see cref="VirtueCasting"/>; INIT.GAM's 15s plus the cards).
+    /// Characters from before the questions keep what they have.
     /// </summary>
     public class Avatar
     {
@@ -16,16 +18,21 @@ namespace U5InValheim.Data
 
         public int Strength = StartingStat, Dexterity = StartingStat, Intelligence = StartingStat;
         public int Mana, Level = 1, Experience;
+        /// <summary>Made by the virtue questions (or kept from before them); false: every stat 0 until then.</summary>
+        public bool Made = true;
 
         public int MaxHitPoints => HitPointsPerLevel * Level;
 
         public static Avatar Load(IDictionary<string, string> data)
         {
             int Get(string key, int fallback) => data != null && data.TryGetValue(Prefix + key, out var v) && int.TryParse(v, out int n) ? n : fallback;
+            // (saved before the questions existed: made)
+            bool made = data != null && (data.TryGetValue(Prefix + "made", out var m) ? m == "1" : data.ContainsKey(Prefix + "str"));
+            int start = made ? StartingStat : 0;
             var a = new Avatar
             {
-                Strength = Get("str", StartingStat), Dexterity = Get("dex", StartingStat), Intelligence = Get("int", StartingStat),
-                Level = Get("level", 1), Experience = Get("exp", 0),
+                Strength = Get("str", start), Dexterity = Get("dex", start), Intelligence = Get("int", start),
+                Level = Get("level", 1), Experience = Get("exp", 0), Made = made,
             };
             // a new Avatar starts with full mana (their intelligence)
             a.Mana = Get("mp", a.Intelligence);
@@ -40,6 +47,7 @@ namespace U5InValheim.Data
             data[Prefix + "mp"] = Mana.ToString();
             data[Prefix + "level"] = Level.ToString();
             data[Prefix + "exp"] = Experience.ToString();
+            data[Prefix + "made"] = Made ? "1" : "0";
         }
 
         /// <summary>The level experience earns (OUTSUBS apparition_level_up): 1 + the halvings of experience / 100 (2 at 100, 3 at 200, 4 at 400 …).</summary>
