@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter> presses on the Ultima screens; u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter> presses on the Ultima screens; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -49,6 +49,18 @@ namespace U5InValheim
                 // (the screens' keys and buttons, for automated tests)
                 foreach (var what in args.Skip(1))
                     if (!WorldGen.UltimaScreenPanel.Press(what.ToLowerInvariant())) { Print($"u5 press: {what} is not offered"); break; }
+                return;
+            }
+            if (args.Length > 1 && (args[0] == "key" || args[0] == "mix"))
+            {
+                // (what the cast key and M by a fire do, and the mixing panel's choices: for automated tests)
+                var me = Player.m_localPlayer;
+                if (me == null) return;
+                if (args[0] == "key" && args[1] == "cast") WorldGen.Spells.CastReadied(me);
+                else if (args[0] == "key" && args[1] == "close") { WorldGen.MixPanel.Close(); WorldGen.SkyPanel.Close(); WorldGen.UltimaScreenPanel.Close(); }
+                else if (args[0] == "key" && args[1] == "mix") { if (WorldGen.Spells.NearFire(me.transform.position)) WorldGen.MixPanel.Open(me); else Print("u5 key mix: no fire near"); }
+                else if (args[0] == "mix" && int.TryParse(args[1], out int s) && WorldGen.MixPanel.Choose(s, args.Length > 2 && int.TryParse(args[2], out int n) ? n : 1)) { }
+                else Print("u5 key cast|mix|close; u5 mix <spell 0-47> [count] with the mixing panel open");
                 return;
             }
             if (args.Length > 0 && args[0] == "play")

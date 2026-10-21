@@ -167,6 +167,16 @@ namespace U5InValheim.WorldGen
             Refresh();
         }
 
+        /// <summary>The panel's choices made by name (the console's u5 mix, for tests): the spell (0..47) with its recipe, how many, then Mix.</summary>
+        public static bool Choose(int s, int n)
+        {
+            if (!IsOpen || s < 0 || s >= Spells.Table.Length) return false;
+            ChooseSpell(s);
+            count = Math.Max(1, n);
+            Mix();
+            return true;
+        }
+
         static string Roman(int n) => new[] { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII" }[n];
 
         static bool Build()
