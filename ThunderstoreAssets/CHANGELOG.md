@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- No more terrain freezes when arriving in new land: a zone's terrain the game is waiting for is built
+  first, and finished terrain is no longer thrown away when moving quickly (Valheim kept only 16).
+- Load profiler (Development/LogHitches): frames over 150 ms are logged with what ran in them.
+
 Settlements (built from TOWNE/DWELLING/CASTLE/KEEP.DAT, setting `BuildSettlements`; tried in-game on
 Britain, Lord British's castle and Iolo's hut):
 - 2 m × 2 m tiles, 4 m storeys. Walls are solid brick courses (or a cobblestone frame for cottages),

@@ -110,6 +110,7 @@ namespace U5InValheim
                 ResidentMonster.Install(harmony);
                 Sleep.Install(harmony);
                 Respawn.Install(harmony);
+                TerrainQueue.Install(harmony);
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();

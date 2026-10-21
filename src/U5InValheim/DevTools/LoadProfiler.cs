@@ -59,6 +59,7 @@ namespace U5InValheim.DevTools
             if (ms >= SlowCallMs)
             {
                 string on = __instance is Component c && c != null ? $" on {c.name} at {c.transform.position}" + (c is Heightmap h ? $" (distant LOD {h.IsDistantLod})" : "") : "";
+                if (__instance is HeightmapBuilder b) on = $" (afterwards {Traverse.Create(b).Field("m_toBuild").GetValue<System.Collections.ICollection>()?.Count} to build, {Traverse.Create(b).Field("m_ready").GetValue<System.Collections.ICollection>()?.Count} ready)";
                 Plugin.Log.LogInfo($"slow call {key} {ms:0} ms{on}\n{new StackTrace(1, false)}");
             }
         }
