@@ -11,6 +11,20 @@ namespace U5InValheim.Tests
         static ItemMap Items => ItemMap.Parse(File.ReadAllText(Path.Combine(Env.RepoRoot, "assets/mappings/items.json")));
 
         [U5Fact]
+        public void InnsAddTheIntelligenceAdjustment()
+        {
+            // SHOPPES3: price + price·(100 − 3·INT)/100 — half again at 0, the rate at 33, cheaper above
+            var loc = Env.Data.Location(2);
+            var keeper = Env.Data.NpcsOf(loc).First(n => n.IsShopkeeper && n.Trade == ShopTrade.Inn);
+            var inn = Env.Data.Shops.Of(loc, keeper);
+            int rate = Env.Data.Shops.InnPrice(inn, 33) ;
+            Assert.True(rate > 0);
+            Assert.Equal(rate + rate * 100 / 100, Env.Data.Shops.InnPrice(inn, 0));
+            Assert.Equal(rate + rate * 55 / 100, Env.Data.Shops.InnPrice(inn, 15));
+            Assert.True(Env.Data.Shops.InnPrice(inn, 30) < Env.Data.Shops.InnPrice(inn, 15));
+        }
+
+        [U5Fact]
         public void IolosBowsSellsBowsAtTheOriginalPrices()
         {
             var loc = Env.Data.Location(2);

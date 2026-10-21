@@ -473,6 +473,12 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   window; guards fight monsters in town, raised by a villager's alarm (World/TownWatch: messenger,
   hiding behind locked doors, guards fetching guards, 3000-hp guards, reinforcements). Next: selling, inn/stables/shipwright, tavern meals and
   rumours, the guards' challenge and alarm, doors, work poses, gifts (with the item set).
+- Status (2026-10-21): selling to armourers, inns, the guards' challenge, doors and gifts are in;
+  the shipwrights (frigates/skiffs to the dock, skiffs aboard, HMS Cape plans), the stables (a
+  saddled Lox, twice a walker's pace, no swamp), tavern meals, drinks, the wine list and rumours
+  are in (World/TalkPanelShops, Vessels, Horses; Data/Shipwright, Tavern), and pirate ships at sea
+  (World/Pirates: Fuling crews for now, captured when their crew is dead). Next: work poses, human
+  pirate crews (a hostile human body), horses wandering in towns.
 
 **Phase 4 — All settlements (2 weeks)**
 - Generalise builders to all 26 towns/dwellings/keeps/castles (type-specific materials), all NPCs.

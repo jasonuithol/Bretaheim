@@ -23,6 +23,15 @@
   or a whirlpool on the deep sea that drags your ship down and spits it out below; the way up: the
   dungeons' entrances down there. `u5 under` tells where you are (devcommands: `u5 under <x> <y>`,
   `falls`, `whirlpool`, `doom`, `ararat`). Add 25 to BuildSettlements in an older config for Ararat.
+- Ships and horses: the shipwrights of Jhelom, Minoc, East Britanny and Buccaneer's Den sell
+  frigates (longships, with two skiffs aboard) and skiffs (karves) at the original's prices,
+  delivered to the town's dock; Shift+E at a frigate's rudder lowers a skiff, and its crew take to
+  one when it sinks. Carry the HMS Cape plans aboard and she sails twice as hard. The stables of
+  Trinsic, North Britanny, Paws and the Lycaeum sell a horse (a saddled Lox for now) that goes twice
+  a walker's pace and will not enter swamp; merchants shout riders out. Taverns serve meals (a barley
+  ration), rounds of drink (the wine list where they have one; too many and thou art drunk) and,
+  once thou hast bought something, rumours of who to seek and where. At sea, pirate ships (crewed by
+  Fulings for now) sail at thee; kill the crew and the ship is thine. `u5 vessel frigate|skiff|pirates|horse`.
 - Britannia keeps the original's calendar (one Valheim day is one Ultima day, starting 4-5-139) and
   its moons: by night a moongate rises at every buried moonstone and carries you to the site the
   moons' phases choose. Moonstones can be dug up (the gate is gone) and buried again (use one).

@@ -29,7 +29,7 @@ namespace U5InValheim.Data
     /// them, when they open, their greetings and farewells (SHOPPE.DAT through print_shop_text)
     /// and their stock and prices (DATA.OVL tables).
     /// </summary>
-    public class Shops
+    public partial class Shops
     {
         public const int Torch = 0x200, Gem = 0x201, Food = 0x202, ReagentBase = 0x100;
 
@@ -125,7 +125,8 @@ namespace U5InValheim.Data
                     break;
                 case ShopTrade.Tavern:
                     int ration = Ovl.U16(RationPrices + s.Slot * 2);
-                    if (ration > 0) r.Add(new Ware { Item = Food, Name = "Rations", Price = ration, Quantity = 25 });
+                    // (menu styles 1 and 2 sell no rations: their rations key is blank)
+                    if (ration > 0 && Offers(s, TavernOffer.Rations)) r.Add(new Ware { Item = Food, Name = "Rations", Price = ration, Quantity = 25 });
                     break;
             }
             return r;
@@ -168,8 +169,17 @@ namespace U5InValheim.Data
             InnTakeIt = 0x4dca, InnHighwaymen = 0x4de3, InnScreams = 0x4e07, InnPleasant = 0x4e13, InnMilady = 0x4e2c,
             InnSir = 0x4e33, InnSays = 0x4e37, InnZzz = 0x4e44, InnMorning = 0x4e51;
 
-        /// <summary>A night's rest for one (rate × party, here one player) at the original's discount for intelligence: price·(100 − 3·INT)/100, signed.</summary>
-        public int InnPrice(ShopInfo s, int intelligence) => Ovl.U8(InnRates + s.Slot) * (100 - 3 * intelligence) / 100;
+        /// <summary>
+        /// A night's rest for one (rate × party, here one player) adjusted for intelligence as the
+        /// original (SHOPPES3 adjust_price_for_intelligence): price + price·(100 − 3·INT)/100, the
+        /// division signed — dearer below 34 intelligence, cheaper above.
+        /// </summary>
+        public int InnPrice(ShopInfo s, int intelligence)
+        {
+            int rate = Ovl.U8(InnRates + s.Slot);
+            return rate + rate * (100 - 3 * intelligence) / 100;
+        }
+        // (the other shops' adjustment, the same with an unsigned divide: AdjustForIntelligence)
 
         /// <summary>How many guests the inn takes.</summary>
         public int InnRoomCount(ShopInfo s) => Ovl.U8(InnRooms + s.Slot);

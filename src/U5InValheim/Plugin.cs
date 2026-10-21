@@ -126,6 +126,10 @@ namespace U5InValheim
                 UseItems.Install(harmony);
                 WornEffects.Install(harmony);
                 MagicCarpet.Register();
+                Horses.Register();
+                Horses.Install(harmony);
+                Vessels.Install(harmony);
+                gameObject.AddComponent<TransportWatch>();
                 gameObject.AddComponent<WornEffects.Tick>();
                 gameObject.AddComponent<BlackthornGuards>();
                 BlackthornCapture.Install(harmony);

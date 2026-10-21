@@ -503,9 +503,18 @@ namespace U5InValheim.WorldGen
         /// The shop's stock for Valheim's trade window (a disabled Trader on a child, so the
         /// townsperson stays the thing you point at), or null for shops that sell nothing yet.
         /// </summary>
+        List<int> basePrices;
+
+        /// <summary>The wares' prices for the buyer's intelligence now (every shop's adjustment: SHOPPES apply_intelligence_adjustment).</summary>
+        void Reprice()
+        {
+            if (trader?.m_items == null || basePrices == null || basePrices.Count != trader.m_items.Count) return;
+            for (int i = 0; i < basePrices.Count; i++) trader.m_items[i].m_price = Data.Shops.AdjustForIntelligence(basePrices[i], TalkPanel.Intelligence);
+        }
+
         public Trader ShopTrader()
         {
-            if (trader != null) return trader;
+            if (trader != null) { Reprice(); return trader; }
             var shop = npc != null && npc.IsShopkeeper ? Plugin.U5.Shops.Of(home.Location, npc) : null;
             if (shop == null) return null;
             var items = new List<Trader.TradeItem>();
@@ -517,11 +526,19 @@ namespace U5InValheim.WorldGen
                 // (the trade window expects the empty strings and effect list a serialized trader has, not nulls)
                 items.Add(new Trader.TradeItem
                 {
-                    m_prefab = drop, m_stack = ware.Quantity, m_price = ware.Price, m_name = ware.Name,
+                    m_prefab = drop, m_stack = ware.Quantity, m_price = Data.Shops.AdjustForIntelligence(ware.Price, TalkPanel.Intelligence), m_name = ware.Name,
                     m_tooltip = "", m_requiredGlobalKey = "", m_buyKey = "", m_incrementKey = "", m_buyPlayerEffects = new EffectList(),
                 });
             }
             if (items.Count == 0) return null;
+            basePrices = items.Select(i => 0).ToList();
+            int k = 0;
+            foreach (var ware in Plugin.U5.Shops.Stock(shop))
+            {
+                var map = ShopTrading.Items.Of(ware.Item);
+                if (map == null || ObjectDB.instance?.GetItemPrefab(map.Value.prefab)?.GetComponent<ItemDrop>() == null) continue;
+                basePrices[k++] = ware.Price;
+            }
             var go = new GameObject("u5_shop");
             go.transform.SetParent(transform, false);
             trader = go.AddComponent<Trader>();

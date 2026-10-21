@@ -95,6 +95,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=transport: ships at the docks, skiffs, pirates, a horse (TransportSelfTest)
+            if (only == "transport")
+            {
+                yield return TransportSelfTest.Run(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {
