@@ -598,6 +598,16 @@ namespace U5InValheim.DevTools
                 int fc = town.Plan.CellAt(l.x, l.z);
                 Plugin.Log.LogInfo($"townsfolk self-test town: barrel at tile ({fc % 32},{fc / 32}) tilted {Vector3.Angle(f.transform.up, Vector3.up):0}°, solid {bb.min.y - town.Origin.y:0.00}..{bb.max.y - town.Origin.y:0.00} m, {bb.size.x:0.0} x {bb.size.z:0.0}");
             }
+            foreach (var th in near.Where(v => v.name.StartsWith("piece_throne")))
+                Plugin.Log.LogInfo($"townsfolk self-test town: throne at {th.transform.position - town.Origin} facing {th.transform.forward}");
+            var back = Respawn.Point();
+            if (back.HasValue && Vector3.Distance(back.Value, town.Origin) < 60f)
+            {
+                bool floor = Physics.Raycast(back.Value + Vector3.up, Vector3.down, out var fh, 3f);
+                Plugin.Log.LogInfo($"townsfolk self-test town: the dead come back at {back.Value - town.Origin}, standing on {(floor ? $"{fh.collider.transform.root.name} at {fh.point.y - town.Origin.y:0.00}" : "nothing")}");
+                foreach (var h in Physics.RaycastAll(back.Value + Vector3.up * 3f, Vector3.down, 6f).OrderBy(h => h.distance))
+                    Plugin.Log.LogInfo($"townsfolk self-test town:   ray hits {h.collider.name} of {h.collider.transform.root.name} (layer {LayerMask.LayerToName(h.collider.gameObject.layer)}, trigger {h.collider.isTrigger}) at {h.point.y - town.Origin.y:0.00}, root at {h.collider.transform.root.position - town.Origin}");
+            }
             foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");
             for (int round = 0; round < rounds; round++)

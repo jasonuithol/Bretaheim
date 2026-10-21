@@ -106,6 +106,7 @@ namespace U5InValheim
                 CreatureTalker.Install(harmony);
                 ResidentMonster.Install(harmony);
                 Sleep.Install(harmony);
+                Respawn.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();
                 gameObject.AddComponent<UltimaSpawner>();

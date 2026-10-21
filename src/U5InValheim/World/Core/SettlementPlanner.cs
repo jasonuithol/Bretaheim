@@ -1547,6 +1547,16 @@ namespace U5InValheim.WorldGen.Core
                         ShopSign(ctx, lv, c, y);
                         break;
                     case TileKind.Chair:
+                        // (one place's chair made grander: Lord British's throne)
+                        if (tiles.ChairAt.TryGetValue((p.Location.Number, lv.Z, c), out var grand))
+                        {
+                            ctx.Stand(grand.prefab, x, y, z, r.Yaw);
+                            Seat(p, lv.Z, false, c);
+                            var seat = p.Seats[(lv.Z, c)];
+                            seat.Y += grand.seat - 0.1f;
+                            p.Seats[(lv.Z, c)] = seat;
+                            break;
+                        }
                         ctx.Stand("piece_chair", x, y, z, r.Yaw);
                         Seat(p, lv.Z, false, c);
                         break;

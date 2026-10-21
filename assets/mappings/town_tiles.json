@@ -215,6 +215,14 @@
     "_doc": "Townsfolk moved from a place of their schedule, by location number, then .NPC slot, then place (0..2): [x, y, z]. Yew: Landon stood in the corridor behind the cells, in the way of the secret door out of the jail; his evening is in the basement corridor under it.",
     "4": {"13": {"1": [22, 1, -1]}}
   },
+  "chair_at": {
+    "_doc": "A chair of one place made something grander, by location number, then \"z:x,y\": the prefab and how high its seat is over its base (piece_chair's is 0.1). Lord British's throne room (the castle's first floor: the looking glass, six columns, six torches, the rug): the seat at its head is his throne.",
+    "17": {"1:10,7": {"prefab": "piece_throne01", "seat": 0.0}}
+  },
+  "respawn": {
+    "_doc": "Where a player who has died comes back: the middle of Lord British's throne room (location, z, x, y).",
+    "location": 17, "z": 1, "x": 10, "y": 10
+  },
   "help_from": {
     "_doc": "Where a settlement without guards sends for help when monsters come into town, by location number: its villager runs out towards that settlement and its guards come back with them. Only the Britannys, from Lord British's castle; other towns without guards wait for the reinforcements.",
     "19": 17,

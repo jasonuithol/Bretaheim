@@ -23,6 +23,7 @@ Britain, Lord British's castle and Iolo's hut):
   its slopes. North Britanny's stream runs in a ditch into its pond.
 - Drawbridges: bridge planks with water at both ends are wooden decks over the river that swing
   up at night and down in the morning.
+- Lord British's throne room has his throne, and the dead come back there (not at a bed).
 - Inns: pay the innkeeper for a night's rest (the original's price and words) and sleep in one of
   the inn's beds until morning. Everyone must be in bed for the night to pass.
 - Camping: H pitches a lean-to and a campfire out in the wild; the lean-to asks "For how many

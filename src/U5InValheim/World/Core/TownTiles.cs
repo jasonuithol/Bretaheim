@@ -141,6 +141,10 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<int, string> DrawbridgeHinge = new Dictionary<int, string>();
         /// <summary>Where a settlement without guards sends for help, by location number (the Britannys: Lord British's castle).</summary>
         public readonly Dictionary<int, int> HelpFrom = new Dictionary<int, int>();
+        /// <summary>A chair made grander at one place: (location, z, cell) → prefab and seat height over its base.</summary>
+        public readonly Dictionary<(int, int, int), (string prefab, float seat)> ChairAt = new Dictionary<(int, int, int), (string, float)>();
+        /// <summary>Where a dead player comes back (location, z, x, y), or none.</summary>
+        public (int location, int z, int x, int y)? Respawn;
         /// <summary>Townsfolk moved from a place of their schedule: (location, slot, place) → (x, y, z).</summary>
         public readonly Dictionary<(int, int, int), (int x, int y, int z)> NpcPlaces = new Dictionary<(int, int, int), (int, int, int)>();
         /// <summary>Tiles a settlement's maps are read as instead, by location number (tile → tile).</summary>
@@ -246,6 +250,23 @@ namespace U5InValheim.WorldGen.Core
                             t.NpcPlaces[(int.Parse(loc.Key), int.Parse(slot.Key), int.Parse(place.Key))] = ((int)(double)xyz[0], (int)(double)xyz[1], (int)(double)xyz[2]);
                         }
                 }
+            if (root.TryGetValue("chair_at", out var ca))
+                foreach (var loc in Json.Obj(ca))
+                {
+                    if (loc.Key.StartsWith("_")) continue;
+                    foreach (var at in Json.Obj(loc.Value))
+                    {
+                        var zxy = at.Key.Split(':', ',');
+                        var o = Json.Obj(at.Value);
+                        t.ChairAt[(int.Parse(loc.Key), int.Parse(zxy[0]), int.Parse(zxy[2]) * 32 + int.Parse(zxy[1]))] = (Json.Str(o, "prefab"), Json.Get(o, "seat") is double seat ? (float)seat : 0.1f);
+                    }
+                }
+            if (root.TryGetValue("respawn", out var rs))
+            {
+                var o = Json.Obj(rs);
+                int I(string k) => (int)(double)Json.Get(o, k);
+                t.Respawn = (I("location"), I("z"), I("x"), I("y"));
+            }
             if (root.TryGetValue("help_from", out var hf))
                 foreach (var kv in Json.Obj(hf))
                     if (!kv.Key.StartsWith("_")) t.HelpFrom[int.Parse(kv.Key)] = (int)(double)kv.Value;
