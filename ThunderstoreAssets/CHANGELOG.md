@@ -21,8 +21,9 @@
 - The shrines of virtue and the Shrine of the Codex stand on the map, built from the original's plans.
   Kneel at the altar (E), name the virtue and chant its mantra three times: the Altar ordains a
   quest to the Codex, rewards a quest done (karma and a stat) or takes an offering of gold.
-- Food: rations are barley (crops and taverns give it); one is eaten each day, and with none thou
-  losest 30 % of thy health. Valheim's food is not eaten in Britannia.
+- Food: rations are barley (crops and taverns give it; a new Avatar brings 63); one is eaten at six,
+  noon and six, and with none every hour is "Starving!" (1-8 hit points). Valheim's food is not eaten
+  in Britannia.
 - Restrictions: no felling trees, breaking rocks, reshaping the ground, crafting, brewing, cooking
   or building crafting tables; only garlic and ginseng are planted. The hammer, hoe and cultivator
   of Iolo's hut stay at the hut.

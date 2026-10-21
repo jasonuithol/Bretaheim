@@ -339,8 +339,8 @@ have none; castles get fixed ballistas you can fire.
   **replacing Valheim's skill list**, with **karma listed as a skill** (Z-stats = Tab). Ready/equip =
   Valheim inventory. Save = the Valheim menu save (U5's Quit was only ever Save).
 - Food (decided): rations are **barley**. Every crop field in Britannia grows barley; harvesting from
-  someone else's garden costs karma. Each character eats one barley from their inventory once a
-  day; with none, they lose 30 % of their health. Valheim food/cooking is not used.
+  someone else's garden costs karma. Each character eats one barley from their inventory at 6, 12
+  and 18 o'clock, as the original; with none, every hour is "Starving!" (1..8 hit points). Valheim food/cooking is not used.
 - No building in the world. **H** pitches camp ("Hole up & camp!"): a lean-to and a campfire before
   the player (not in a settlement, not on water; one camp each, pitching again moves it). The
   lean-to is slept under as a bed (E: Sleep); the fire burns all night and is where spells are

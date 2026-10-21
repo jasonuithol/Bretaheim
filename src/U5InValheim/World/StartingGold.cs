@@ -1,11 +1,13 @@
 using System;
 using HarmonyLib;
+using UnityEngine;
 
 namespace U5InValheim.WorldGen
 {
     /// <summary>
-    /// A new Avatar arrives in Britannia with 150 gold (Valheim coins): once per character per
-    /// Britannia world, remembered in the character's custom data.
+    /// A new Avatar arrives in Britannia with 150 gold (Valheim coins) and INIT.GAM's food as
+    /// barley rations (63): once per character per Britannia world, remembered in the
+    /// character's custom data.
     /// </summary>
     public static class StartingGold
     {
@@ -26,9 +28,15 @@ namespace U5InValheim.WorldGen
             var coins = ObjectDB.instance?.GetItemPrefab("Coins");
             if (coins == null) return;
             __instance.GetInventory().AddItem(coins, Amount);
+            int food = Plugin.U5.InitialGame?.Food ?? 0;
+            var barley = ObjectDB.instance.GetItemPrefab(Data.Rations.Item);
+            var drop = barley?.GetComponent<ItemDrop>();
+            if (drop != null)
+                for (int left = food, stack = Mathf.Max(1, drop.m_itemData.m_shared.m_maxStackSize); left > 0; left -= stack)
+                    __instance.GetInventory().AddItem(barley, Mathf.Min(stack, left));
             __instance.m_customData[key] = "1";
-            __instance.Message(MessageHud.MessageType.TopLeft, $"{Amount} gold");
-            Plugin.Log.LogInfo($"Starting gold: {Amount} coins for {__instance.GetPlayerName()}");
+            __instance.Message(MessageHud.MessageType.TopLeft, $"{Amount} gold, {food} rations");
+            Plugin.Log.LogInfo($"Starting gold: {Amount} coins and {food} rations for {__instance.GetPlayerName()}");
         }
     }
 }

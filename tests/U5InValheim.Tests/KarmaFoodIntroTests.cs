@@ -45,15 +45,18 @@ namespace U5InValheim.Tests
         public void ARationIsEatenOnceADay()
         {
             var data = new Dictionary<string, string>();
-            Assert.False(Rations.Due(data, 3));   // new to the world: arrives fed
-            Assert.False(Rations.Due(data, 3));
-            Assert.True(Rations.Due(data, 4));
-            Assert.False(Rations.Due(data, 4));
-            Assert.True(Rations.Due(data, 9));    // days away: one meal
-            Assert.False(Rations.Due(data, 9));
-            Assert.False(Rations.Due(data, 2));   // another world's days
-            Assert.True(Rations.Due(data, 3));
-            Assert.Equal(40.0, Rations.AfterStarving(70, 100), 3);
+            Assert.False(Rations.NewHour(data, 30));   // new to the world: starts counting
+            Assert.False(Rations.NewHour(data, 30));
+            Assert.True(Rations.NewHour(data, 31));
+            Assert.False(Rations.NewHour(data, 31));
+            Assert.True(Rations.NewHour(data, 50));    // hours passed at once: one change
+            Assert.False(Rations.NewHour(data, 50));
+            Assert.False(Rations.NewHour(data, 20));   // another world's hours
+            Assert.True(Rations.NewHour(data, 21));
+            Assert.True(Rations.Mealtime(6) && Rations.Mealtime(12) && Rations.Mealtime(18));
+            Assert.False(Rations.Mealtime(0) || Rations.Mealtime(7));
+            var rnd = new System.Random(1);
+            for (int k = 0; k < 200; k++) Assert.InRange(Rations.StarvingDamage(rnd), 1, 8);
         }
 
         [U5Fact]
