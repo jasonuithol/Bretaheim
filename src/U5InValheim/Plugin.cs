@@ -114,9 +114,17 @@ namespace U5InValheim
                 Respawn.Install(harmony);
                 TerrainQueue.Install(harmony);
                 Treasure.Install(harmony);
+                KarmaDeeds.Install(harmony);
+                RationsWatch.Install(harmony);
+                Restrictions.Install(harmony);
+                Intro.Install(harmony);
+                IolosHut.Install(harmony);
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();
+                gameObject.AddComponent<RationsWatch>();
+                gameObject.AddComponent<Restrictions.ToolWatch>();
+                gameObject.AddComponent<IolosHut.Keeper>();
                 gameObject.AddComponent<UltimaSpawner>();
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);

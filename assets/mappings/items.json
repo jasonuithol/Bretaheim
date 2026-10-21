@@ -80,7 +80,7 @@
   "moonstones": { "_doc": "the eight moonstones, one per moon phase (save 0x28A..0x2A9)", "prefab": "Eitr", "status": "derived", "note": "plan §5.8: refined eitr",
                   "phases": ["New Moon", "Crescent Waxing", "First Quarter", "Gibbous Waxing", "Full Moon", "Gibbous Waning", "Last Quarter", "Crescent Waning"] },
   "special": [
-    { "u5": "Food",            "prefab": "Barley",            "status": "direct", "note": "rations; eaten once a day" },
+    { "u5": "Food",            "prefab": "Barley",            "status": "direct", "as_is": true, "note": "rations are barley itself (crops give it); one eaten each day (Data/Rations)" },
     { "u5": "Gold",            "prefab": "Coins",             "status": "direct", "as_is": true },
     { "u5": "Torch",           "prefab": "Torch",             "status": "direct", "as_is": true },
     { "u5": "Gem",             "prefab": "Ruby",              "status": "reshade", "tint": "#8030c0", "use": "open the map" },

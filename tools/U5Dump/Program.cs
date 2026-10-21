@@ -18,6 +18,33 @@ if (missing.Count > 0)
     return 1;
 }
 var data = U5Data.Load(dir);
+if (argv.Count > 0 && argv[0] == "intro")
+{
+    // intro <outdir>: the 21 story screens and the gypsy's screens as PPMs, their words printed
+    string outDir = argv.Count > 1 ? argv[1] : "intro";
+    Directory.CreateDirectory(outDir);
+    var screens = Story.Load(dir, data.Ovl);
+    for (int s = 0; s < screens.Count; s++)
+    {
+        screens[s].Picture.WritePpm(Path.Combine(outDir, $"story{s:00}.ppm"));
+        screens[s].After?.WritePpm(Path.Combine(outDir, $"story{s:00}b.ppm"));
+        Console.WriteLine($"[{s}] {screens[s].Text}\n");
+    }
+    var art = new VirtueCasting.Art(dir, data.Ovl);
+    art.Opening(out string open).WritePpm(Path.Combine(outDir, "gypsy0.ppm"));
+    Console.WriteLine($"[gypsy] {open}\n");
+    var casting = new VirtueCasting(data.Ovl, data.InitialGame.Character(0), new Random(argv.Count > 2 ? int.Parse(argv[2]) : 1));
+    for (int q = 1; !casting.Done; q++)
+    {
+        casting.Next();
+        art.Question(casting, out string question).WritePpm(Path.Combine(outDir, $"gypsy{q}.ppm"));
+        int card = casting.Answer('A');
+        Console.WriteLine($"[{q}] {VirtueCasting.Names[casting.Asked > 0 ? card : 0]}: {question}\n");
+    }
+    art.Closing(out string end).WritePpm(Path.Combine(outDir, "gypsy8.ppm"));
+    Console.WriteLine($"[end] {end}\nSTR {Math.Max(20, casting.Strength)} DEX {casting.Dexterity} INT {casting.Intelligence} MP {casting.Intelligence}");
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "preview")
 {
     // preview <out.ppm> [pixels=1024] [extraTiles=24] [under]

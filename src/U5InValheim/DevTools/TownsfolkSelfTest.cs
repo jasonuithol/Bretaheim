@@ -46,6 +46,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=hut: Iolo's hut (Hildir and the lock), the restrictions, the introduction's files
+            if (only == "hut")
+            {
+                yield return HutSelfTest.Run(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {

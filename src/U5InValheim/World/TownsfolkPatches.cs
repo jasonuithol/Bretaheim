@@ -8,7 +8,7 @@ namespace U5InValheim.WorldGen
     /// <summary>
     /// Townsfolk are real creatures, with a few differences from Valheim's: they fall rather than
     /// die (back the next morning, TownNpc.Fall), count as dead to monsters meanwhile, cannot be
-    /// hurt by players (crimes come with karma), and show a health bar only when hurt.
+    /// hurt by players without it being a crime (and costing karma, KarmaDeeds), and show a health bar only when hurt.
     /// </summary>
     public static class TownsfolkPatches
     {
@@ -103,6 +103,7 @@ namespace U5InValheim.WorldGen
                 if (!(npc.IsGuard && Crime.HostileTo(p) == npc.Location) && p == Player.m_localPlayer && npc.Home != null)
                 {
                     Crime.Commit(p, npc.Home);
+                    KarmaDeeds.Struck(p, npc);
                     if (!npc.IsGuard) npc.Frighten();
                 }
             }
