@@ -74,6 +74,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=under: the Underworld continent and its ways (UnderworldSelfTest)
+            if (only == "under")
+            {
+                yield return UnderworldSelfTest.Run(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {

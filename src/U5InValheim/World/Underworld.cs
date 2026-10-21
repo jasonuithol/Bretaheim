@@ -27,7 +27,13 @@ namespace U5InValheim.WorldGen
         public const string BelowKey = "u5_dng_below";
 
         /// <summary>A ship or player is being carried between the continents (the edge wrap waits).</summary>
-        public static bool Transferring { get; private set; }
+        public static bool Transferring
+        {
+            get => transferring && Time.time - transferSince < 60f; // (never stuck: a crossing broken off by leaving the world)
+            private set { transferring = value; transferSince = Time.time; }
+        }
+        static bool transferring;
+        static float transferSince;
 
         static DataOvl Ovl => Plugin.U5.Ovl;
         static Type clearAreaType;
@@ -53,6 +59,19 @@ namespace U5InValheim.WorldGen
             var p = Britannia.TileCentre(x, y, under);
             p.y = Mathf.Max(p.y, Britannia.SeaLevel);
             return p;
+        }
+
+        /// <summary>
+        /// Doom's entrance in the Underworld (for the story: Lord British is rescued from Doom's
+        /// bottom): the ground before it, or null outside a Britannia world. The entrance object is
+        /// <c>DungeonEntrance.Get(UnderworldLinks.Doom)</c> while its zone is loaded; inside, Doom is
+        /// built like any dungeon (Dungeons.World(7, level, u, v)).
+        /// </summary>
+        public static Vector3? DoomEntrance()
+        {
+            if (Britannia.Under == null) return null;
+            var l = Plugin.U5.Location(DungeonInfo.Location(UnderworldLinks.Doom));
+            return Ground(l.X, l.Y, true);
         }
 
         /// <summary>Where a dungeon's bottom leads (exit_dungeon down): the Underworld at the dungeon's own (x, y), before its entrance there.</summary>
@@ -106,7 +125,8 @@ namespace U5InValheim.WorldGen
             s.m_lightIntensityDay = s.m_lightIntensityNight = 0.15f;
             s.m_windMin = 0f;
             s.m_windMax = 0.2f;
-            s.m_psystems = null;
+            s.m_psystems = new GameObject[0];
+            if (s.m_auroraColors == null) s.m_auroraColors = new Gradient();
             s.m_envObject = null;
             s.m_rainCloudAlpha = 0;
             s.m_cloudOpacityDay = s.m_cloudOpacityNight = s.m_cloudOpacityMorning = s.m_cloudOpacityEvening = 0;
@@ -183,14 +203,14 @@ namespace U5InValheim.WorldGen
         /// </summary>
         public static void Carry(Player player, Ship ship, Vector3 centre, Vector3 dest, Way way)
         {
-            if (Transferring || player == null) return;
+            if (Transferring || (player == null && ship == null)) return;
             Plugin.Instance.StartCoroutine(Carrying(player, ship, centre, dest, way));
         }
 
         static IEnumerator Carrying(Player player, Ship ship, Vector3 centre, Vector3 dest, Way way)
         {
             Transferring = true;
-            GameCamera.instance?.AddShake(player.transform.position, 30f, way == Way.Whirlpool ? 3f : 2f, false);
+            if (player != null) GameCamera.instance?.AddShake(player.transform.position, 30f, way == Way.Whirlpool ? 3f : 2f, false);
             if (ship == null)
             {
                 // a swimmer: Valheim's teleport (with its loading screen)
@@ -200,8 +220,8 @@ namespace U5InValheim.WorldGen
                 yield break;
             }
             var body = ship.GetComponent<Rigidbody>();
-            var playerBody = player.GetComponent<Rigidbody>();
-            bool attached = player.IsAttached();
+            var playerBody = player != null ? player.GetComponent<Rigidbody>() : null;
+            bool attached = player != null && player.IsAttached();
             if (body != null) body.isKinematic = true;
             Vector3 start = ship.transform.position, last = start;
             var startRot = ship.transform.rotation;
@@ -239,13 +259,13 @@ namespace U5InValheim.WorldGen
                 WorldWrap.Prewarm(dest);
                 yield return null;
             }
-            if (ship == null || player == null) { Transferring = false; yield break; }
+            if (ship == null) { Transferring = false; yield break; }
             float yaw = ship.transform.eulerAngles.y;
             var arrive = new Vector3(dest.x, way == Way.Whirlpool ? Britannia.SeaLevel - 4f : Britannia.SeaLevel + 10f, dest.z);
             var delta = arrive - ship.transform.position;
             ship.transform.rotation = Quaternion.Euler(0, yaw, 0);
             WorldWrap.MoveBody(ship.transform, body, delta);
-            WorldWrap.MoveBody(player.transform, playerBody, delta);
+            if (player != null) WorldWrap.MoveBody(player.transform, playerBody, delta);
             Plugin.Log.LogInfo($"Carried {(way == Way.Whirlpool ? "down a whirlpool" : "over the falls")}: ship and player by {delta} to {arrive}");
             // a frame for the passengers to see their ship jump, then it is free
             yield return null;
@@ -320,7 +340,10 @@ namespace U5InValheim.WorldGen
     public class UnderworldWatch : MonoBehaviour
     {
         const float TurnEvery = 8f, FallsAgain = 15f;
-        float nextTurn, fallsAfter;
+        const byte Darkness = 0xff;
+        float nextTurn, fallsAfter, sayAgain;
+        /// <summary>The last place the local player stood outside the darkness.</summary>
+        Vector3? lit;
         readonly System.Random random = new System.Random();
 
         static DataOvl Ovl => Plugin.U5.Ovl;
@@ -370,6 +393,16 @@ namespace U5InValheim.WorldGen
                     return;
                 }
             }
+
+            // the unending darkness round Doom (check_darkness_tile): only the Amulet of Lord British
+            // lets one go on into it; without it the player is held where the light ends (one
+            // brought into it by magic or a ladder may walk out)
+            if (Britannia.InUnderworld(at) && Britannia.Under.TileAt(at.x, at.z) == Darkness && !WornEffects.Wears(me, WornEffects.AmuletPrefab))
+            {
+                if (lit.HasValue && Vector3.Distance(lit.Value, at) < 12f) Dungeons.Move(me, lit.Value);
+                if (Time.time >= sayAgain) { Underworld.Message(me, "Unending darkness!\nThou canst see nothing."); sayAgain = Time.time + 4f; }
+            }
+            else lit = at;
 
             // an Underworld turn: 1 in 256, an earthquake
             if (Time.time < nextTurn) return;

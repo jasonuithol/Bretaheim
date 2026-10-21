@@ -44,9 +44,10 @@
     "darkness": {"tiles": [255], "biome": "inherit", "impassable": true, "base": 300.0, "noise": 20.0, "note": "Underworld void around Doom"}
   },
   "underworld": {
-    "_doc": "UNDER.DAT uses the surface's classes with these changes (MAPPING_DECISIONS 2026-10-21): its mountains and peaks are the cave rock between the Underworld's passages, black stone without snow or trees (Mistlands), not the surface's snowy Mountain.",
+    "_doc": "UNDER.DAT uses the surface's classes with these changes (MAPPING_DECISIONS 2026-10-21): its mountains and peaks are the cave rock between the Underworld's passages, black stone without snow or trees (Mistlands), not the surface's snowy Mountain; the darkness round Doom is walkable ground (for one wearing the Amulet).",
     "mountains": {"biome": "Mistlands", "forest": 3.0},
-    "peaks": {"biome": "Mistlands", "forest": 3.0}
+    "peaks": {"biome": "Mistlands", "forest": 3.0},
+    "darkness": {"biome": "AshLands", "impassable": false, "base": 30.0, "noise": 1.0, "note": "the unending darkness round Doom: a floor of black ash level with the lava streams that lead to it; only the Amulet of Lord British lets one walk into it (check_darkness_tile)"}
   },
   "unclassified": "grass"
 }

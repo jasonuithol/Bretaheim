@@ -39,6 +39,18 @@ namespace U5InValheim.Tests
             Assert.Equal(WaterKind.Lava, under.Value[0x8f].Water);
         }
 
+        [U5Fact]
+        public void DoomStandsOnTheDarkFloorLevelWithTheLava()
+        {
+            Assert.False(under.Value[0xff].Impassable);
+            Assert.True(TerrainTable.Parse(TerrainJson)[0xff].Impassable); // (the surface's table is unchanged)
+            var s = below.Value;
+            s.TileCentre(128, 128, out float x, out float z);
+            Assert.InRange(s.Height(x, z), 20f, 45f);
+            s.TileCentre(128, 124, out x, out z); // the darkness north of it
+            Assert.InRange(s.Height(x, z), 20f, 50f);
+        }
+
         [Fact]
         public void ContinentsLieSideBySide()
         {

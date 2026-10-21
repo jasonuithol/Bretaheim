@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- The Underworld: UNDER.DAT is a second continent 9.6 km east of Britannia (the world's edge is
+  pushed out for it in Britannia worlds), always dark, with black rock between its passages, its
+  rivers, lakes and burning lava, Ararat, Doom's entrance, the Amulet and the shards, its own
+  encounters and earthquakes. The way down: a dungeon's bottom ladder, the falls (sail over them),
+  or a whirlpool on the deep sea that drags your ship down and spits it out below; the way up: the
+  dungeons' entrances down there. `u5 under` tells where you are (devcommands: `u5 under <x> <y>`,
+  `falls`, `whirlpool`, `doom`, `ararat`). Add 25 to BuildSettlements in an older config for Ararat.
 - Britannia keeps the original's calendar (one Valheim day is one Ultima day, starting 4-5-139) and
   its moons: by night a moongate rises at every buried moonstone and carries you to the site the
   moons' phases choose. Moonstones can be dug up (the gate is gone) and buried again (use one).
