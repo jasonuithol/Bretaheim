@@ -698,6 +698,10 @@ namespace U5InValheim.DevTools
             }
             ZNetScene.instance.Destroy(mary.gameObject);
             ZNetScene.instance.Destroy(body.gameObject);
+            // an ambush comes close (as Sleep's, 10-18 m from the camp)
+            string what = null;
+            for (int i = 0; i < 6 && what == null; i++) what = UltimaSpawner.Encounter(wild, "the camp", new System.Random(i), 10f, 18f);
+            Plugin.Log.LogInfo($"townsfolk self-test sleep: ambush: {what ?? "nothing could come"}");
         }
 
         static string Name(int hash) => hash == 0 ? "-" : ObjectDB.instance?.GetItemPrefab(hash)?.name ?? ZNetScene.instance?.GetPrefab(hash)?.name ?? hash.ToString();

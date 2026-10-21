@@ -15,7 +15,10 @@ namespace U5InValheim.WorldGen
     {
         const string WakeRpc = "U5_Wake";
         /// <summary>How long a day's sleep lasts (Britannia hours), and the chance a camp is ambushed.</summary>
-        const float DayHours = 8f, AmbushChance = 0.25f, CampNear = 6f;
+        const float DayHours = 8f, AmbushChance = 0.25f, CampNear = 6f, AmbushFrom = 10f, AmbushTo = 18f;
+        /// <summary>"Good morning" only on waking in the morning (these hours) after this much sleep.</summary>
+        const int MorningFrom = 5, MorningTo = 11;
+        const float GoodNight = 6f;
         // DATA.OVL (DGROUP)
         const int SZzz = 0x41d4, SAmbushed = 0x41e0;
         static readonly System.Random random = new System.Random();
@@ -29,6 +32,8 @@ namespace U5InValheim.WorldGen
             if (update != null) harmony.Patch(update, prefix: new HarmonyMethod(typeof(Sleep), nameof(UpdateSleeping_Prefix)), postfix: new HarmonyMethod(typeof(Sleep), nameof(UpdateSleeping_Postfix)));
             var start = AccessTools.Method(typeof(Game), "Start");
             if (start != null) harmony.Patch(start, postfix: new HarmonyMethod(typeof(Sleep), nameof(GameStart_Postfix)));
+            var setSleeping = AccessTools.Method(typeof(Player), "SetSleeping");
+            if (setSleeping != null) harmony.Patch(setSleeping, prefix: new HarmonyMethod(typeof(Sleep), nameof(SetSleeping_Prefix)));
         }
 
         static void GameStart_Postfix() => ZRoutedRpc.instance?.Register(WakeRpc, sender => Wake());
@@ -107,8 +112,34 @@ namespace U5InValheim.WorldGen
             var at = zdoCampers[0].GetPosition();
             Traverse.Create(env).Field("m_skipTime").SetValue(false);
             ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, WakeRpc);
-            var what = UltimaSpawner.Encounter(at, "the camp", random);
+            var what = UltimaSpawner.Encounter(at, "the camp", random, AmbushFrom, AmbushTo);
             Plugin.Log.LogInfo($"The camp is ambushed: {what ?? "nothing could come"}");
+        }
+
+        static double asleepAt = -1;
+        static bool ambushed;
+
+        /// <summary>
+        /// Waking: "Good morning" (and Valheim's rested) only in the morning after a good night's
+        /// sleep (six hours or more); an ambush wakes the sleeper with neither.
+        /// </summary>
+        static bool SetSleeping_Prefix(Player __instance, bool sleep)
+        {
+            if (Britannia.Active == null || __instance != Player.m_localPlayer || ZNet.instance == null || EnvMan.instance == null) return true;
+            bool was = __instance.IsSleeping();
+            if (sleep && !was) { asleepAt = ZNet.instance.GetTimeSeconds(); ambushed = false; return true; }
+            if (sleep || !was) return true;
+            double slept = asleepAt < 0 ? 0 : (ZNet.instance.GetTimeSeconds() - asleepAt) / EnvMan.instance.m_dayLengthSec * 24.0;
+            int hour = TownNpc.Hour();
+            bool goodMorning = !ambushed && slept >= GoodNight && hour >= MorningFrom && hour <= MorningTo;
+            asleepAt = -1;
+            if (goodMorning) return true;
+            // up without "Good morning": rested all the same after an unbroken sleep
+            Traverse.Create(__instance).Field("m_sleeping").SetValue(false);
+            Traverse.Create(__instance).Field("m_wakeupTime").SetValue(ZNet.instance.GetTimeSeconds());
+            if (!ambushed) __instance.GetSEMan().AddStatusEffect(SEMan.s_statusEffectRested, resetTime: true);
+            ambushed = false;
+            return false;
         }
 
         /// <summary>Everyone up: the local player gets out of bed.</summary>
@@ -116,6 +147,7 @@ namespace U5InValheim.WorldGen
         {
             var me = Player.m_localPlayer;
             if (me == null || !me.InBed()) return;
+            ambushed = true;
             me.AttachStop();
             me.Message(MessageHud.MessageType.Center, Plugin.U5.Ovl.CStr(SAmbushed).Trim());
         }

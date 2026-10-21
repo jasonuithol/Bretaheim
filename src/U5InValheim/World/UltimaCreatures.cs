@@ -253,7 +253,10 @@ namespace U5InValheim.WorldGen
         }
 
         /// <summary>One encounter near a point (the turn's roll already made): what came, or null.</summary>
-        public static string Encounter(Vector3 at, string who, System.Random random)
+        public static string Encounter(Vector3 at, string who, System.Random random) => Encounter(at, who, random, NearFrom, NearTo);
+
+        /// <summary>One encounter between these distances from a point (an ambush comes close).</summary>
+        public static string Encounter(Vector3 at, string who, System.Random random, float nearFrom, float nearTo)
         {
             var shape = Britannia.Active;
             int near = 0;
@@ -262,7 +265,7 @@ namespace U5InValheim.WorldGen
             if (near >= Cap) return null;
             for (int tries = 0; tries < 16; tries++)
             {
-                float angle = (float)(random.NextDouble() * Math.PI * 2), dist = NearFrom + (float)random.NextDouble() * (NearTo - NearFrom);
+                float angle = (float)(random.NextDouble() * Math.PI * 2), dist = nearFrom + (float)random.NextDouble() * (nearTo - nearFrom);
                 var p = at + new Vector3(Mathf.Cos(angle) * dist, 0, Mathf.Sin(angle) * dist);
                 if (InTown(shape, p.x, p.z) || !ZoneSystem.instance.IsZoneLoaded(p)) continue;
                 byte tile = shape.TileAt(p.x, p.z);
