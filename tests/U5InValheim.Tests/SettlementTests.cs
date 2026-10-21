@@ -103,6 +103,24 @@ namespace U5InValheim.Tests
             Assert.Contains(p.Pieces, x => x.Lock == "key");
         }
 
+        [U5Fact]
+        public void TheHarpsichordGuardsTheSandalwoodBox()
+        {
+            // Lord British's castle, third floor: the wall (17,13) the melody opens is bricks of its
+            // own (look "tune", no rune, no door behind), the closet behind it is floored where the
+            // box (18,12) lies, and a harpsichord stands on that floor
+            var p = Plan(17, "castle");
+            var (wx, wy, wz) = p.TilePos(2, 13 * SettlementPlan.Size + 17);
+            var tune = p.Pieces.Where(x => x.Look == "tune").ToList();
+            Assert.True(tune.Count >= 4, $"{tune.Count} tune bricks");
+            Assert.All(tune, b => Assert.True(Math.Abs(b.X - wx) <= 1.01f && Math.Abs(b.Z - wz) <= 1.01f && b.Y > wy && b.Y < wy + 4, b.ToString()));
+            Assert.DoesNotContain(p.Pieces, x => x.Secret != 0 && Math.Abs(x.X - wx) <= 1.01f && Math.Abs(x.Z - wz) <= 1.01f);
+            Assert.True(p.Walk[2][12 * SettlementPlan.Size + 18], "the box's tile is walked");
+            var harp = p.Pieces.Where(x => x.Look == "harpsichord" && Math.Abs(x.Y - wy) < 0.5f).ToList();
+            Assert.NotEmpty(harp);
+            Assert.All(harp, h => Assert.True(Math.Sqrt((h.X - wx) * (h.X - wx) + (h.Z - wz) * (h.Z - wz)) < 40, h.ToString()));
+        }
+
         /// <summary>A floor piece (a tile's, or stretched over 2x2 or 2x1 tiles) lies over this tile.</summary>
         static bool Covers(SettlementPlan p, Placement pc, int c)
         {

@@ -87,5 +87,21 @@ namespace U5InValheim.Tests
             Assert.Equal(LootKind.Sextant, LootTables.Gift(0x48).Kind);
             Assert.Equal(new Loot(LootKind.Item, 27, 5), LootTables.Object(5, 27));
         }
+
+        [U5Fact]
+        public void TheHarpsichordsMelody()
+        {
+            var m = new Melody(Env.Data.Ovl);
+            Assert.Equal("6789878767653", m.Tune);
+            bool Play(string keys) { bool done = false; foreach (char c in keys) done = m.Play(c - '0'); return done; }
+            Assert.True(Play("6789878767653"));
+            // a slip partway, and the original's fallbacks: a wrong note starts again (or at 1 on the first note)
+            Assert.False(Play("678912"));
+            Assert.True(Play("6789878767653"));
+            Assert.False(Play("67898787676"));
+            Assert.True(Play("53"));
+            // the scale rises from 1
+            for (int n = 2; n <= 9; n++) Assert.True(Melody.Frequency(Env.Data.Ovl, n) > Melody.Frequency(Env.Data.Ovl, n - 1));
+        }
     }
 }

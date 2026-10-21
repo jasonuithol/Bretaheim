@@ -57,6 +57,7 @@
     "4c": {"kind": "prop", "prefab": "stone_pile"},
     "4d": {"kind": "wall", "build": "cobble"},
     "4e": {"kind": "wall", "secret": true},
+    "3b": {"kind": "wall", "secret": true, "tune": true},
     "4f": {"kind": "wall"},
     "50": {"kind": "battlement"},
     "51": {"kind": "battlement"},
@@ -96,7 +97,7 @@
     "8a": {"kind": "prop", "parts": [{"prefab": "stone_wall_1x1", "y": 0.5, "scale": [0.9, 1, 0.25]}]},
     "8b": {"kind": "prop", "parts": [{"prefab": "piece_table", "place": "stand", "look": "bloody"}, {"prefab": "itemstandh", "x": -1.0, "z": -0.15, "y": 0.85, "yaw": 90, "tilt": 90, "place": "pivot", "item": "AxeBronze", "look": "bare_stand", "spin": 90}, {"prefab": "itemstandh", "x": 0.05, "z": 0.25, "y": 0.84, "yaw": 90, "place": "pivot", "item": "KnifeFlint", "look": "bare_stand"}, {"prefab": "woodiron_beam", "z": 0, "y": 4, "place": "top"}, {"prefab": "dvergrprops_hooknchain", "x": 0.6, "z": 0, "y": 3.7, "yaw": 0, "place": "top", "scale": [0.7, 0.55, 0.7]}]},
     "8c": {"kind": "ground", "paint": "paved", "trapdoor": true},
-    "8d": {"kind": "prop", "prefab": "blackforge"},
+    "8d": {"kind": "prop", "parts": [{"prefab": "blackforge", "place": "stand", "look": "harpsichord"}]},
     "8e": {"kind": "prop", "parts": [{"prefab": "piece_MeadCauldron", "place": "stand"}, {"prefab": "itemstandh", "y": 0.62, "place": "pivot", "item": "TrophyDraugr", "look": "bare_stand"}, {"prefab": "itemstandh", "x": 0.62, "z": 0.35, "y": 0.14, "yaw": 90, "tilt": -18, "place": "pivot", "item": "Battleaxe", "look": "bare_stand"}, {"prefab": "wood_pole2", "x": -0.85, "place": "stand", "scale": [1, 1.6, 1]}, {"prefab": "wood_pole2", "x": 0.85, "place": "stand", "scale": [1, 1.6, 1]}, {"prefab": "wood_beam", "y": 3.3, "scale": [0.95, 1, 1]}]},
     "8f": {"kind": "water"},
     "90": {"kind": "chair", "facing": "n"},
@@ -210,6 +211,10 @@
     "5": {"fe": "27"},
     "17": {"fe": "27"},
     "31": {"fe": "27"}
+  },
+  "tile_at": {
+    "_doc": "One tile of a settlement's map read as another, by location number, then \"z:x,y\": hex tile. 3b is no tile of the original's maps: a wall the harpsichord's melody opens. Lord British's castle: the wall the melody turns to floor (handle_number_key: g_map[13][17] XOR 0xb, 0x4f to 0x44), between the room with the fireplace and the Sandalwood Box's closet.",
+    "17": {"2:17,13": "3b"}
   },
   "npc_places": {
     "_doc": "Townsfolk moved from a place of their schedule, by location number, then .NPC slot, then place (0..2): [x, y, z]. Yew: Landon stood in the corridor behind the cells, in the way of the secret door out of the jail; his evening is in the basement corridor under it.",

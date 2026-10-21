@@ -49,6 +49,8 @@ namespace U5InValheim.WorldGen.Core
         public float? WallSide;
         /// <summary>A wall hiding a secret door (revealed later, MASTER_PLAN §5.2).</summary>
         public bool Secret;
+        /// <summary>A secret wall opened (and shut again) by playing the harpsichord's melody, not by a blow: no door behind it.</summary>
+        public bool Tune;
         /// <summary>A trapdoor (0x8c): a stone floor with no collision, dropping whoever steps on it to the storey below.</summary>
         public bool Trapdoor;
         /// <summary>A floor grate (0x86): the top of a ladder down, an iron grate over the hole with no stone under it.</summary>
@@ -152,6 +154,8 @@ namespace U5InValheim.WorldGen.Core
         public readonly Dictionary<(int, int, int), (int x, int y, int z)> NpcPlaces = new Dictionary<(int, int, int), (int, int, int)>();
         /// <summary>Tiles a settlement's maps are read as instead, by location number (tile → tile).</summary>
         public readonly Dictionary<int, Dictionary<byte, byte>> TileAs = new Dictionary<int, Dictionary<byte, byte>>();
+        /// <summary>One tile of a settlement's map read as another: (location, z, x, y) → tile.</summary>
+        public readonly Dictionary<(int, int, int, int), byte> TileAt = new Dictionary<(int, int, int, int), byte>();
 
         public TileRule this[int tile] => rules[tile & 0xff];
 
@@ -174,6 +178,7 @@ namespace U5InValheim.WorldGen.Core
                     Lock = Json.Str(o, "lock"),
                     Merlons = !o.ContainsKey("merlons") || Json.Bool(o, "merlons"),
                     Secret = Json.Bool(o, "secret"),
+                    Tune = Json.Bool(o, "tune"),
                     Trapdoor = Json.Bool(o, "trapdoor"),
                     Grate = Json.Bool(o, "grate"),
                     Portcullis = Json.Bool(o, "portcullis"),
@@ -242,6 +247,17 @@ namespace U5InValheim.WorldGen.Core
                     if (kv.Key.StartsWith("_")) continue;
                     var map = t.TileAs[int.Parse(kv.Key)] = new Dictionary<byte, byte>();
                     foreach (var m in Json.Obj(kv.Value)) map[byte.Parse(m.Key, NumberStyles.HexNumber)] = byte.Parse((string)m.Value, NumberStyles.HexNumber);
+                }
+            if (root.TryGetValue("tile_at", out var tat))
+                foreach (var kv in Json.Obj(tat))
+                {
+                    if (kv.Key.StartsWith("_")) continue;
+                    foreach (var m in Json.Obj(kv.Value))
+                    {
+                        // "z:x,y": "tile"
+                        var zxy = m.Key.Split(':', ',');
+                        t.TileAt[(int.Parse(kv.Key), int.Parse(zxy[0]), int.Parse(zxy[1]), int.Parse(zxy[2]))] = byte.Parse((string)m.Value, NumberStyles.HexNumber);
+                    }
                 }
             if (root.TryGetValue("npc_places", out var np))
                 foreach (var loc in Json.Obj(np))

@@ -228,7 +228,7 @@ namespace U5InValheim.WorldGen.Core
             // own floor).
             int z0 = Math.Max(0, loc.MinZ);
             var raws = new List<byte[]>();
-            for (int z = z0; z <= loc.MaxZ; z++) raws.Add(TileAs(loc.Number, data.Maps.Floor(loc, z)));
+            for (int z = z0; z <= loc.MaxZ; z++) raws.Add(TileAs(loc.Number, z, data.Maps.Floor(loc, z)));
             var alone = new List<Level>();
             var walks = new List<bool[]>();
             for (int i = 0; i < raws.Count; i++)
@@ -1194,7 +1194,9 @@ namespace U5InValheim.WorldGen.Core
                     }
                     else ctx.Centre(style.BrickSmall, gx + 0.5f - N, y, N - gy - 0.5f, 0);
                     // (its rune, the clue: the bricks of the middle courses are marked)
-                    if (secret != 0) ctx.Last(pl => { pl.Secret = secret; if (course == 1 || course == 2) pl.Look = "rune"; return pl; });
+                    // (a wall the harpsichord opens has no rune: nothing in the original gives it away)
+                    if (secret != 0 && lv.Rule[c].Tune) ctx.Last(pl => { pl.Look = "tune"; return pl; });
+                    else if (secret != 0) ctx.Last(pl => { pl.Secret = secret; if (course == 1 || course == 2) pl.Look = "rune"; return pl; });
                 }
             }
 
@@ -1230,7 +1232,7 @@ namespace U5InValheim.WorldGen.Core
                             ctx.Centre(style.Arch, cx + ox, y0 + 2.5f, cz + oz, (yaw + 180) % 360);
                         }
                         break;
-                    case TileKind.Wall when r.Secret && r.Build == WallBuild.Brick:
+                    case TileKind.Wall when r.Secret && !r.Tune && r.Build == WallBuild.Brick:
                     {
                         // the door it hides, oriented by the wall's run
                         int group = SecretGroup(lv, c);
@@ -1462,11 +1464,13 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>A settlement's map read with its tile substitutions (town_tiles.json tile_as: Lord British's roof strips of 0xfe are roof).</summary>
-        byte[] TileAs(int location, byte[] raw)
+        byte[] TileAs(int location, int z, byte[] raw)
         {
-            if (!tiles.TileAs.TryGetValue(location, out var map)) return raw;
             var copy = (byte[])raw.Clone();
-            for (int c = 0; c < copy.Length; c++) if (map.TryGetValue(copy[c], out byte to)) copy[c] = to;
+            if (tiles.TileAs.TryGetValue(location, out var map))
+                for (int c = 0; c < copy.Length; c++) if (map.TryGetValue(copy[c], out byte to)) copy[c] = to;
+            for (int c = 0; c < copy.Length; c++)
+                if (tiles.TileAt.TryGetValue((location, z, c % N, c / N), out byte at)) copy[c] = at;
             return copy;
         }
 
