@@ -94,6 +94,8 @@ namespace U5InValheim.Data
         public int Day => d[0x2d8];
         public int Hour => d[0x2d9];
         public int Minute => d[0x2db];
+        /// <summary>The town (1 Moonglow .. 8 New Magincia; 0 none, 0xff destroyed) of Shadowlord 0..2 (Falsehood, Hatred, Cowardice).</summary>
+        public int ShadowlordTown(int i) => d[0x322 + i];
         public int Karma => d[0x2e2];
         public int Location => d[0x2ed];
         public int PartyZ => (sbyte)d[0x2ef];

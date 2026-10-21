@@ -46,6 +46,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=items: the worn items, the use items, the carpet, keys and locks
+            if (only == "items")
+            {
+                yield return ItemsSelfTest.Run(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=hut: Iolo's hut (Hildir and the lock), the restrictions, the introduction's files
             if (only == "hut")
             {

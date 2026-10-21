@@ -114,6 +114,11 @@ namespace U5InValheim
                 Respawn.Install(harmony);
                 TerrainQueue.Install(harmony);
                 Treasure.Install(harmony);
+                UseItems.Install(harmony);
+                WornEffects.Install(harmony);
+                MagicCarpet.Register();
+                gameObject.AddComponent<WornEffects.Tick>();
+                gameObject.AddComponent<BlackthornGuards>();
                 KarmaDeeds.Install(harmony);
                 RationsWatch.Install(harmony);
                 Restrictions.Install(harmony);

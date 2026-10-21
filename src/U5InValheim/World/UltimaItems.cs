@@ -123,6 +123,8 @@ namespace U5InValheim.WorldGen
                     s.m_description = "";
                     break;
             }
+            // what wearing or using it does (rings, regalia, the utility items)
+            WornEffects.Prepare(def, s);
         }
 
         static bool Hits(ItemDrop.ItemData.ItemType t)

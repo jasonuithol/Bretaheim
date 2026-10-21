@@ -8,7 +8,7 @@
   ],
   "worn": [
     { "item": 42, "u5": "Ring of Invisibility", "se": "Cold" },
-    { "item": 43, "u5": "Ring of Protection",   "se": "Sheltered" },
+    { "item": 43, "u5": "Ring of Protection",   "se": "Shelter", "note": "Sheltered" },
     { "item": 44, "u5": "Ring of Regeneration", "se": "Staff_shield", "tint": "#c02020", "note": "red Magic barrier" },
     { "item": 45, "u5": "Amulet of Turning",    "se": "CorpseRun" },
     { "item": 47, "u5": "Ankh",                 "se": "Rested", "tint": "#f4f0d0", "note": "white and gold" },

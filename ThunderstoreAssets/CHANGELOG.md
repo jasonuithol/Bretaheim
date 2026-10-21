@@ -24,6 +24,14 @@
 - No more terrain freezes when arriving in new land: a zone's terrain the game is waiting for is built
   first, and finished terrain is no longer thrown away when moving quickly (Valheim kept only 16).
 - Load profiler (Development/LogHitches): frames over 150 ms are logged with what ran in them.
+- Using items (right-click in the inventory): the gem shows the map (and is spent; the map key no
+  longer opens it in Britannia), the sextant gives thy position at night, the pocket watch the time,
+  the spyglass the night sky with the eight town-stars and the Shadowlords, the magic carpet is laid
+  down and ridden over land and sea, the sceptre dissolves fields; the grapple lets thee klimb steep slopes.
+- Rings and amulets do what they did: invisibility hides thee from monsters, regeneration heals, both
+  may vanish as a fight begins; the Crown of Lord British shields all near thee from magic, his Amulet
+  gives them +50 armour. The Black Badge and the password get thee past Blackthorn's guards.
+- Locked doors can be jimmied with a key (it may break); skull keys open magically sealed doors.
 
 Settlements (built from TOWNE/DWELLING/CASTLE/KEEP.DAT, setting `BuildSettlements`; tried in-game on
 Britain, Lord British's castle and Iolo's hut):
