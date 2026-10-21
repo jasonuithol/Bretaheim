@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- Every Ultima item is an item of its own, with its Ultima name and numbers: the 48 arms and armour,
+  mixed spells, scrolls, potions, reagents, moonstones, keys and the quest items; recoloured ones
+  (gold regalia, the purple gem, potions, shards) have their own colours and icons. Shops sell them.
 - No more terrain freezes when arriving in new land: a zone's terrain the game is waiting for is built
   first, and finished terrain is no longer thrown away when moving quickly (Valheim kept only 16).
 - Load profiler (Development/LogHitches): frames over 150 ms are logged with what ran in them.

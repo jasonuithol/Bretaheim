@@ -30,22 +30,10 @@ namespace U5InValheim.WorldGen
             public readonly Dictionary<Trader.TradeItem, ItemDrop.ItemData> Items = new Dictionary<Trader.TradeItem, ItemDrop.ItemData>();
         }
 
-        static ItemMap items;
         static string buyLabel;
         static readonly System.Random random = new System.Random();
 
-        public static ItemMap Items
-        {
-            get
-            {
-                if (items == null)
-                {
-                    try { items = ItemMap.Parse(File.ReadAllText(Path.Combine(Plugin.PluginDirectory, "mappings", "items.json"))); }
-                    catch (Exception e) { Plugin.Log.LogError($"items.json: {e.Message}"); items = ItemMap.Parse("{\"equipment\":[],\"reagents\":[],\"special\":[]}"); }
-                }
-                return items;
-            }
-        }
+        public static ItemMap Items => UltimaItems.Map;
 
         public static void Install(Harmony harmony)
         {

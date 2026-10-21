@@ -76,17 +76,19 @@
     "prefab_by_circle": ["MeadBaseHealthMinor", "MeadBaseStaminaMinor", "MeadBasePoisonResist", "MeadBaseFrostResist",
                          "MeadBaseEitrMinor", "MeadBaseHealthMedium", "MeadBaseStaminaMedium", "MeadBaseHealthMajor"]
   },
-  "scrolls": { "_doc": "item ids 96..103", "prefab": "LinenThread", "status": "reshade", "note": "a reel of linen; crawling-rune shader is a stretch goal" },
+  "scrolls": { "_doc": "item ids 96..103: the spell each holds (spell index: Vas Lor, Rel Hur, In Sanct, In An, In Quas Wis, Kal Xen Corp, In Mani Corp, An Tym), named from DATA.OVL", "prefab": "LinenThread", "status": "reshade", "tint": "#e8dcb8", "spells": [12, 8, 19, 32, 39, 43, 42, 47], "note": "a reel of linen; crawling-rune shader is a stretch goal" },
+  "moonstones": { "_doc": "the eight moonstones, one per moon phase (save 0x28A..0x2A9)", "prefab": "Eitr", "status": "derived", "note": "plan §5.8: refined eitr",
+                  "phases": ["New Moon", "Crescent Waxing", "First Quarter", "Gibbous Waxing", "Full Moon", "Gibbous Waning", "Last Quarter", "Crescent Waning"] },
   "special": [
     { "u5": "Food",            "prefab": "Barley",            "status": "direct", "note": "rations; eaten once a day" },
-    { "u5": "Gold",            "prefab": "Coins",             "status": "direct" },
-    { "u5": "Torch",           "prefab": "Torch",             "status": "direct" },
+    { "u5": "Gold",            "prefab": "Coins",             "status": "direct", "as_is": true },
+    { "u5": "Torch",           "prefab": "Torch",             "status": "direct", "as_is": true },
     { "u5": "Gem",             "prefab": "Ruby",              "status": "reshade", "tint": "#8030c0", "use": "open the map" },
     { "u5": "Spyglass",        "prefab": "TankardAnniversary","status": "custom",  "note": "Horn of Celebration; night sky", "use": "spyglass" },
     { "u5": "Sextant",         "prefab": "TrinketBronzeHealth","status": "custom", "note": "Heart of the Forest", "use": "sextant" },
     { "u5": "Pocket Watch",    "prefab": "TrinketIronHealth", "status": "custom",  "note": "Iron Brooch", "use": "pocket watch" },
     { "u5": "Grapple",         "prefab": "PickaxeIron",       "status": "custom",  "use": "climb" },
-    { "u5": "Magic Carpet",    "prefab": "jute_carpet",       "status": "custom",  "note": "doc: 'maybe a jute carpet ?'" },
+    { "u5": "Magic Carpet",    "prefab": "JuteRed",           "status": "custom",  "note": "doc: 'maybe a jute carpet ?': carried as a roll of red jute, laid as the jute carpet", "use": "carpet" },
     { "u5": "Black Badge",     "prefab": "TrinketIronHealth", "status": "reshade", "tint": "#202020", "use": "badge" },
     { "u5": "Sandalwood Box",  "prefab": "chest_hildir1",     "status": "direct", "note": "one of Hildir's quest chests" },
     { "u5": "Magic Sheet Music","prefab": "LinenThread",      "status": "reshade" },
@@ -97,9 +99,8 @@
     { "u5": "Crown of Lord British",   "prefab": "HelmetDverger",  "status": "reshade", "tint": "#d4af37", "effect": "crown" },
     { "u5": "Sceptre of Lord British", "prefab": "MaceBronze",     "status": "reshade", "tint": "#d4af37" },
     { "u5": "Amulet of Lord British",  "prefab": "SilverNecklace", "status": "reshade", "tint": "#d4af37", "effect": "amulet" },
-    { "u5": "Moonstone",       "prefab": "Eitr",              "status": "derived", "note": "plan §5.8: refined eitr or a recolour" },
-    { "u5": "Keys",            "prefab": null,                "status": "dropped", "note": "locked doors are in (Locked! No keys!); keys and jimmying to come" },
-    { "u5": "Skull Keys",      "prefab": null,                "status": "dropped", "note": "no locked doors or chests" }
+    { "u5": "Key",             "prefab": "CryptKey",          "status": "reshade", "tint": "#b08d57", "note": "swamp key, bronze", "use": "key" },
+    { "u5": "Skull Key",       "prefab": "CryptKey",          "status": "direct",  "note": "swamp key, untouched", "use": "skull key" }
   ],
   "transport": [
     { "u5": "Skiff",  "prefab": "Karve",      "status": "direct" },

@@ -60,8 +60,9 @@ namespace U5InValheim.Tests
                     // the sling waits for its custom weapon (items.json); shops leave it out
                     if (m == null && w.Item == 17) continue;
                     Assert.True(m != null, $"{w.Name} has no Valheim item");
-                    Assert.Contains(m.Value.prefab, prefabs);
-                    foreach (var x in m.Value.extra) Assert.Contains(x, prefabs);
+                    // our own items, each made from a Valheim item
+                    Assert.Contains(items.Get(m.Value.prefab)?.Base ?? m.Value.prefab, prefabs);
+                    foreach (var x in m.Value.extra) Assert.Contains(items.Get(x).Base, prefabs);
                     wares++;
                 }
             }

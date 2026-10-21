@@ -96,6 +96,7 @@ namespace U5InValheim
                 Ettin.Register();
                 Camp.Register();
                 Ladders.Register();
+                UltimaItems.Register();
                 TalkPanel.Install(harmony);
                 ShopTrading.Install(harmony);
                 StartingGold.Install(harmony);

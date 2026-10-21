@@ -109,6 +109,23 @@ namespace U5InValheim.Data
             return null;
         }
 
+        /// <summary>
+        /// A spell's words in full ("In Vas Por Ylem"): its name in DATA.OVL is cut at 10 letters,
+        /// and every word of power begins with its own letter (the rune syllables, one per letter).
+        /// </summary>
+        public string SpellWords(int spell)
+        {
+            var words = SpellName(spell).Split(' ');
+            for (int i = 0; i < words.Length; i++)
+            {
+                if (words[i].Length == 0) continue;
+                int letter = char.ToUpperInvariant(words[i][0]) - 'A';
+                string syllable = letter >= 0 && letter < 26 ? PtrStr(Dg.RuneSyllablePtrs, letter) : null;
+                if (syllable != null) words[i] = syllable.Substring(0, 1) + syllable.Substring(1).ToLowerInvariant();
+            }
+            return string.Join(" ", words);
+        }
+
         public string[] Virtues => PtrStrs(Dg.VirtueMantraPtrs, 8);
         public string[] Mantras
         {
