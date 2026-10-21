@@ -63,6 +63,34 @@ if (argv.Count > 0 && argv[0] == "banners")
     Console.WriteLine($"wrote {outPath}: {string.Join(" ", tiles.Select(t => $"{t:x2} {data.TileNames[t]}"))}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "bench")
+{
+    // bench [n=200000]: how fast the terrain builder's questions are answered (biome, height, paint
+    // per sample), at random over the world and over a zone-mesh grid near Britain (no settlement sites)
+    int n = argv.Count > 1 ? int.Parse(argv[1]) : 200000;
+    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var sw0 = System.Diagnostics.Stopwatch.StartNew();
+    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    Console.WriteLine($"shape built in {sw0.ElapsedMilliseconds} ms; world {shape.WrapMetres:0} m");
+    var rnd = new Random(1);
+    var pts = Enumerable.Range(0, n).Select(_ => ((float)(rnd.NextDouble() - 0.5) * shape.WrapMetres, (float)(rnd.NextDouble() - 0.5) * shape.WrapMetres)).ToArray();
+    var britain = data.Location(2); shape.TileCentre(britain.X, britain.Y, out float bx, out float bz);
+    var grid = new System.Collections.Generic.List<(float, float)>();
+    for (int zi = 0; grid.Count < n; zi++) { int zx = zi % 20, zz = zi / 20 % 20; for (int gz = 0; gz <= 64 && grid.Count < n; gz += 2) for (int gx = 0; gx <= 64 && grid.Count < n; gx += 2) grid.Add((bx + zx * 64 + gx - 640, bz + zz * 64 + gz - 640)); }
+    foreach (var (label, set) in new (string, (float, float)[])[] { ("random", pts), ("near Britain", grid.ToArray()) })
+    {
+        double sum = 0;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        foreach (var (x, z) in set) sum += (int)shape.Biome(x, z);
+        double b = sw.Elapsed.TotalMilliseconds * 1000 / set.Length; sw.Restart();
+        foreach (var (x, z) in set) sum += shape.Height(x, z);
+        double h = sw.Elapsed.TotalMilliseconds * 1000 / set.Length; sw.Restart();
+        foreach (var (x, z) in set) sum += (int)shape.PaintAt(x, z);
+        double pa = sw.Elapsed.TotalMilliseconds * 1000 / set.Length;
+        Console.WriteLine($"{label,-13} biome {b:0.00} µs, height {h:0.00} µs, paint {pa:0.00} µs per sample ({set.Length} samples; {sum:0})");
+    }
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "sites")
 {
     // sites <loc,loc,...>: where those settlements are built (moved apart as in game) and the land there

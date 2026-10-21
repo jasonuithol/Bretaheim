@@ -27,6 +27,8 @@ namespace U5InValheim.DevTools
             (typeof(ZoneSystem), "SpawnZone"),
             (typeof(ZoneSystem), "PlaceVegetation"),
             (typeof(Heightmap), "Generate"),
+            (typeof(HeightmapBuilder), "RequestTerrainSync"),
+            (typeof(Heightmap), "ApplyModifiers"),
             (typeof(ZNetScene), "CreateDestroyObjects"),
             (typeof(ZNetScene), "CreateObject"),
             (typeof(WorldGen.Settlements), "PlaceLocations_Postfix"),
@@ -47,13 +49,21 @@ namespace U5InValheim.DevTools
 
         static void Prefix(out long __state) => __state = Stopwatch.GetTimestamp();
 
-        static void Postfix(long __state, MethodBase __originalMethod)
+        static void Postfix(long __state, MethodBase __originalMethod, object __instance)
         {
             double ms = (Stopwatch.GetTimestamp() - __state) * 1000.0 / Stopwatch.Frequency;
             string key = __originalMethod.DeclaringType.Name + "." + __originalMethod.Name;
             frame.TryGetValue(key, out var v);
             frame[key] = (v.ms + ms, v.n + 1);
+            // one call that long: what it ran on and who called it
+            if (ms >= SlowCallMs)
+            {
+                string on = __instance is Component c && c != null ? $" on {c.name} at {c.transform.position}" + (c is Heightmap h ? $" (distant LOD {h.IsDistantLod})" : "") : "";
+                Plugin.Log.LogInfo($"slow call {key} {ms:0} ms{on}\n{new StackTrace(1, false)}");
+            }
         }
+
+        const double SlowCallMs = 500;
 
         /// <summary>What a structure just built (counted from its templates).</summary>
         public static void Built(int objects, int renderers, int colliders)
@@ -70,6 +80,7 @@ namespace U5InValheim.DevTools
             if (ms >= HitchMs)
             {
                 double timed = frame.Where(kv => kv.Key != "ZNetScene.CreateObject" && kv.Key != "ZoneSystem.PlaceVegetation"
+                                                 && kv.Key != "HeightmapBuilder.RequestTerrainSync" && kv.Key != "Heightmap.ApplyModifiers"
                                                  && kv.Key != "Heightmap.Generate" && kv.Key != "Settlements.PlaceLocations_Postfix"
                                                  && kv.Key != "TownsfolkSpawner.Spawn").Sum(kv => kv.Value.ms);
                 string parts = string.Join(", ", frame.OrderByDescending(kv => kv.Value.ms).Select(kv => $"{kv.Key} {kv.Value.ms:0} ms ×{kv.Value.n}"));
