@@ -244,11 +244,11 @@ namespace U5InValheim.WorldGen
             if (Time.time < next) return;
             next = Time.time + TurnEvery;
             var me = Player.m_localPlayer;
-            var shape = Britannia.Active;
-            if (shape == null || me == null || me.IsDead() || ZoneSystem.instance == null || ZNetScene.instance == null) return;
+            if (Britannia.Active == null || me == null || me.IsDead() || ZoneSystem.instance == null || ZNetScene.instance == null) return;
             var at = me.transform.position;
+            var shape = Britannia.ShapeAt(at);
             if (InTown(shape, at.x, at.z)) return;
-            if (!Encounters.Roll(shape.TileAt(at.x, at.z), TownNpc.Hour(), random)) return;
+            if (!Encounters.Roll(shape.TileAt(at.x, at.z), TownNpc.Hour(), random, shape == Britannia.Under)) return;
             Encounter(at, me.GetPlayerName(), random);
         }
 
@@ -258,7 +258,8 @@ namespace U5InValheim.WorldGen
         /// <summary>One encounter between these distances from a point (an ambush comes close).</summary>
         public static string Encounter(Vector3 at, string who, System.Random random, float nearFrom, float nearTo)
         {
-            var shape = Britannia.Active;
+            var shape = Britannia.ShapeAt(at);
+            bool under = shape == Britannia.Under;
             int near = 0;
             foreach (var c in Character.GetAllCharacters())
                 if (c.GetComponent<WildEncounter>() != null && Vector3.Distance(c.transform.position, at) < CapRange) near++;
@@ -269,7 +270,15 @@ namespace U5InValheim.WorldGen
                 var p = at + new Vector3(Mathf.Cos(angle) * dist, 0, Mathf.Sin(angle) * dist);
                 if (InTown(shape, p.x, p.z) || !ZoneSystem.instance.IsZoneLoaded(p)) continue;
                 byte tile = shape.TileAt(p.x, p.z);
-                int monster = Encounters.Choose(Plugin.U5.Ovl, tile, random);
+                int monster = Encounters.Choose(Plugin.U5.Ovl, tile, random, under);
+                if (monster == Encounters.Whirlpool)
+                {
+                    // (a whirlpool on the deep sea: Whirlpool drifts it and takes ships to the Underworld)
+                    if (ZoneSystem.instance.GetGroundHeight(p) > Britannia.SeaLevel - 4f || Whirlpool.Spawn(p) == null) continue;
+                    string w = $"a whirlpool on tile {tile:x2}, {dist:0} m from {who}";
+                    Plugin.Log.LogInfo("Encounter: " + w);
+                    return w;
+                }
                 int type = monster == 0 ? -1 : Encounters.TypeOf(monster);
                 var body = type < 0 ? null : UltimaCreatures.Body(type);
                 var prefab = body != null ? ZNetScene.instance.GetPrefab(body.Value.prefab) : null;

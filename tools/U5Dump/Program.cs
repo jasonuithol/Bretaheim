@@ -53,9 +53,11 @@ if (argv.Count > 0 && argv[0] == "preview")
     int extra = argv.Count > 3 ? int.Parse(argv[3]) : 24;
     bool under = argv.Contains("under");
     string terrainJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json"));
-    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(under ? data.Underworld : data.Britannia,
-        U5InValheim.WorldGen.Core.TerrainTable.Parse(terrainJson), seed: 1234);
-    Preview.Render(shape, under ? new() : U5InValheim.WorldGen.Core.Pois.Build(data), outPath, px, extra);
+    // (the Underworld as built in game: its own terrain changes, east of Britannia, deep lakes; its places marked)
+    var shape = under
+        ? U5InValheim.WorldGen.Core.Continents.UnderworldShape(data.Underworld, U5InValheim.WorldGen.Core.TerrainTable.Parse(terrainJson, underworld: true), 1234)
+        : new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, U5InValheim.WorldGen.Core.TerrainTable.Parse(terrainJson), seed: 1234);
+    Preview.Render(shape, U5InValheim.WorldGen.Core.Pois.Build(data), outPath, px, extra);
     Console.WriteLine($"wrote {outPath}");
     return 0;
 }

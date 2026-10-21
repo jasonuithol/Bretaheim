@@ -17,7 +17,7 @@ static class Preview
         for (int y = 0; y < px; y++)
         for (int x = 0; x < px; x++)
         {
-            float wx = -half + (x + 0.5f) * step, wz = half - (y + 0.5f) * step;
+            float wx = shape.OriginX - half + (x + 0.5f) * step, wz = shape.OriginZ + half - (y + 0.5f) * step;
             h[y * px + x] = shape.Height(wx, wz);
             b[y * px + x] = shape.Biome(wx, wz);
             dirt[y * px + x] = shape.PaintAt(wx, wz) == Paint.Dirt;
@@ -37,9 +37,9 @@ static class Preview
         }
         foreach (var p in pois)
         {
-            if (p.Underworld) continue;
+            if (p.Underworld != (shape.OriginX != 0)) continue;
             shape.TileCentre(p.TileX, p.TileY, out float wx, out float wz);
-            int cx = (int)((wx + half) / step), cy = (int)((half - wz) / step);
+            int cx = (int)((wx - shape.OriginX + half) / step), cy = (int)((half - wz + shape.OriginZ) / step);
             for (int dy = -2; dy <= 2; dy++)
             for (int dx = -2; dx <= 2; dx++)
             {

@@ -63,7 +63,7 @@ namespace U5InValheim.WorldGen
             var at = p.transform.position;
             if (p.IsAttachedToShip() || p.GetControlledShip() != null) return Say(ItemUse.SXitShipFirst);
             if (p.IsAttached() || p.IsRiding()) return Say(ItemUse.SOnlyOnFoot);
-            var shape = Britannia.Active;
+            var shape = Britannia.Active == null ? null : Britannia.ShapeAt(at);
             if (shape == null || UseItems.Underground(at) || shape.TileAt(at.x, at.z) == Mountains) return Say(ItemUse.SCarpetNotHere);
             var prefab = ZNetScene.instance?.GetPrefab(PrefabName);
             if (prefab == null) return Say(ItemUse.SCarpetNotHere);

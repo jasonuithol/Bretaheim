@@ -44,13 +44,23 @@ namespace U5InValheim.WorldGen.Core
 
         public TerrainClass this[int tile] => byTile[tile & 0xff];
 
-        public static TerrainTable Parse(string json)
+        /// <summary>
+        /// The table of terrain.json; for the Underworld (UNDER.DAT) with its "underworld" changes
+        /// applied (any of a class's fields but its tiles).
+        /// </summary>
+        public static TerrainTable Parse(string json, bool underworld = false)
         {
             var root = Json.Obj(Json.Parse(json));
             var t = new TerrainTable();
+            var changes = underworld ? Json.Get(root, "underworld") as Dictionary<string, object> : null;
             foreach (var kv in Json.Obj(root["classes"]))
             {
                 var o = Json.Obj(kv.Value);
+                if (changes != null && Json.Get(changes, kv.Key) is Dictionary<string, object> change)
+                {
+                    o = new Dictionary<string, object>(o);
+                    foreach (var f in change) o[f.Key] = f.Value;
+                }
                 string biome = Json.Str(o, "biome");
                 string water = Json.Str(o, "water");
                 var c = new TerrainClass

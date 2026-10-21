@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance; u5 under [<x> <y> | surface <x> <y> | falls | whirlpool | doom | ararat | <dungeon>] where you are, or (devcommands) to the Underworld",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -73,6 +73,12 @@ namespace U5InValheim
                 input.Hide();
                 return;
             }
+            if (args.Length > 0 && args[0] == "under")
+            {
+                // u5 under [...]: where am I; (devcommands) to an Underworld tile or place, the falls, a whirlpool
+                WorldGen.Underworld.Command(args, Print);
+                return;
+            }
             if (args.Length > 0 && args[0] == "dungeon")
             {
                 // u5 dungeon <name|0-7> (devcommands): to the dungeon's entrance
@@ -83,7 +89,7 @@ namespace U5InValheim
                 else if (me == null || c == null) Print("u5 dungeon <Deceit|Despise|Destard|Wrong|Covetous|Shame|Hythloth>: only in Britannia");
                 else
                 {
-                    var shape = WorldGen.Britannia.Active;
+                    var shape = WorldGen.Britannia.ShapeAt(c.Value.x, c.Value.y);
                     float x = c.Value.x, z = c.Value.y - 9f;
                     me.TeleportTo(new UnityEngine.Vector3(x, WorldGen.Britannia.SeaLevel + shape.Height(x, z) + 1f, z), me.transform.rotation, true);
                     Print($"to {WorldGen.Dungeons.Name(d)}: say {Plugin.U5.Ovl.WordsOfPower[d]} near its door to open it");

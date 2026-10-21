@@ -104,10 +104,10 @@ namespace U5InValheim.WorldGen
             pinnedOn = Minimap.instance;
             foreach (var p in Britannia.Pois)
             {
-                if (p.Underworld) continue;
+                if (p.Underworld && Britannia.Under == null) continue;
                 var type = p.Kind == "towne" || p.Kind == "castle" || p.Kind == "village" || p.Kind == "keep"
                     ? Minimap.PinType.Icon1 : Minimap.PinType.Icon3;
-                Minimap.instance.AddPin(Britannia.TileCentre(p.TileX, p.TileY), type, p.Name, save: false, isChecked: false);
+                Minimap.instance.AddPin(Britannia.TileCentre(p.TileX, p.TileY, p.Underworld), type, p.Name, save: false, isChecked: false);
             }
         }
     }

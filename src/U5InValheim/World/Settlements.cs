@@ -67,8 +67,11 @@ namespace U5InValheim.WorldGen
         /// <summary>Room left between two settlement squares for their slopes.</summary>
         const float SiteGap = 16f;
 
-        /// <summary>Plans the settlements of the world being activated and gives the shape their sites.</summary>
-        public static void Prepare(BritanniaShape shape, List<Poi> pois)
+        /// <summary>
+        /// Plans the settlements of the world being activated and gives each continent's shape its
+        /// sites (Britannia's, and the Underworld's: Ararat).
+        /// </summary>
+        public static void Prepare(BritanniaShape shape, BritanniaShape under, List<Poi> pois)
         {
             All = new List<Built>();
             byZone = new Dictionary<Vector2s, List<(Built, Placement)>>();
@@ -78,16 +81,22 @@ namespace U5InValheim.WorldGen
                 .Select(t => t.Trim()).Where(t => t.Length > 0).Select(int.Parse));
             var wanted = new HashSet<int>(Plugin.BuildSettlements.Value.Split(',')
                 .Select(t => t.Trim()).Where(t => t.Length > 0).Select(int.Parse));
-            if (wanted.Count == 0) { shape.SetSites(new SettlementSite[0]); return; }
+            if (wanted.Count == 0) { shape.SetSites(new SettlementSite[0]); under?.SetSites(new SettlementSite[0]); return; }
 
             string dir = Path.Combine(Plugin.PluginDirectory, "mappings");
             tiles = tiles ?? TownTiles.Parse(File.ReadAllText(Path.Combine(dir, "town_tiles.json")));
             geo = geo ?? PieceGeometry.Parse(File.ReadAllText(Path.Combine(dir, "piece_geometry.json")));
             var planner = new SettlementPlanner(Plugin.U5, tiles, geo);
+            PrepareOn(shape, pois.Where(p => !p.Underworld), wanted, combineAll, combined, planner);
+            if (under != null) PrepareOn(under, pois.Where(p => p.Underworld), wanted, combineAll, combined, planner);
+        }
+
+        static void PrepareOn(BritanniaShape shape, IEnumerable<Poi> pois, HashSet<int> wanted, bool combineAll, HashSet<int> combined, SettlementPlanner planner)
+        {
             var sites = new List<SettlementSite>();
             // in order of location number (Britain and the castle before the villages crowding them),
             // moved apart so each square has room for its slope back to the land
-            var chosen = pois.Where(p => p.Location > 0 && !p.Underworld && wanted.Contains(p.Location) && Plugin.U5.Location(p.Location).IsSettlement)
+            var chosen = pois.Where(p => p.Location > 0 && wanted.Contains(p.Location) && Plugin.U5.Location(p.Location).IsSettlement)
                 .OrderBy(p => p.Location).ToList();
             var squares = chosen.Select(p =>
             {
@@ -177,7 +186,7 @@ namespace U5InValheim.WorldGen
                 pos = site.Origin + new Vector3(site.Plan.SpawnX, 0.3f, site.Plan.SpawnZ);
                 return true;
             }
-            var shape = Britannia.Active;
+            var shape = Britannia.ShapeAt(site.Site.CentreX, site.Site.CentreZ);
             float d = site.Site.Half + site.Site.Blend * 0.6f;
             var best = new[] { (0f, -d), (0f, d), (d, 0f), (-d, 0f) }
                 .Select(o => new Vector3(site.Site.CentreX + o.Item1, 0, site.Site.CentreZ + o.Item2))

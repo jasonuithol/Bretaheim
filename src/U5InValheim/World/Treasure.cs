@@ -302,39 +302,46 @@ namespace U5InValheim.WorldGen
             return false;
         }
 
-        /// <summary>What is hidden out in Britannia (in the zone being made): the hidden objects on the surface, the buried moonstones, the reagent patches.</summary>
+        /// <summary>
+        /// What is hidden out in the land (in the zone being made): the hidden objects of the surface
+        /// (z 0) and of the Underworld (z ≠ 0), the buried moonstones, the reagent patches; and what
+        /// lies in the Underworld in plain sight until taken (place_shards_and_amulet): the Amulet
+        /// of Lord British and the shards of the Shadowlords not yet destroyed.
+        /// </summary>
         public static void SpawnLand(Vector2s zone, ZoneSystem.SpawnMode mode, List<GameObject> spawned)
         {
-            var shape = Britannia.Active;
-            if (shape == null) return;
-            Vector3 Ground(int x, int y)
+            if (Britannia.Active == null) return;
+            Vector3 Ground(int x, int y, int z)
             {
+                var shape = Britannia.Level(z) ?? Britannia.Active;
                 shape.TileCentre(x, y, out float wx, out float wz);
                 return new Vector3(wx, Britannia.SeaLevel + Mathf.Max(shape.Height(wx, wz), 0f), wz);
             }
-            void Place(int x, int y, Loot loot, int index)
+            void Place(int x, int y, int z, Loot loot, int index, bool hidden = true)
             {
-                var at = Ground(x, y);
+                if (z != 0 && Britannia.Under == null) return;
+                var at = Ground(x, y, z);
                 if (ZoneSystem.GetZone(at) != zone) return;
-                SpawnSpot(at, loot, true, index, true, mode, spawned);
-                Plugin.Log.LogInfo($"Hidden in the land at tile ({x},{y}): {loot}");
+                SpawnSpot(at, loot, hidden, index, hidden, mode, spawned);
+                Plugin.Log.LogInfo($"{(hidden ? "Hidden in" : "Lying in")} the {(z == 0 ? "land" : "Underworld")} at tile ({x},{y}): {loot}");
             }
-            // (z 0 is Britannia; the Underworld's are not made yet)
             foreach (var h in Hidden)
-                if (h.Location == 0 && h.Z == 0 && h.Loot.Kind != LootKind.None) Place(h.X, h.Y, h.Loot, h.Index);
+                if (h.Location == 0 && h.Loot.Kind != LootKind.None) Place(h.X, h.Y, h.Z, h.Loot, h.Index);
             var start = Plugin.U5.InitialGame;
             for (int i = 0; i < 8 && start != null; i++)
             {
                 var m = start.Moonstone(i);
                 // (unless it has been dug up or moved since: Moongates keeps where it is)
-                if (m.buried && m.z == 0 && Moongates.StillAt(i, m.x, m.y)) Place(m.x, m.y, new Loot(LootKind.Moonstone, i), MoonstoneBase + i);
+                if (m.buried && Moongates.StillAt(i, m.x, m.y, m.z)) Place(m.x, m.y, m.z, new Loot(LootKind.Moonstone, i), MoonstoneBase + i);
             }
+            foreach (var (x, y, loot) in UnderworldLinks.Objects(Ovl, start != null && start.AmuletOfLordBritish, s => !Shadowlords.Doomed(s)))
+                Place(x, y, -1, loot, NotHidden, hidden: false);
             for (int i = 0; i < 4; i++)
             {
                 int x = Ovl.U8(PatchX + i), y = Ovl.U8(PatchY + i);
                 if (x == 0 && y == 0) continue;
                 // (the count, 2..15 sprigs, is rolled when picked)
-                Place(x, y, new Loot(LootKind.Item, Ovl.U8(PatchReagent + i)), ReagentPatchBase + i);
+                Place(x, y, 0, new Loot(LootKind.Item, Ovl.U8(PatchReagent + i)), ReagentPatchBase + i);
             }
         }
 

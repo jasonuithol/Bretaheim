@@ -78,27 +78,29 @@ namespace U5InValheim.WorldGen
 
         static bool GetForestFactor_Prefix(Vector3 pos, ref float __result)
         {
-            var shape = Britannia.Active;
-            if (shape == null) return true;
-            __result = shape.ForestFactor(pos.x, pos.z);
+            if (Britannia.Active == null) return true;
+            __result = Britannia.ShapeAt(pos.x, pos.z).ForestFactor(pos.x, pos.z);
             return false;
         }
 
         static bool GetBiome_Prefix(float wx, float wy, ref Heightmap.Biome __result)
         {
-            var shape = Britannia.Active;
-            if (shape == null) return true;
-            __result = (Heightmap.Biome)(int)shape.Biome(wx, wy);
+            if (Britannia.Active == null) return true;
+            __result = (Heightmap.Biome)(int)Britannia.ShapeAt(wx, wy).Biome(wx, wy);
             return false;
         }
 
         /// <summary>One continuous height for every biome argument: the terrain builder blends the
-        /// heights of a zone's corner biomes, and they must agree for seamless borders.</summary>
+        /// heights of a zone's corner biomes, and they must agree for seamless borders. Both
+        /// continents (Britannia, and the Underworld east of it) are sampled here.</summary>
         static bool GetBiomeHeight_Prefix(float wx, float wy, ref Color mask, ref float __result)
         {
-            var shape = Britannia.Active;
-            if (shape == null) return true;
+            if (Britannia.Active == null) return true;
+            var shape = Britannia.ShapeAt(wx, wy);
             mask = PaintColour(shape.PaintAt(wx, wy));
+            // the Underworld's lava: Valheim's lava is Ashlands ground whose paint alpha is high
+            // (its Ashlands ground is all round its lava tiles; elsewhere the alpha stays as on the surface)
+            if (shape == Britannia.Under && shape.Biome(wx, wy) == Core.VBiome.AshLands) mask.a = shape.Lava(wx, wy);
             __result = Britannia.SeaLevel + shape.Height(wx, wy);
             return false;
         }
