@@ -77,12 +77,12 @@ namespace U5InValheim.WorldGen
 
         static void PlaceLocations_Postfix(Vector2s zoneID, System.Collections.IList clearAreas, ZoneSystem.SpawnMode mode, List<GameObject> spawnedObjects)
         {
-            var shape = Britannia.Active;
-            if (shape == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
+            if (Britannia.Active == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
             // paths clear their way: no vanilla trees, rocks or bushes on them (vegetation is placed
             // after this, and skips clear areas)
             clearAreaType = clearAreaType ?? AccessTools.Inner(typeof(ZoneSystem), "ClearArea");
             var zc = ZoneSystem.GetZonePos(zoneID);
+            var shape = Britannia.ShapeAt(zc);
             float zh = ZoneSystem.c_ZoneSize / 2f;
             if (clearAreaType != null)
                 foreach (var (px, pz, phalf) in shape.PathPoints(zc.x - zh, zc.z - zh, zc.x + zh, zc.z + zh))

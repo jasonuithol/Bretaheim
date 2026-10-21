@@ -86,6 +86,7 @@ namespace U5InValheim.WorldGen
         {
             // the spells that know dungeons: where they may be cast, Uus Por and Des Por (a level up or down, as a ladder does)
             SpellEffects.InDungeon = p => Inside(p, out _, out _, out _, out _);
+            Endgame.DoomMirror = DoomMirror;
             SpellEffects.DungeonLadder = (player, dir) =>
             {
                 if (!Inside(player.transform.position, out int d, out int level, out double u, out double v)) return false;
@@ -103,13 +104,40 @@ namespace U5InValheim.WorldGen
 
         // ── where things are ─────────────────────────────────────────────────────────────────
 
-        /// <summary>World x, z of the middle of dungeon d (the middle of its entrance tile), or null when not in Britannia's surface.</summary>
+        /// <summary>
+        /// World x, z of the middle of dungeon d (the middle of its entrance tile: on the surface,
+        /// or for Doom in the Underworld), or null outside a Britannia world.
+        /// </summary>
+        /// <summary>The mirror Lord British is behind (ENDGAME): tile (5,1) of Doom's room 15 (DUNGEON.CBT 111), wherever Doom's map has that room.</summary>
+        static Vector3? doomMirror;
+        static bool doomMirrorFound;
+
+        static Vector3? DoomMirror()
+        {
+            if (Britannia.Active == null || Plugin.U5 == null || Centre(UnderworldLinks.Doom) == null) return null;
+            if (doomMirrorFound) return doomMirror;
+            doomMirrorFound = true;
+            const int room = 15, mirrorX = 5, mirrorY = 1;
+            for (int level = 0; level < DungeonInfo.Levels; level++)
+            for (int cell = 0; cell < 64; cell++)
+            {
+                var c = Plugin.U5.Dungeons.Cell(UnderworldLinks.Doom, level, cell % 8, cell / 8);
+                int hi = c.Raw & 0xf0;
+                if ((hi != 0xf0 && hi != 0xa0) || c.Room != room) continue;
+                doomMirror = World(UnderworldLinks.Doom, level, (cell % 8) * DungeonLevelPlan.CellTiles + mirrorX, (cell / 8) * DungeonLevelPlan.CellTiles + mirrorY);
+                Plugin.Log.LogInfo($"Doom's mirror: level {level}, cell {cell}, at {doomMirror}");
+                return doomMirror;
+            }
+            Plugin.Log.LogWarning("Doom's mirror: no room 15 in Doom's map");
+            return null;
+        }
+
         public static Vector2? Centre(int d)
         {
-            var shape = Britannia.Active;
-            if (shape == null || d < 0 || d >= DungeonInfo.Count) return null;
+            if (Britannia.Active == null || d < 0 || d >= DungeonInfo.Count) return null;
             var l = Plugin.U5.Location(DungeonInfo.Location(d));
-            if (l.InUnderworld) return null;
+            var shape = l.InUnderworld ? Britannia.Under : Britannia.Active;
+            if (shape == null) return null;
             shape.TileCentre(l.X, l.Y, out float x, out float z);
             return new Vector2(x, z);
         }
@@ -167,40 +195,53 @@ namespace U5InValheim.WorldGen
 
         static void PlaceLocations_Postfix(Vector2s zoneID, IList clearAreas, ZoneSystem.SpawnMode mode, List<GameObject> spawnedObjects)
         {
-            var shape = Britannia.Active;
-            if (shape == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
+            if (Britannia.Active == null || (mode != ZoneSystem.SpawnMode.Full && mode != ZoneSystem.SpawnMode.Ghost)) return;
             for (int d = 0; d < DungeonInfo.Count; d++)
             {
                 var c = Centre(d);
                 if (c == null) continue;
-                var pos = new Vector3(c.Value.x, Britannia.SeaLevel + shape.Height(c.Value.x, c.Value.y), c.Value.y);
-                if (ZoneSystem.GetZone(pos) != zoneID) continue;
-                clearAreas.Add(Activator.CreateInstance(clearAreaType, pos, 14f));
-                // the door faces down the slope, its back to the mountain
-                float bestYaw = 0, lowest = float.MaxValue;
-                for (int k = 0; k < 8; k++)
-                {
-                    float yaw = k * 45f, r = yaw * Mathf.Deg2Rad;
-                    float h = shape.Height(pos.x + Mathf.Sin(r) * 12f, pos.z + Mathf.Cos(r) * 12f);
-                    if (h < lowest) { lowest = h; bestYaw = yaw; }
-                }
-                var prefab = ZNetScene.instance?.GetPrefab(EntrancePrefab);
-                if (prefab == null) { Plugin.Log.LogError("Dungeons: no entrance prefab"); return; }
-                if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
-                var go = Object.Instantiate(prefab, pos, Quaternion.Euler(0, bestYaw, 0));
-                var zdo = go.GetComponent<ZNetView>()?.GetZDO();
-                if (zdo != null)
-                {
-                    zdo.Set(DungeonKey, d + 1);
-                    zdo.Set(OpenKey, Plugin.U5.InitialGame.DungeonOpen(d));
-                }
-                if (mode == ZoneSystem.SpawnMode.Ghost)
-                {
-                    spawnedObjects.Add(go);
-                    ZNetView.FinishGhostInit();
-                }
-                Plugin.Log.LogInfo($"Dungeon entrance of {Name(d)} placed at {pos} facing {bestYaw}°");
+                var shape = Plugin.U5.Location(DungeonInfo.Location(d)).InUnderworld ? Britannia.Under : Britannia.Active;
+                PlaceEntrance(zoneID, clearAreas, mode, spawnedObjects, d, shape, c.Value, below: false);
             }
+        }
+
+        /// <summary>
+        /// Dungeon d's entrance at (x, z) of a continent, if that is in the zone being made: its
+        /// door facing down the slope. <paramref name="below"/>: the way in from the Underworld to
+        /// one of the surface dungeons (Underworld.EnterFromBelow; always open); the dungeon's state
+        /// stays on its surface entrance.
+        /// </summary>
+        public static void PlaceEntrance(Vector2s zoneID, IList clearAreas, ZoneSystem.SpawnMode mode, List<GameObject> spawnedObjects,
+                                         int d, BritanniaShape shape, Vector2 c, bool below)
+        {
+            var pos = new Vector3(c.x, Britannia.SeaLevel + shape.Height(c.x, c.y), c.y);
+            if (ZoneSystem.GetZone(pos) != zoneID) return;
+            clearAreas.Add(Activator.CreateInstance(clearAreaType, pos, 14f));
+            // the door faces down the slope, its back to the mountain
+            float bestYaw = 0, lowest = float.MaxValue;
+            for (int k = 0; k < 8; k++)
+            {
+                float yaw = k * 45f, r = yaw * Mathf.Deg2Rad;
+                float h = shape.Height(pos.x + Mathf.Sin(r) * 12f, pos.z + Mathf.Cos(r) * 12f);
+                if (h < lowest) { lowest = h; bestYaw = yaw; }
+            }
+            var prefab = ZNetScene.instance?.GetPrefab(EntrancePrefab);
+            if (prefab == null) { Plugin.Log.LogError("Dungeons: no entrance prefab"); return; }
+            if (mode == ZoneSystem.SpawnMode.Ghost) ZNetView.StartGhostInit();
+            var go = Object.Instantiate(prefab, pos, Quaternion.Euler(0, bestYaw, 0));
+            var zdo = go.GetComponent<ZNetView>()?.GetZDO();
+            if (zdo != null)
+            {
+                zdo.Set(DungeonKey, d + 1);
+                if (below) zdo.Set(Underworld.BelowKey, true);
+                else zdo.Set(OpenKey, Plugin.U5.InitialGame.DungeonOpen(d));
+            }
+            if (mode == ZoneSystem.SpawnMode.Ghost)
+            {
+                spawnedObjects.Add(go);
+                ZNetView.FinishGhostInit();
+            }
+            Plugin.Log.LogInfo($"Dungeon entrance of {Name(d)}{(below ? " (from the Underworld)" : "")} placed at {pos} facing {bestYaw}°");
         }
 
         // ── words of power ───────────────────────────────────────────────────────────────────
@@ -268,11 +309,13 @@ namespace U5InValheim.WorldGen
             else
             {
                 var c = Centre(d) ?? Vector2.zero;
-                to = new Vector3(c.x, Britannia.SeaLevel + Britannia.Active.Height(c.x, c.y) + 0.5f, c.y);
+                to = new Vector3(c.x, Britannia.SeaLevel + Britannia.ShapeAt(c.x, c.y).Height(c.x, c.y) + 0.5f, c.y);
                 rot = player.transform.rotation;
             }
             player.TeleportTo(to, rot, false);
-            player.Message(MessageHud.MessageType.Center, Ovl.CStr(SExitTo).Trim() + " " + Ovl.CStr(SBritannia).Trim());
+            // (Doom's way up leads to its entrance in the Underworld)
+            bool under = Plugin.U5.Location(DungeonInfo.Location(d)).InUnderworld;
+            player.Message(MessageHud.MessageType.Center, Ovl.CStr(SExitTo).Trim() + " " + Ovl.CStr(under ? SUnderworld : SBritannia).Trim());
         }
 
         /// <summary>
@@ -342,7 +385,8 @@ namespace U5InValheim.WorldGen
     {
         static readonly List<DungeonEntrance> all = new List<DungeonEntrance>();
         public static IEnumerable<DungeonEntrance> All => all;
-        public static DungeonEntrance Get(int d) => all.FirstOrDefault(e => e != null && e.D == d && e.Valid);
+        /// <summary>Dungeon d's entrance that holds its state (not a way in from the Underworld), when loaded.</summary>
+        public static DungeonEntrance Get(int d) => all.FirstOrDefault(e => e != null && e.D == d && e.Valid && !e.Below);
 
         ZNetView nview;
         GameObject slab;
@@ -412,7 +456,10 @@ namespace U5InValheim.WorldGen
             }
         }
 
-        public bool Open => Valid && Zdo.GetBool(Dungeons.OpenKey);
+        public bool Open => Valid && (Below || Zdo.GetBool(Dungeons.OpenKey));
+
+        /// <summary>The way in from the Underworld to a surface dungeon (UNDER.DAT's entrance tile): never sealed, it leads to level 7.</summary>
+        public bool Below => Valid && Zdo.GetBool(Underworld.BelowKey);
 
         public void SetOpen(bool open) => Write(z => z.Set(Dungeons.OpenKey, open), false);
 
@@ -584,7 +631,8 @@ namespace U5InValheim.WorldGen
                 player.Message(MessageHud.MessageType.Center, TownDoors.LockedText("magic"));
                 return true;
             }
-            Dungeons.Enter(player, this);
+            if (Below) Underworld.EnterFromBelow(player, D);
+            else Dungeons.Enter(player, this);
             return true;
         }
 

@@ -23,7 +23,7 @@ namespace U5InValheim.DevTools
         {
             var c = Dungeons.Centre(d);
             if (c == null) { Log($"{d} has no entrance on the surface"); yield break; }
-            var at = new Vector3(c.Value.x, Britannia.SeaLevel + Britannia.Active.Height(c.Value.x, c.Value.y), c.Value.y);
+            var at = new Vector3(c.Value.x, Britannia.SeaLevel + Britannia.ShapeAt(c.Value.x, c.Value.y).Height(c.Value.x, c.Value.y), c.Value.y);
             yield return generate(at);
             var e = DungeonEntrance.Get(d);
             Log(e == null ? $"FAIL no entrance of {Dungeons.Name(d)} near {at}" : $"entrance of {Dungeons.Name(d)} at {e.transform.position} facing {e.transform.eulerAngles.y:0}, open {e.Open}");

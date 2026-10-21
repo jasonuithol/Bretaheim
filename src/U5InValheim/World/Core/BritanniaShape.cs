@@ -31,6 +31,8 @@ namespace U5InValheim.WorldGen.Core
         public const float SeaForestFactor = 10f;
 
         public float TileMetres { get; }
+        /// <summary>The least depth of open water away from its shore (metres; 0: as the shore shelves). Set before the shape is used.</summary>
+        public float MinWaterDepth { get; set; }
         public int MarginTiles { get; }
         public int FadeTiles { get; }
         public float OriginX { get; }
@@ -116,6 +118,27 @@ namespace U5InValheim.WorldGen.Core
             }
             Array.Copy(Blur(tBeach, 2f), beachBiome, beachBiome.Length);
             LinkPaths();
+
+            var tLava = new float[N * N];
+            bool anyLava = false;
+            for (int i = 0; i < tLava.Length; i++)
+                if (terrain[map[(i % N) / SamplesPerTile, i / N / SamplesPerTile]].Water == WaterKind.Lava) { tLava[i] = 1f; anyLava = true; }
+            if (anyLava) lava = Blur(tLava, 1.2f);
+        }
+
+        /// <summary>Lava tiles blurred over about 10 m (null when the map has none).</summary>
+        readonly float[] lava;
+
+        /// <summary>
+        /// How much a position is molten lava (0..1): Valheim's lava is the Ashlands ground whose
+        /// paint mask alpha is high (Heightmap.GetLava), so this is that alpha on the lava tiles.
+        /// </summary>
+        public float Lava(float wx, float wz)
+        {
+            if (lava == null) return 0f;
+            ToTile(wx, wz, out double u, out double v);
+            if (OutsideTiles(u, v) > 0) return 0f;
+            return (float)SmoothStep((Sample(lava, u * SamplesPerTile - 0.5, v * SamplesPerTile - 0.5) - 0.25) / 0.5);
         }
 
         // ── coordinates ─────────────────────────────────────────────────────────────────────
@@ -431,6 +454,8 @@ namespace U5InValheim.WorldGen.Core
                 // the seabed shelves out from the shore and is ~10 m deep 30 m out, where Valheim's
                 // waves reach full height (they grow with depth up to 10 m)
                 h = Math.Min(-0.15, Math.Max(h, -0.15 - 0.2 * coast - 0.006 * coast * coast));
+                // (the Underworld's lakes lie among its rock, which would hold them shallow: deep enough for a ship)
+                if (MinWaterDepth > 0) h = Math.Min(h, -Math.Min(MinWaterDepth, 0.15 + 0.12 * coast));
             }
             else
             {

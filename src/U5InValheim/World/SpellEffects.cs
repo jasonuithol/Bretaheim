@@ -589,7 +589,7 @@ namespace U5InValheim.WorldGen
         /// <summary>In Wis: where the caster stands, in the map's rune letters.</summary>
         static int Locate(Player me)
         {
-            var shape = Britannia.Active;
+            var shape = Britannia.Active == null ? null : Britannia.ShapeAt(me.transform.position);
             if (shape == null) return Failed;
             shape.ToTile(me.transform.position.x, me.transform.position.z, out double u, out double v);
             int x = ((int)Math.Floor(u) % 256 + 256) % 256, y = ((int)Math.Floor(v) % 256 + 256) % 256;

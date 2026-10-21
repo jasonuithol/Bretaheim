@@ -28,18 +28,24 @@ namespace U5InValheim.WorldGen
         Rigidbody heldShip;
         Vector3 heldAt;
 
+        /// <summary>A ship seen to move this far in a frame was moved by its owner (a wrap, or to the other continent).</summary>
+        const float FarJump = 1000f;
+
         void Update()
         {
-            var shape = Britannia.Active;
             var player = Player.m_localPlayer;
             ReleaseHeldShip();
-            if (shape == null || player == null || player.IsDead() || ZoneSystem.instance == null) return;
+            if (Britannia.Active == null || player == null || player.IsDead() || ZoneSystem.instance == null) return;
 
             var ship = Ship.GetLocalShip();
             if (ship != null && FollowShipJump(player, ship)) return;
+            if (Underworld.Transferring) return;
 
             bool owner = ship != null && IsOwner(ship);
             var mover = ship != null ? ship.transform.position : player.transform.position;
+            // (in a dungeon or interior, far above the land, there is no edge)
+            if (mover.y > 1000f) return;
+            var shape = Britannia.ShapeAt(mover);
             var delta = WrapDelta(shape, mover, PrewarmTiles, out float beyond);
             if (delta == Vector3.zero) return;
 
@@ -80,7 +86,10 @@ namespace U5InValheim.WorldGen
             return d;
         }
 
-        /// <summary>A passenger whose ship was just moved one map width follows it.</summary>
+        /// <summary>
+        /// A passenger whose ship was just moved far (one map width, or between Britannia and the
+        /// Underworld: <see cref="Underworld"/>) follows it by the same jump.
+        /// </summary>
         bool FollowShipJump(Player player, Ship ship)
         {
             var pos = ship.transform.position;
@@ -88,10 +97,9 @@ namespace U5InValheim.WorldGen
             if (ship == lastShip)
             {
                 var jump = pos - lastShipPos;
-                float wrap = Britannia.Active.WrapMetres;
-                if (Mathf.Abs(jump.x) > wrap / 2 || Mathf.Abs(jump.z) > wrap / 2)
+                if (Mathf.Abs(jump.x) > FarJump || Mathf.Abs(jump.z) > FarJump)
                 {
-                    var delta = new Vector3(Mathf.Round(jump.x / wrap) * wrap, 0, Mathf.Round(jump.z / wrap) * wrap);
+                    var delta = jump;
                     if ((player.transform.position + delta - pos).sqrMagnitude < (player.transform.position - pos).sqrMagnitude)
                     {
                         MoveBody(player.transform, player.GetComponent<Rigidbody>(), delta);
@@ -105,26 +113,26 @@ namespace U5InValheim.WorldGen
             return jumped;
         }
 
-        static bool IsOwner(Ship ship)
+        internal static bool IsOwner(Ship ship)
         {
             var nview = ship.GetComponent<ZNetView>();
             return nview != null && nview.IsValid() && nview.IsOwner();
         }
 
-        static void MoveBody(Transform t, Rigidbody body, Vector3 delta)
+        internal static void MoveBody(Transform t, Rigidbody body, Vector3 delta)
         {
             t.position += delta;
             if (body != null) body.position += delta;
         }
 
         /// <summary>Asks ZoneSystem to build the zones around <paramref name="dest"/> (one per call, like its own Update) and keeps built ones alive.</summary>
-        static void Prewarm(Vector3 dest)
+        internal static void Prewarm(Vector3 dest)
         {
             createLocalZones = createLocalZones ?? AccessTools.Method(typeof(ZoneSystem), "CreateLocalZones");
             createLocalZones?.Invoke(ZoneSystem.instance, new object[] { dest });
         }
 
-        static bool DestinationReady(Vector3 dest)
+        internal static bool DestinationReady(Vector3 dest)
         {
             var z = ZoneSystem.GetZone(dest);
             for (int dy = -1; dy <= 1; dy++)

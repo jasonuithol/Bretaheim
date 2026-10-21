@@ -37,17 +37,17 @@ namespace U5InValheim.WorldGen
         }
 
         /// <summary>Whether moonstone <paramref name="i"/> still lies where INIT.GAM buried it (Treasure places its mound when the land is made).</summary>
-        public static bool StillAt(int i, int x, int y)
+        public static bool StillAt(int i, int x, int y, int z = 0)
         {
             var s = Site(i);
-            return s.Buried && s.Z == 0 && s.X == x && s.Y == y && !s.WorldX.HasValue;
+            return s.Buried && (s.Z == 0) == (z == 0) && s.X == x && s.Y == y && !s.WorldX.HasValue;
         }
 
-        /// <summary>The spot on the ground of a site in Britannia, or null (carried, or in the Underworld, which is not built yet).</summary>
+        /// <summary>The spot on the ground of a site, on the surface or (z ≠ 0) in the Underworld, or null (carried).</summary>
         public static Vector3? Position(MoonstoneSite s)
         {
-            var shape = Britannia.Active;
-            if (shape == null || !s.Buried || s.Z != 0) return null;
+            var shape = Britannia.Active == null ? null : Britannia.Level(s.Z);
+            if (shape == null || !s.Buried) return null;
             float wx, wz;
             if (s.WorldX.HasValue && s.WorldZ.HasValue) { wx = s.WorldX.Value; wz = s.WorldZ.Value; }
             else shape.TileCentre(s.X, s.Y, out wx, out wz);
@@ -136,9 +136,10 @@ namespace U5InValheim.WorldGen
         {
             var ovl = Plugin.U5.Ovl;
             string cannot = (ovl.CStr(SMoonstone) + ovl.CStr(SCannot)).Trim();
-            var shape = Britannia.Active;
-            if (shape == null) return cannot;
+            if (Britannia.Active == null) return cannot;
             var at = p.transform.position;
+            var shape = Britannia.ShapeAt(at);
+            int z = shape == Britannia.Active ? 0 : -1;
             shape.ToTile(at.x, at.z, out double u, out double v);
             int tx = ((int)System.Math.Floor(u) % 256 + 256) % 256, ty = ((int)System.Math.Floor(v) % 256 + 256) % 256;
             byte tile = shape.TileAt(at.x, at.z);
@@ -147,7 +148,7 @@ namespace U5InValheim.WorldGen
             // (only into the land's soft ground: not in a settlement's square, in water, or below ground)
             if (!MoonstoneSite.CanBuryOn(tile) || inSettlement || p.InWater() || at.y < ground - 6f || shape.OutsideTiles(u, v) > 0)
                 return cannot;
-            var site = MoonstoneSite.At(tx, ty, 0, at.x, at.z);
+            var site = MoonstoneSite.At(tx, ty, z, at.x, at.z);
             WorldKeys.Set(SiteKey + stone, site.Format());
             inv.RemoveItem(item, 1);
             Treasure.BuryMoonstone(at, stone);

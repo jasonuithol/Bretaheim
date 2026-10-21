@@ -55,9 +55,9 @@ namespace U5InValheim
                 "New worlds get a seed starting with \"Britannia\", which makes them Britannia. A world is Britannia " +
                 "exactly when its seed starts with \"Britannia\"; worlds with other seeds stay vanilla.");
 
-            BuildSettlements = Config.Bind("World", "BuildSettlements", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,27,28,29,30,31,32",
+            BuildSettlements = Config.Bind("World", "BuildSettlements", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32",
                 "Location numbers of the settlements built from their maps in new Britannia worlds " +
-                "(2 Britain, 4 Yew, 13 Iolo's hut, 17 Lord British's castle, 19-21 West, North and East Britanny; see 'u5 dump locations'). " +
+                "(2 Britain, 4 Yew, 13 Iolo's hut, 17 Lord British's castle, 19-21 West, North and East Britanny, 25 Ararat in the Underworld; see 'u5 dump locations'). " +
                 "Must be the same on the server and every client.");
             CombinedShells = Config.Bind("World", "CombinedShells", "*",
                 "Settlements whose building shells (walls, floors, roofs) are built as one combined object per " +
@@ -88,6 +88,10 @@ namespace U5InValheim
             WorldGenPatches.Install(harmony);
             if (WorldGenPatches.Installed)
             {
+                WorldSize.Install(harmony);
+                Underworld.Install(harmony);
+                Whirlpool.Register();
+                gameObject.AddComponent<UnderworldWatch>();
                 PlaceMarkers.Install(harmony);
                 Settlements.Install(harmony);
                 Structures.Register();

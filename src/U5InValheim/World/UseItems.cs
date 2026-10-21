@@ -102,7 +102,7 @@ namespace U5InValheim.WorldGen
         /// <summary>The overworld tile (0..255) under a position.</summary>
         public static (int x, int y) Tile(Vector3 at)
         {
-            Britannia.Active.ToTile(at.x, at.z, out double u, out double v);
+            Britannia.ShapeAt(at).ToTile(at.x, at.z, out double u, out double v);
             return ((int)System.Math.Floor(u) & 0xff, (int)System.Math.Floor(v) & 0xff);
         }
 
@@ -148,7 +148,7 @@ namespace U5InValheim.WorldGen
             var at = p.transform.position;
             var (hour, _) = Clock();
             var (x, y) = Tile(at);
-            Tell(p, Say(ItemUse.SSextant) + "\n" + ItemUse.Sextant(Ovl, !InSettlement(at) && !Underground(at), hour, x, y));
+            Tell(p, Say(ItemUse.SSextant) + "\n" + ItemUse.Sextant(Ovl, !InSettlement(at) && !Underground(at) && !Britannia.InUnderworld(at), hour, x, y));
         }
 
         static void Watch(Player p)
@@ -160,7 +160,7 @@ namespace U5InValheim.WorldGen
         static void Spyglass(Player p)
         {
             var (hour, _) = Clock();
-            if (Underground(p.transform.position)) { Tell(p, Say(ItemUse.SSpyglass) + "\n" + Say(ItemUse.SNotHere)); return; }
+            if (Underground(p.transform.position) || Britannia.InUnderworld(p.transform.position)) { Tell(p, Say(ItemUse.SSpyglass) + "\n" + Say(ItemUse.SNotHere)); return; }
             if (!ItemUse.Night(hour)) { Tell(p, Say(ItemUse.SSpyglass) + "\n" + Say(ItemUse.SNoStars)); return; }
             var (year, month, day) = Date();
             var stars = ItemUse.NightSky(Ovl, year, month, day, ShadowlordTowns());

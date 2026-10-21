@@ -37,16 +37,15 @@ namespace U5InValheim.WorldGen
 
         static bool GetBiome_Prefix(Vector3 point, ref Heightmap.Biome __result)
         {
-            var shape = Britannia.Active;
-            if (shape == null) return true;
-            __result = (Heightmap.Biome)(int)shape.Biome(point.x, point.z);
+            if (Britannia.Active == null) return true;
+            __result = (Heightmap.Biome)(int)Britannia.ShapeAt(point.x, point.z).Biome(point.x, point.z);
             return false;
         }
 
         static void RebuildRenderMesh_Postfix(Heightmap __instance, Mesh ___m_renderMesh, int ___m_width, float ___m_scale, bool ___m_isDistantLod)
         {
-            var shape = Britannia.Active;
-            if (shape == null || ___m_isDistantLod || ___m_renderMesh == null) return;
+            if (Britannia.Active == null || ___m_isDistantLod || ___m_renderMesh == null) return;
+            var shape = Britannia.ShapeAt(__instance.transform.position);
             float span = ___m_width * ___m_scale;
             Vector3 origin = __instance.transform.position - new Vector3(span / 2, 0, span / 2);
 
