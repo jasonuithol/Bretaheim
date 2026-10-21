@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 using U5InValheim.Data;
 
 // Usage: dotnet run --project tools/U5Dump -- [--u5 <dir>] <what> [args]   (see Dump.Usage)
@@ -43,6 +44,60 @@ if (argv.Count > 0 && argv[0] == "intro")
     }
     art.Closing(out string end).WritePpm(Path.Combine(outDir, "gypsy8.ppm"));
     Console.WriteLine($"[end] {end}\nSTR {Math.Max(20, casting.Strength)} DEX {casting.Dexterity} INT {casting.Intelligence} MP {casting.Intelligence}");
+    return 0;
+}
+if (argv.Count > 0 && argv[0] == "scene")
+{
+    // scene blackthorn|endgame <outdir> [answers…]: the cut-scene played with these answers (typed
+    // lines for Blackthorn, y/n for Lord British; "party=N", "box", "ruined=0,1"), a PPM at every
+    // stop (key, question, picture), the text printed
+    string which = argv.Count > 1 ? argv[1] : "blackthorn", outDir = argv.Count > 2 ? argv[2] : "scene";
+    Directory.CreateDirectory(outDir);
+    var rest = argv.Skip(3).ToList();
+    int party = rest.Where(a => a.StartsWith("party=")).Select(a => int.Parse(a.Substring(6))).DefaultIfEmpty(1).First();
+    bool box = rest.Contains("box");
+    var ruined = new bool[8];
+    foreach (var a in rest.Where(a => a.StartsWith("ruined=")))
+        foreach (var n in a.Substring(7).Split(',')) ruined[int.Parse(n)] = true;
+    var answers = new Queue<string>(rest.Where(a => !a.Contains('=') && a != "box"));
+    byte[] Read(string f) => File.ReadAllBytes(U5Data.FindFile(dir, f));
+    var ibm = new FixedFont(Read("IBM.CH"));
+    var names = new[] { "Avatar", "Shamino", "Iolo", "Dupre", "Jaana", "Geoffrey" }.Take(party).ToList();
+    CutScene view;
+    IEnumerable<Beat> beats;
+    Action<string> answer;
+    if (which == "blackthorn")
+    {
+        var s = new BlackthornScene(data.Ovl, Read("MISCMSG.DAT"), Read("MISCMAPS.DAT"), "Avatar", false, party, names.Count > 1 ? names[1] : "", ruined);
+        s.OnBetray = v => Console.WriteLine($"** shrine {v} betrayed");
+        s.OnExecute = sliced => Console.WriteLine($"** companion executed ({(sliced ? "sliced" : "merciful")})");
+        view = s.View; beats = s.Run(); answer = a => s.Answer = a;
+    }
+    else
+    {
+        var s = new EndgameScene(data.Ovl, Read("MISCMAPS.DAT"), Read("ENDMSG.DAT"), names, box, new Random(1));
+        s.OnWon = () => Console.WriteLine("** won");
+        s.Finale = () => EndStory.Finale(dir, data.Ovl, "Avatar", 140, 2, 11);
+        view = s.View; beats = s.Run(); answer = a => s.Yes = a.StartsWith("y");
+    }
+    int shot = 0, endless = 0;
+    foreach (var b in beats)
+    {
+        if (b.Endless)
+        {
+            // the certificate (the end), or the figures wandering for ever
+            if (b.Kind == BeatKind.Picture) { b.Picture.WritePpm(Path.Combine(outDir, $"{shot++:00}.ppm")); Console.WriteLine(b.Words); break; }
+            if (++endless > 30) break;
+            continue;
+        }
+        if (b.Kind == BeatKind.Wait) continue;
+        var pic = b.Kind == BeatKind.Picture ? b.Picture : view.Render(data.Tiles, ibm);
+        pic.WritePpm(Path.Combine(outDir, $"{shot++:00}.ppm"));
+        if (b.Words != null) Console.WriteLine($"[{shot - 1}] {b.Words}");
+        if (b.Kind == BeatKind.Ask || b.Kind == BeatKind.YesNo) answer(answers.Count > 0 ? answers.Dequeue() : "");
+    }
+    view.Render(data.Tiles, ibm).WritePpm(Path.Combine(outDir, $"{shot++:00}.ppm"));
+    Console.WriteLine(view.Text);
     return 0;
 }
 if (argv.Count > 0 && argv[0] == "preview")
