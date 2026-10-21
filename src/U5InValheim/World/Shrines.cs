@@ -244,7 +244,14 @@ namespace U5InValheim.WorldGen
         void Ask(Step s, string prompt)
         {
             step = s;
-            TextInput.instance?.RequestText(this, prompt.Replace("\n", " ").Replace(":", "").Trim(), 15);
+            // (asked from SetText, the box would be shut again at once: Enter hides it after handing the answer over)
+            StartCoroutine(AskNextFrame(prompt.Replace("\n", " ").Replace(":", "").Trim()));
+        }
+
+        System.Collections.IEnumerator AskNextFrame(string prompt)
+        {
+            yield return null;
+            TextInput.instance?.RequestText(this, prompt, 15);
         }
 
         public string GetText() => "";

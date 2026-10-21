@@ -246,6 +246,19 @@ namespace U5InValheim.WorldGen
 
         static readonly List<GameObject> buttons = new List<GameObject>();
 
+        /// <summary>Clicks the panel's button with this label (the console's u5 press, for tests).</summary>
+        public static bool Press(string label)
+        {
+            if (!IsOpen) return false;
+            foreach (var b in buttons.ToArray())
+                if (b != null && string.Equals(b.GetComponentInChildren<Text>()?.text?.Trim(), label, StringComparison.OrdinalIgnoreCase))
+                {
+                    b.GetComponent<Button>().onClick.Invoke();
+                    return true;
+                }
+            return false;
+        }
+
         public static void Close() => Close(farewell: true);
 
         static void Close(bool farewell, bool keepTalking = false)
