@@ -479,15 +479,18 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   sextant, pocket watch, carpet placement); the spyglass night-sky skybox; barley rations and
   daily eating; Iolo's-hut tool rules and the banned-action guards (§5.12); the new-world intro
   slideshow (§5.13).
+- Status (2026-10-21): built and tried in the client (AutoHeim): every carried Ultima item is its own item; mana, M-by-a-fire mixing, casting (Z), the 48 spells' effects, potions and scrolls; the gem, sextant, pocket watch, spyglass (a 2-D sky panel, not the skybox), carpet, grapple, rings/amulets/regalia, keys and Jimmy, the Black Badge; karma (a Tab line), barley rations, Britannia's restrictions, the original intro and Hildir's virtue questions in the locked hut; the shrines of virtue and the Codex.
 
 **Phase 6 — Monsters, spawning, dungeons (3–4 weeks)**
 - Monster mapping + stats, overworld spawner, pirate ships; dungeon interiors + rooms; chests and
   loot; dungeon light.
+- Status (2026-10-21): loot as the original (monster chests and traps, hidden items, settlement objects); seven dungeons with entrances sealed until their word of power, interiors from DUNGEON.DAT (8 levels of 22 m cells at y≈5000), rooms from DUNGEON.CBT with their monsters, loot and triggers; walked in the client. Doom waits on the Underworld. Pirate ships: round two.
 
 **Phase 7 — Story (3–4 weeks)**
 - Calendar/moons/moongates, whirlpools to the Underworld (§5.1), Shadowlords, shards and shrines, Blackthorn's castle scenes, the
   Underworld continent (world-radius expansion, UNDER.DAT terrain, cave environment, the
   connections from dungeon bottoms/falls/Hythloth), Lord British's rescue, ending.
+- Status (2026-10-21): the calendar (one Valheim day = one Ultima day from INIT.GAM's date), moons, moongates rising at dusk at the buried moonstones (walked through in the client), burying moonstones, Vas Rel Por; the Shadowlords roam the towns by the calendar with their effects, and are doomed at their flames with the shards. The harpsichord guards the Sandalwood Box. Round two (2026-10-21): the Underworld continent and whirlpools, Blackthorn's scenes, Lord British's rescue and the ending.
 
 **Phase 8 — Release**
 - Balance pass, performance (piece merging/culling), docs, Thunderstore publish (namespace
