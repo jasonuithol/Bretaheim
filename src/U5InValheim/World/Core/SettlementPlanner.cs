@@ -1199,6 +1199,7 @@ namespace U5InValheim.WorldGen.Core
             }
 
             var posts = new HashSet<(int, int)>();
+            var beams = new List<(float x, float y, float z, float yaw)>();
             CobbleFill(ctx, lv, cobble, along, low, y0);
             for (int c = 0; c < N * N; c++)
             {
@@ -1208,7 +1209,7 @@ namespace U5InValheim.WorldGen.Core
                 switch (r.Kind)
                 {
                     case TileKind.Wall when r.Build == WallBuild.Cobble:
-                        CobbleWall(ctx, lv, cobble, c, along[c], y0, posts, low[c]);
+                        CobbleWall(ctx, lv, cobble, c, y0, posts, beams, low[c]);
                         break;
                     case TileKind.Wall when r.Build == WallBuild.Shelf && r.Parts != null:
                         ctx.Parts(r.Parts, cx, y0, cz, yaw);
@@ -1256,6 +1257,7 @@ namespace U5InValheim.WorldGen.Core
                         break;
                 }
             }
+            CobbleBeams(ctx, cobble, beams);
         }
 
         /// <summary>
@@ -1343,10 +1345,11 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>
-        /// A cobblestone wall tile's frame (its stone is CobbleFill's): posts on the tile corners
-        /// (shared along a run) with a beam along the top of each open face.
+        /// A cobblestone wall tile's frame (its stone is CobbleFill's), all oak: posts on the tile
+        /// corners (shared along a run), as few as make the height (4 m, then 2 m, a 2 m one shrunk
+        /// for what is left), and a beam along the top of each open face (gathered by CobbleBeams).
         /// </summary>
-        static void CobbleWall(Ctx ctx, Level lv, CobbleStyle s, int c, bool alongX, float y0, HashSet<(int, int)> posts, bool low = false)
+        static void CobbleWall(Ctx ctx, Level lv, CobbleStyle s, int c, float y0, HashSet<(int, int)> posts, List<(float x, float y, float z, float yaw)> beams, bool low = false)
         {
             var p = ctx.Plan;
             float cx = CellX(p, c), cz = CellZ(p, c);
@@ -1355,15 +1358,33 @@ namespace U5InValheim.WorldGen.Core
             foreach (var (dx, dz) in new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) })
             {
                 if (!posts.Add(((int)Math.Round(cx + dx), (int)Math.Round(cz + dz)))) continue;
-                // 2 m posts, topped up with a 1 m one on an odd storey height
                 float py = y0;
-                for (; py + 2 <= y0 + storey; py += 2) ctx.Stand(s.Post, cx + dx, py, cz + dz, 0);
-                if (py < y0 + storey) ctx.Stand(s.PostShort, cx + dx, py, cz + dz, 0);
+                for (; py + 4 <= y0 + storey + 0.01f; py += 4) ctx.Stand(s.Post4, cx + dx, py, cz + dz, 0);
+                for (; py + 2 <= y0 + storey + 0.01f; py += 2) ctx.Stand(s.Post, cx + dx, py, cz + dz, 0);
+                if (py < y0 + storey - 0.01f) ctx.Stand(s.Post, cx + dx, py, cz + dz, 0, 1, (y0 + storey - py) / 2, 1);
             }
             int x = c % N, y = c / N;
             foreach (var (nx, ny, dx, dz, byaw) in new[] { (x, y - 1, 0f, 1f, 0f), (x, y + 1, 0f, -1f, 0f), (x + 1, y, 1f, 0f, 90f), (x - 1, y, -1f, 0f, 90f) })
                 if (!WallLike(lv, nx, ny))
-                    ctx.Centre(s.Beam, cx + dx, y0 + storey - 0.2f, cz + dz, byaw);
+                    beams.Add((cx + dx, y0 + storey - 0.2f, cz + dz, byaw));
+        }
+
+        /// <summary>The cobblestone walls' top beams: two 2 m ones end to end along a run are one 4 m log.</summary>
+        static void CobbleBeams(Ctx ctx, CobbleStyle s, List<(float x, float y, float z, float yaw)> beams)
+        {
+            static int R(float v) => (int)Math.Round(v * 10);
+            var left = new HashSet<(int, int, int, int)>(beams.Select(b => (R(b.x), R(b.y), R(b.z), (int)b.yaw)));
+            foreach (var b in beams.OrderBy(b => b.yaw).ThenBy(b => b.y).ThenBy(b => b.z).ThenBy(b => b.x))
+            {
+                var key = (R(b.x), R(b.y), R(b.z), (int)b.yaw);
+                if (!left.Remove(key)) continue;
+                // the next tile along (a 0° beam lies along x, a 90° one along z)
+                bool ax = b.yaw == 0;
+                var next = ax ? (R(b.x + 2), R(b.y), R(b.z), 0) : (R(b.x), R(b.y), R(b.z + 2), 90);
+                if (s.Beam4 != null && ctx.Known(s.Beam4) && left.Remove(next))
+                    ctx.Centre(s.Beam4, b.x + (ax ? 1 : 0), b.y, b.z + (ax ? 0 : 1), b.yaw);
+                else ctx.Centre(s.Beam, b.x, b.y, b.z, b.yaw);
+            }
         }
 
         /// <summary>

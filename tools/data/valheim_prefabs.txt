@@ -1,6 +1,5 @@
 # Valheim prefab names (one per line), extracted from valheim_Data/StreamingAssets/SoftRef/manifest_extended
 # by tools/extract_prefabs.sh. Used by the tests to verify every prefab named in assets/mappings.
-5
 Abomination
 Abomination_attack1
 Abomination_attack2
@@ -5900,6 +5899,7 @@ wood_stepladder
 woodwall
 wood_wall_half
 wood_wall_log
+wood_wall_log_4x0.5
 wood_wall_quarter
 wood_wall_roof
 wood_wall_roof_45

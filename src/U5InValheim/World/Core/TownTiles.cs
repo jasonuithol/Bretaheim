@@ -102,7 +102,7 @@ namespace U5InValheim.WorldGen.Core
     /// <summary>The cobblestone cottage wall: a wooden frame filled with stone fence.</summary>
     public class CobbleStyle
     {
-        public string Fence, Post, PostShort, Beam;
+        public string Fence, Post, Post4, Beam, Beam4;
     }
 
     /// <summary>Armourers' display walls: item stands of the families of what each one sells.</summary>
@@ -221,7 +221,7 @@ namespace U5InValheim.WorldGen.Core
             var cobble = Json.Obj(root["cobble"]);
             t.Cobble = new CobbleStyle
             {
-                Fence = Json.Str(cobble, "fence"), Post = Json.Str(cobble, "post"), PostShort = Json.Str(cobble, "post_short"), Beam = Json.Str(cobble, "beam"),
+                Fence = Json.Str(cobble, "fence"), Post = Json.Str(cobble, "post"), Post4 = Json.Str(cobble, "post_4"), Beam = Json.Str(cobble, "beam"), Beam4 = Json.Str(cobble, "beam_4"),
             };
             t.CottageRoof = Json.Str(cobble, "roof") ?? t.CottageRoof;
             foreach (var kv in Json.Obj(root["settlements"]))

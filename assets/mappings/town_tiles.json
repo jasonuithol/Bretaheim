@@ -194,7 +194,7 @@
     "shingle": {"slope": "darkwood_roof", "ocorner": "darkwood_roof_ocorner", "icorner": "darkwood_roof_icorner", "top": "darkwood_roof_top", "rise": 1},
     "grausten": {"slope": "piece_grausten_roof_45", "corner": "piece_grausten_roof_45_corner", "corner2": "piece_grausten_roof_45_corner2", "rise": 2}
   },
-  "cobble": {"_doc": "Cobblestone wall (tile 77): a 2x2x3 wood frame filled with stone fence; cottages walled with it get thatch.", "fence": "stone_fence", "post": "wood_pole2", "post_short": "wood_pole", "beam": "wood_beam", "roof": "thatch"},
+  "cobble": {"_doc": "Cobblestone wall (tile 77): a wood frame filled with stone fence; cottages walled with it get thatch. The frame is all oak (core wood): 4 m posts (post_4), 2 m ones where that is all the height (post; shrunk to 1 m only to finish an odd height), and 4 m logs along the top (beam_4) where two 2 m ones (beam) would lie end to end.", "fence": "stone_fence", "post_4": "wood_pole_log_4", "post": "wood_pole_log", "beam": "wood_wall_log", "beam_4": "wood_wall_log_4x0.5", "roof": "thatch"},
   "garden": {
     "_doc": "In the listed settlements a small water feature (a body of water on the ground floor of at most max_tiles tiles, clear of the map's edge: Britain's water round its plaza) is planted instead: grass, and per tile this many bushes and flowers picked from the lists.",
     "locations": [2], "max_tiles": 30, "bushes_per_tile": 2, "flowers_per_tile": 6,

@@ -76,6 +76,21 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void CottageFramesAreAllOak()
+        {
+            // Britain's cobblestone cottages: their posts and top beams are core wood (oak), and the
+            // posts mostly 4 m ones
+            var p = Plan(2, "towne");
+            var oak = new[] { "wood_pole_log_4", "wood_pole_log", "wood_wall_log", "wood_wall_log_4x0.5" };
+            Assert.True(p.Pieces.Count(x => x.Prefab == "wood_pole_log_4") > 50, "4 m oak posts");
+            Assert.Contains(p.Pieces, x => x.Prefab == "wood_wall_log_4x0.5");
+            // no pine post or beam stands where an oak one does (a corner or a top shared with pine)
+            foreach (var o in p.Pieces.Where(x => oak.Contains(x.Prefab)))
+                Assert.DoesNotContain(p.Pieces, x => (x.Prefab == "wood_pole2" || x.Prefab == "wood_pole" || x.Prefab == "wood_beam")
+                                                     && Math.Abs(x.X - o.X) < 0.3f && Math.Abs(x.Z - o.Z) < 0.3f && Math.Abs(x.Y - o.Y) < 2.5f);
+        }
+
+        [U5Fact]
         public void YewsSecretWallSurvivesTheSecondPass()
         {
             // the jail's secret wall (25,2) stays bricks of its group, its door hidden behind them,
