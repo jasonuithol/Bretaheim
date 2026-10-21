@@ -4,6 +4,10 @@
 - Every Ultima item is an item of its own, with its Ultima name and numbers: the 48 arms and armour,
   mixed spells, scrolls, potions, reagents, moonstones, keys and the quest items; recoloured ones
   (gold regalia, the purple gem, potions, shards) have their own colours and icons. Shops sell them.
+- Loot as in the original: slain monsters and townsfolk may leave chests (some trapped: acid, poison,
+  bomb, gas) holding the original's rolls; Lord British's cellar chests, the magic carpet, the
+  sandalwood box, the crown and sceptre lie where they did; the 113 hidden items are found by
+  searching their tile (E); moonstones and the reagent patches out in the land; conversation gifts.
 - No more terrain freezes when arriving in new land: a zone's terrain the game is waiting for is built
   first, and finished terrain is no longer thrown away when moving quickly (Valheim kept only 16).
 - Load profiler (Development/LogHitches): frames over 150 ms are logged with what ran in them.

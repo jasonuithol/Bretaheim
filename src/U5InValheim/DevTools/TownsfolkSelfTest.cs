@@ -546,7 +546,8 @@ namespace U5InValheim.DevTools
             foreach (var v in FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
             {
                 var z = v.GetZDO();
-                if (z == null || z.GetBool(Settlements.FixedKey) || v.GetComponent<Character>() != null || v.name.StartsWith(Structures.PrefabName)) continue;
+                if (z == null || z.GetBool(Settlements.FixedKey) || v.GetComponent<Character>() != null || v.name.StartsWith(Structures.PrefabName)
+                    || v.GetComponent<LootSpot>() != null || v.GetComponent<U5Chest>() != null) continue;
                 var cols = v.GetComponentsInChildren<Collider>().Where(c => c.enabled && !c.isTrigger).ToList();
                 if (cols.Count == 0) continue;
                 var bb = cols[0].bounds; foreach (var c in cols) bb.Encapsulate(c.bounds);
@@ -637,6 +638,35 @@ namespace U5InValheim.DevTools
             }
             foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");
+            // loot: the settlement's chests and the items lying or hidden in it
+            foreach (var ch in near.Where(v => v.GetComponent<U5Chest>() != null))
+            {
+                var inv = ch.GetComponent<Container>().GetInventory();
+                Plugin.Log.LogInfo($"townsfolk self-test town: chest at {ch.transform.position - town.Origin}, quality {ch.GetZDO().GetInt(Treasure.QualityKey)}, holds {string.Join(", ", inv.GetAllItems().Select(i => $"{i.m_stack} {i.m_shared.m_name}"))}");
+            }
+            foreach (var spot in near.Where(v => v.GetComponent<LootSpot>() != null))
+            {
+                var z = spot.GetZDO();
+                var ls = spot.GetComponent<LootSpot>();
+                bool onFloor = Physics.Raycast(spot.transform.position + Vector3.up * 0.5f, Vector3.down, out var lh, 2f, LayerMask.GetMask("piece", "static_solid", "Default", "terrain"));
+                Plugin.Log.LogInfo($"townsfolk self-test town: loot {(z.GetBool(Treasure.HiddenKey) ? "hidden" : "lying")} at {spot.transform.position - town.Origin}: {(U5InValheim.Data.LootKind)z.GetInt(Treasure.KindKey)} {z.GetInt(Treasure.ValueKey)} x{z.GetInt(Treasure.CountKey)} (index {z.GetInt(Treasure.IndexKey, -1)}), hover \"{ls.GetHoverText().Replace("\n", " ")}\", on {(onFloor ? $"{lh.collider.transform.root.name} {lh.distance - 0.5f:0.00} m below" : "nothing")}, drawn {spot.GetComponentsInChildren<Renderer>().Length} renderers");
+            }
+            // dying monsters leave chests by their treasure (a troll's 15: about half of them)
+            {
+                var at = town.Origin + new Vector3(0, 0, -town.Site.Half - 20f);
+                at.y = ZoneSystem.instance.GetGroundHeight(at) + 0.5f;
+                int before = Object.FindObjectsOfType<U5Chest>().Length, killed = 0;
+                for (int i = 0; i < 12; i++)
+                {
+                    var troll = UltimaCreatures.Spawn(41, at + new Vector3(i * 3f, 0, 0), false);
+                    if (troll == null) continue;
+                    troll.Damage(new HitData { m_damage = new HitData.DamageTypes { m_damage = 1e6f }, m_point = troll.transform.position });
+                    killed++;
+                }
+                yield return new WaitForSeconds(3f);
+                var chests = Object.FindObjectsOfType<U5Chest>().Where(c => Vector3.Distance(c.transform.position, at) < 60f).ToList();
+                Plugin.Log.LogInfo($"townsfolk self-test town: {killed} trolls killed, {Object.FindObjectsOfType<U5Chest>().Length - before} chests left ({string.Join("; ", chests.Take(3).Select(c => $"trapped {c.GetComponent<ZNetView>().GetZDO().GetBool(Treasure.TrapKey)}: {string.Join(", ", c.GetComponent<Container>().GetInventory().GetAllItems().Select(it => $"{it.m_stack} {it.m_shared.m_name}"))}"))}), Valheim drops near: {Object.FindObjectsOfType<ItemDrop>().Count(d => Vector3.Distance(d.transform.position, at) < 60f)}");
+            }
             for (int round = 0; round < rounds; round++)
             {
                 yield return new WaitForSeconds(20f);

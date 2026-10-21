@@ -171,6 +171,44 @@ namespace U5InValheim.Data
             return -1;
         }
 
+        static readonly string[] Shards = { "Shard of Falsehood", "Shard of Hatred", "Shard of Cowardice" };
+
+        /// <summary>The Valheim items (prefab, count) some loot is: an armour comes with its leggings; nothing for what is not an item.</summary>
+        public List<(string prefab, int count)> Prefabs(Loot loot)
+        {
+            var r = new List<(string, int)>();
+            ItemDef d;
+            switch (loot.Kind)
+            {
+                case LootKind.Item: d = Inventory(loot.Value); break;
+                case LootKind.Potion: d = Inventory(PotionBase + (loot.Value & 7)); break;
+                case LootKind.Scroll: d = Inventory(ScrollBase + (loot.Value & 7)); break;
+                case LootKind.Moonstone: d = Get($"U5_Moonstone{loot.Value & 7}"); break;
+                case LootKind.Shard: d = Special(Shards[loot.Value % 3]); break;
+                case LootKind.Gold: d = Special("Gold"); break;
+                case LootKind.Food: d = Special("Food"); break;
+                case LootKind.Keys: d = Special("Key"); break;
+                case LootKind.SkullKeys: d = Special("Skull Key"); break;
+                case LootKind.Gems: d = Special("Gem"); break;
+                case LootKind.Torches: d = Special("Torch"); break;
+                case LootKind.HmsCapePlans: d = Special("HMS Cape Plans"); break;
+                case LootKind.SandalwoodBox: d = Special("Sandalwood Box"); break;
+                case LootKind.Carpet: d = Special("Magic Carpet"); break;
+                case LootKind.Crown: d = Special("Crown of Lord British"); break;
+                case LootKind.Sceptre: d = Special("Sceptre of Lord British"); break;
+                case LootKind.AmuletOfLordBritish: d = Special("Amulet of Lord British"); break;
+                case LootKind.Grapple: d = Special("Grapple"); break;
+                case LootKind.Sextant: d = Special("Sextant"); break;
+                case LootKind.Spyglass: d = Special("Spyglass"); break;
+                case LootKind.BlackBadge: d = Special("Black Badge"); break;
+                default: d = null; break;
+            }
+            if (d == null || loot.Count <= 0) return r;
+            r.Add((d.Prefab, loot.Count));
+            foreach (var x in d.Extra) r.Add((x, loot.Count));
+            return r;
+        }
+
         /// <summary>Our prefab of a shop ware (<see cref="Ware.Item"/>) and the pieces given with it, or null when it has none.</summary>
         public (string prefab, string[] extra)? Of(int item)
         {

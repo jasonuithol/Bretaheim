@@ -87,6 +87,8 @@ namespace U5InValheim.Data
         /// <summary>Count of item id 0..111 (0..47 equipment, 48..95 mixed spells, 96..103 scrolls, 104..111 potions).</summary>
         public int ItemQuantity(int itemId) => d[0x21a + itemId];
         public int Reagent(int reagent) => d[0x2aa + reagent];
+        /// <summary>Moonstone 0..7: where it is buried (tile x, y; z 0 Britannia, −1 the Underworld), or carried.</summary>
+        public (int x, int y, bool buried, int z) Moonstone(int i) => (d[0x28a + i], d[0x292 + i], d[0x29a + i] == 0, (sbyte)d[0x2a2 + i]);
         public int Year => U16(0x2ce);
         public int Month => d[0x2d7];
         public int Day => d[0x2d8];

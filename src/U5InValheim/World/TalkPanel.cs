@@ -385,15 +385,9 @@ namespace U5InValheim.WorldGen
         public void Give(int item)
         {
             if (Me == null) return;
-            // gold is coins; the other gifts arrive with the item set (Phase 5)
-            if (item == 0x42)
-            {
-                var coins = ObjectDB.instance.GetItemPrefab("Coins");
-                if (coins != null) Me.GetInventory().AddItem(coins, 1);
-                return;
-            }
-            string name = item < 0x40 ? Plugin.U5.Ovl.InventoryName(item) : item.ToString("x2");
-            Me.Message(MessageHud.MessageType.TopLeft, $"(Ultima gift not yet mapped: {name})");
+            string what = Treasure.Give(Me.GetInventory(), LootTables.Gift(item), Me.transform.position);
+            if (what.Length > 0) Me.Message(MessageHud.MessageType.TopLeft, what);
+            else Plugin.Log.LogWarning($"Talk: gift {item:x2} is no item");
         }
 
         /// <summary>A party is other players (MASTER_PLAN §1.6): townsfolk never join.</summary>

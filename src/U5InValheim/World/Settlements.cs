@@ -209,6 +209,12 @@ namespace U5InValheim.WorldGen
             foreach (var b in All)
                 if (ZoneSystem.GetZone(b.Origin) == zoneID) TownsfolkSpawner.Spawn(b, mode, spawnedObjects);
 
+            // the loot lying in the settlements and hidden in the land
+            foreach (var b in All)
+                if (Mathf.Abs(zonePos.x - b.Origin.x) < b.Site.Half + 64f && Mathf.Abs(zonePos.z - b.Origin.z) < b.Site.Half + 64f)
+                    Treasure.SpawnSettlement(b, zoneID, mode, spawnedObjects);
+            Treasure.SpawnLand(zoneID, mode, spawnedObjects);
+
             if (!byZone.TryGetValue(zoneID, out var pieces)) return;
             int spawned = 0, missing = 0;
             foreach (var (b, p) in pieces)
