@@ -218,7 +218,7 @@ Castle/keep/tower/lighthouse structures get grausten roofs (grausten)
 
 41: Mysterious glass orb on a table => "Round table" (scaled to 2m x 2m x 1m) with a "refined eitr" (scaled 2x size and reshaded blue) in the middle
 
-42: Lighthouse light => Iron Brazier, scaled to 2m x 2m and proportional height.
+42: Lighthouse light => Iron Brazier, scaled to 2m x 2m and proportional height.  Stick it on a stack of 3 large marble round columns.
 
 43: Dead Tree => Ancient tree borrowed from the swamp.
 
@@ -229,7 +229,7 @@ Castle/keep/tower/lighthouse structures get grausten roofs (grausten)
 
 68: Stone tile - floor
 69: Black marble tile - floor
-70: Stone column on stone tile.
+70: Stone column on stone tile.  Floor to ceiling
 71: jetty E-W. oak pylons with a wood deck.
 72, 73: These are often used as drawbridges.  If there's water to the east and west of a line of these, it's a drawbridge.  See if you can't stick a real valheim drawbridge in there.  OTHERWISE: wood flooring, plain and simple.
 
