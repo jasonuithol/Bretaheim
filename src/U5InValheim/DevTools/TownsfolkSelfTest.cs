@@ -598,6 +598,9 @@ namespace U5InValheim.DevTools
                 int fc = town.Plan.CellAt(l.x, l.z);
                 Plugin.Log.LogInfo($"townsfolk self-test town: barrel at tile ({fc % 32},{fc / 32}) tilted {Vector3.Angle(f.transform.up, Vector3.up):0}°, solid {bb.min.y - town.Origin.y:0.00}..{bb.max.y - town.Origin.y:0.00} m, {bb.size.x:0.0} x {bb.size.z:0.0}");
             }
+            var magic = near.Where(v => v.GetZDO()?.GetString(Settlements.LookKey) == "magic_lock").ToList();
+            if (magic.Count > 0)
+                Plugin.Log.LogInfo($"townsfolk self-test town: {magic.Count} magically locked doors ({string.Join(", ", magic.Select(v => $"{Utils.GetPrefabName(v.gameObject)} at {v.transform.position - town.Origin}, lock {v.GetZDO().GetString(Settlements.LockKey)}, light {v.GetComponentInChildren<Light>() != null}"))})");
             foreach (var th in near.Where(v => v.name.StartsWith("piece_throne")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: throne at {th.transform.position - town.Origin} facing {th.transform.forward}");
             var back = Respawn.Point();

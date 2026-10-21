@@ -1084,7 +1084,7 @@ namespace U5InValheim.WorldGen.Core
                     case TileKind.Door:
                         if (r.Gate && ctx.Known(style.Gate)) ctx.Centre(style.Gate, cx, y0 + 1.5f, cz, yaw);
                         else Door(ctx, lv, style, c, along[c], y0, viewport: r.Viewport);
-                        if (r.Lock != null) ctx.Last(pl => { pl.Lock = r.Lock; return pl; });
+                        if (r.Lock != null) ctx.Last(pl => { pl.Lock = r.Lock; if (r.Lock == "magic") pl.Look = "magic_lock"; return pl; });
                         break;
                 }
             }

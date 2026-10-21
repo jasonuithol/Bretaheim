@@ -31,6 +31,7 @@ namespace U5InValheim.WorldGen
                 case "rune": Rune(go); break;
                 case "bare_stand": BareStand(go); break;
                 case "see_through": SeeThrough(go); break;
+                case "magic_lock": MagicLock(go); break;
                 case "bloody": Bloody(go); break;
                 case "portcullis": go.AddComponent<Portcullis>(); break;
                 case "ghost": foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false; break;
@@ -114,6 +115,52 @@ namespace U5InValheim.WorldGen
             tex.SetPixels32(px);
             tex.Apply();
             return tex;
+        }
+
+        static readonly Dictionary<Material, Material> glowing = new Dictionary<Material, Material>();
+        static readonly Color MagicBlue = new Color(0.35f, 0.6f, 1f);
+
+        /// <summary>
+        /// A magically locked door (MASTER_PLAN §5.2: "magically locked doors glow blue"): its own
+        /// materials lit a soft mystic blue, and a blue light before it that slowly breathes.
+        /// </summary>
+        static void MagicLock(GameObject go)
+        {
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r.GetType().Name == "ParticleSystemRenderer") continue;
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null) continue;
+                    if (!glowing.TryGetValue(m, out var copy))
+                    {
+                        copy = new Material(m) { name = m.name + " (magic lock)" };
+                        if (copy.HasProperty("_EmissionColor"))
+                        {
+                            copy.EnableKeyword("_EMISSION");
+                            copy.SetColor("_EmissionColor", MagicBlue * 0.35f);
+                        }
+                        if (copy.HasProperty("_Color")) copy.SetColor("_Color", copy.GetColor("_Color") * new Color(0.75f, 0.85f, 1.1f));
+                        glowing[m] = copy;
+                    }
+                    mats[i] = copy;
+                }
+                r.sharedMaterials = mats;
+            }
+            var glow = new GameObject("u5_magic_glow");
+            glow.transform.SetParent(go.transform, false);
+            // (in the doorway's middle, a metre and a half up: the 3 m leaf is hinged at its pivot, a
+            // metre along it; the 2 m viewport door's pivot is its middle, a metre up)
+            glow.transform.localPosition = Utils.GetPrefabName(go).StartsWith("wood_door") ? new Vector3(0f, 0.5f, 0f) : new Vector3(-1f, 1.5f, 0f);
+            var light = glow.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = MagicBlue;
+            light.range = 5f;
+            light.intensity = 1.2f;
+            light.shadows = LightShadows.None;
+            glow.AddComponent<Breathe>();
         }
 
         static readonly Dictionary<Material, Material> faded = new Dictionary<Material, Material>();
@@ -452,6 +499,25 @@ namespace U5InValheim.WorldGen
 
         /// <summary>Down (barring the gate) now.</summary>
         public bool IsDown => lift < 1f;
+    }
+
+    /// <summary>A light that slowly breathes (a magically locked door's glow).</summary>
+    public class Breathe : MonoBehaviour
+    {
+        Light light;
+        float phase, base_;
+
+        void Awake()
+        {
+            light = GetComponent<Light>();
+            base_ = light != null ? light.intensity : 1f;
+            phase = UnityEngine.Random.value * 6f;
+        }
+
+        void Update()
+        {
+            if (light != null) light.intensity = base_ * (0.65f + 0.35f * Mathf.Sin(Time.time * 1.3f + phase));
+        }
     }
 
     /// <summary>A secret wall's marked brick: the mark shows only to someone within a few metres of it.</summary>
