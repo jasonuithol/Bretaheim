@@ -115,7 +115,11 @@ namespace U5InValheim.WorldGen
                     s.m_description = "One of the eight moonstones.";
                     break;
                 case ItemKind.Special:
+                    // keys, gems, food and the like stack (what is worn or held does not)
                     if (s.m_itemType == ItemDrop.ItemData.ItemType.Material || s.m_itemType == ItemDrop.ItemData.ItemType.Consumable) Carried(s, 99);
+                    else if (s.m_itemType == ItemDrop.ItemData.ItemType.Misc) s.m_maxStackSize = 99;
+                    // (Hildir's chest, the Sandalwood Box, weighs 200)
+                    s.m_weight = Mathf.Min(s.m_weight, 1f);
                     s.m_description = "";
                     break;
             }
@@ -130,13 +134,14 @@ namespace U5InValheim.WorldGen
                || t == ItemDrop.ItemData.ItemType.Shoulder || t == ItemDrop.ItemData.ItemType.Shield || t == ItemDrop.ItemData.ItemType.Trinket
                || t == ItemDrop.ItemData.ItemType.Utility;
 
-        /// <summary>Something carried, not eaten or drunk (a material), stacking to <paramref name="stack"/>.</summary>
+        /// <summary>Something carried, not eaten or drunk (a material), stacking to <paramref name="stack"/>, weighing little.</summary>
         static void Carried(ItemDrop.ItemData.SharedData s, int stack)
         {
             s.m_itemType = ItemDrop.ItemData.ItemType.Material;
             s.m_food = s.m_foodStamina = s.m_foodEitr = s.m_foodBurnTime = s.m_foodRegen = 0;
             s.m_consumeStatusEffect = null;
             s.m_maxStackSize = stack;
+            s.m_weight = 0.1f;
         }
 
         /// <summary>The fighting damage (not chopping or mining) scaled to add up to <paramref name="total"/>, in its own mix of kinds.</summary>

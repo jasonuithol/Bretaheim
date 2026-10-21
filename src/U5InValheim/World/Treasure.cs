@@ -27,7 +27,10 @@ namespace U5InValheim.WorldGen
         public const string ChestPrefab = "u5_chest", SpotPrefab = "u5_loot";
         public const string QualityKey = "u5_chest_quality", TrapKey = "u5_trap", OpenedKey = "u5_opened";
         public const string KindKey = "u5_loot_kind", ValueKey = "u5_loot_value", CountKey = "u5_loot_count",
-                            HiddenKey = "u5_loot_hidden", IndexKey = "u5_loot_index", DayKey = "u5_loot_day", MoundKey = "u5_loot_mound";
+                            HiddenKey = "u5_loot_hidden", IndexKey = "u5_loot_index", DayKey = "u5_loot_day", MoundKey = "u5_loot_mound",
+                            CoverKey = "u5_loot_cover";
+        /// <summary>A hidden spot under furniture (a wardrobe, a barrel) is searched through it: its box encloses the tile this high.</summary>
+        public const float CoverHeight = 2.6f, CoverWidth = 1.98f;
         /// <summary>A loot spot that is no hidden-object entry (index key unset).</summary>
         const int NotHidden = -1;
         /// <summary>The reagent patches' spots (hidden-object index 200 + patch): mandrake, mandrake, nightshade.</summary>
@@ -200,7 +203,7 @@ namespace U5InValheim.WorldGen
 
         // ── loot spots ──────────────────────────────────────────────────────────────────────────
 
-        static GameObject SpawnSpot(Vector3 at, Loot loot, bool hidden, int index, bool mound, ZoneSystem.SpawnMode mode, List<GameObject> spawned)
+        static GameObject SpawnSpot(Vector3 at, Loot loot, bool hidden, int index, bool mound, ZoneSystem.SpawnMode mode, List<GameObject> spawned, bool covered = false)
         {
             var prefab = ZNetScene.instance?.GetPrefab(SpotPrefab);
             if (prefab == null) return null;
@@ -215,6 +218,7 @@ namespace U5InValheim.WorldGen
                 zdo.Set(HiddenKey, hidden);
                 zdo.Set(IndexKey, index);
                 zdo.Set(MoundKey, mound);
+                if (covered) zdo.Set(CoverKey, true);
                 go.GetComponent<LootSpot>()?.Show();
             }
             if (mode == ZoneSystem.SpawnMode.Ghost)
@@ -229,7 +233,7 @@ namespace U5InValheim.WorldGen
         public static void SpawnSettlement(Settlements.Built b, Vector2s zone, ZoneSystem.SpawnMode mode, List<GameObject> spawned)
         {
             int loc = b.Location.Number;
-            int made = 0;
+            int made = 0, covered = 0;
             Vector3 World(int z, int x, int y)
             {
                 var (lx, ly, lz) = b.Plan.TilePos(z, y * SettlementPlan.Size + x);
@@ -256,10 +260,23 @@ namespace U5InValheim.WorldGen
                 if (h.Location != loc || h.Loot.Kind == LootKind.None) continue;
                 var at = World(h.Z, h.X, h.Y);
                 if (ZoneSystem.GetZone(at) != zone) continue;
-                SpawnSpot(at, h.Loot, true, h.Index, false, mode, spawned);
+                var (lx, ly, lz) = b.Plan.TilePos(h.Z, h.Y * SettlementPlan.Size + h.X);
+                bool under = Covered(b.Plan, lx, ly, lz);
+                SpawnSpot(at, h.Loot, true, h.Index, false, mode, spawned, under);
                 made++;
+                if (under) covered++;
             }
-            if (made > 0) Plugin.Log.LogInfo($"{b.Location.Name}: {made} pieces of loot in zone {zone}");
+            if (made > 0) Plugin.Log.LogInfo($"{b.Location.Name}: {made} pieces of loot in zone {zone} ({covered} hidden under furniture)");
+        }
+
+        /// <summary>Whether furniture stands on the tile around (x, y, z): a piece (not a floor) whose pivot is inside it, above its floor.</summary>
+        static bool Covered(SettlementPlan plan, float x, float y, float z)
+        {
+            float half = plan.Tile / 2 - 0.1f;
+            foreach (var p in plan.Pieces)
+                if (Mathf.Abs(p.X - x) < half && Mathf.Abs(p.Z - z) < half && p.Y > y - 0.1f && p.Y < y + 2f
+                    && p.Prefab.IndexOf("floor", System.StringComparison.OrdinalIgnoreCase) < 0) return true;
+            return false;
         }
 
         /// <summary>What is hidden out in Britannia (in the zone being made): the hidden objects on the surface, the buried moonstones, the reagent patches.</summary>
@@ -397,6 +414,11 @@ namespace U5InValheim.WorldGen
             var zdo = nview?.GetZDO();
             if (shown || zdo == null || zdo.GetInt(Treasure.KindKey) == 0) return;
             shown = true;
+            if (zdo.GetBool(Treasure.CoverKey) && GetComponent<BoxCollider>() is BoxCollider box)
+            {
+                box.size = new Vector3(Treasure.CoverWidth, Treasure.CoverHeight, Treasure.CoverWidth);
+                box.center = new Vector3(0, Treasure.CoverHeight / 2, 0);
+            }
             if (!Recolour.Draws) return;
             GameObject look = null;
             if (zdo.GetBool(Treasure.MoundKey)) look = Visual("mudpile", 0.35f);

@@ -35,6 +35,7 @@ Ultima V rebuilt inside Valheim (BepInEx + Jötunn). `MASTER_PLAN.md` is the bac
 - `tools/package.sh` checks manifest/Plugin.cs/CHANGELOG versions agree and zips `release/tarbaby-U5InValheim-<v>.zip`.
 - Publish categories: `ai-generated client-side server-side` (via the mcp-valheim `publish` tool; verify
   categories on the listing afterwards).
+- Client checks without the user: `~/Projects/AutoHeim` (its `valheim-client` skill; `tools/autoheim` from that repo) runs an isolated client whose profile is `~/.local/share/AutoHeim/instances/default/BepInEx` (Jötunn and the U5InValheim config copied in; `tools/deploy.sh ~/.local/share/AutoHeim/instances/default` after `autoheim quit`). Worlds named with a `Britannia…` seed; `world_objects name=u5_loot` finds loot, `teleport`/`look`/`screenshot` show hover text, `interact name=u5_loot` takes the nearest spot.
 - Runtime checks: mcp-valheim control `start_server` / `start_client`, then read `BepInEx/LogOutput.log`
   for `U5InValheim v… loaded.` and `Read Ultima V from … ms`.
 

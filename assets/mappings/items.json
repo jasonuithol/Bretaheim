@@ -91,7 +91,6 @@
     { "u5": "Magic Carpet",    "prefab": "JuteRed",           "status": "custom",  "note": "doc: 'maybe a jute carpet ?': carried as a roll of red jute, laid as the jute carpet", "use": "carpet" },
     { "u5": "Black Badge",     "prefab": "TrinketIronHealth", "status": "reshade", "tint": "#202020", "use": "badge" },
     { "u5": "Sandalwood Box",  "prefab": "chest_hildir1",     "status": "direct", "note": "one of Hildir's quest chests" },
-    { "u5": "Magic Sheet Music","prefab": "LinenThread",      "status": "reshade" },
     { "u5": "HMS Cape Plans",  "prefab": "LinenThread",       "status": "reshade" },
     { "u5": "Shard of Falsehood", "prefab": "Ruby",           "status": "reshade", "tint": "#2a2a30", "note": "black metal" },
     { "u5": "Shard of Hatred",    "prefab": "Ruby",           "status": "reshade", "tint": "#2a2a30" },

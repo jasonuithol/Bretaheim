@@ -268,7 +268,7 @@ town populations when their zone loads.
   from DATA.OVL. **Rings and amulets are Valheim trinkets** (already equippable; no custom worn
   asset): invisibility→Nimble Anklet, protection→Wolf Sight, regeneration→Jormundling; ankh→Crystal
   Heart, spiked→Resounding Shackle, turning→Bronze Pendant. Potions: one mead re-shaded in the 8
-  colours; scrolls, Magic Sheet Music and the HMS Cape plans: linen reels (crawling-rune shader as
+  colours; scrolls and the HMS Cape plans: linen reels (crawling-rune shader as
   a stretch goal); reagents: the mapped Valheim consumables.
 - Quest/utility items: Gem → purple ruby (right-click opens the Valheim map = "view gem");
   Spyglass → horn of celebration (equip like Megingjord; at night on the surface it reveals the
