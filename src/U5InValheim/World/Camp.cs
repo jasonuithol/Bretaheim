@@ -154,8 +154,10 @@ namespace U5InValheim.WorldGen
     }
 
     /// <summary>A camp's lean-to: lie down under it (E) as in a bed, by night or by day.</summary>
-    public class LeanTo : MonoBehaviour, Hoverable, Interactable
+    public class LeanTo : MonoBehaviour, Hoverable, Interactable, ITalker
     {
+        // DATA.OVL (DGROUP): "For how many hours? (1-9) "
+        const int SHowManyHours = 0xa32c;
         public static readonly List<LeanTo> All = new List<LeanTo>();
         Transform spot;
 
@@ -167,12 +169,25 @@ namespace U5InValheim.WorldGen
 
         void OnDestroy() => All.Remove(this);
 
+        /// <summary>"For how many hours? (1-9)", as the original's camp asks; then lie down.</summary>
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
             if (hold || !(user is Player p) || p != Player.m_localPlayer || p.IsAttached()) return false;
-            Sleep.LieDown(p, spot, gameObject);
+            var answers = Enumerable.Range(1, 9).Select(h => (h.ToString(), (System.Action)(() =>
+            {
+                if (p == null || p.IsDead() || p.IsAttached()) return;
+                Sleep.SetHours(p, h);
+                Sleep.LieDown(p, spot, gameObject);
+            }))).ToArray();
+            TalkPanel.Ask(this, "Lean-to", Plugin.U5.Ovl.CStr(SHowManyHours).Trim(), answers);
             return true;
         }
+
+        // (asked through the talk panel)
+        int ITalker.Location => 0;
+        int ITalker.Slot => 0;
+        U5InValheim.Data.TlkScript ITalker.Script => null;
+        public void EndTalk() { }
 
         public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
         public string GetHoverText() => Localization.instance.Localize("Lean-to\n[<color=yellow><b>$KEY_Use</b></color>] Sleep");

@@ -25,8 +25,8 @@ Britain, Lord British's castle and Iolo's hut):
   up at night and down in the morning.
 - Inns: pay the innkeeper for a night's rest (the original's price and words) and sleep in one of
   the inn's beds until morning. Everyone must be in bed for the night to pass.
-- Camping: H pitches a lean-to and a campfire out in the wild; sleep under the lean-to (by day too:
-  eight hours pass). A sleeping camp may be ambushed.
+- Camping: H pitches a lean-to and a campfire out in the wild; the lean-to asks "For how many
+  hours? (1-9)" and that many hours pass, by day or night (an inn sleeps until morning). A sleeping camp may be ambushed.
 - Barrels are big brewing barrels (they block a passage); a floor a ladder climbs through is
   semi-transparent; secret walls show their rune only up close.
 - Lighthouse lights burn in iron braziers on stacks of marble rounds; stone columns reach the

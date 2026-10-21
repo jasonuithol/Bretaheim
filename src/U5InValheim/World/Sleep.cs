@@ -20,24 +20,62 @@ namespace U5InValheim.WorldGen
         const int SZzz = 0x41d4, SAmbushed = 0x41e0;
         static readonly System.Random random = new System.Random();
 
+        /// <summary>The hours a player sleeping at a camp asked for (on their ZDO; 0 elsewhere).</summary>
+        const string HoursKey = "u5_sleep_hours";
+
         public static void Install(Harmony harmony)
         {
             var update = AccessTools.Method(typeof(Game), "UpdateSleeping");
-            if (update != null) harmony.Patch(update, postfix: new HarmonyMethod(typeof(Sleep), nameof(UpdateSleeping_Postfix)));
+            if (update != null) harmony.Patch(update, prefix: new HarmonyMethod(typeof(Sleep), nameof(UpdateSleeping_Prefix)), postfix: new HarmonyMethod(typeof(Sleep), nameof(UpdateSleeping_Postfix)));
             var start = AccessTools.Method(typeof(Game), "Start");
             if (start != null) harmony.Patch(start, postfix: new HarmonyMethod(typeof(Sleep), nameof(GameStart_Postfix)));
         }
 
         static void GameStart_Postfix() => ZRoutedRpc.instance?.Register(WakeRpc, sender => Wake());
 
+        /// <summary>Camping: how many hours this player will sleep (an inn's bed: until morning).</summary>
+        public static void SetHours(Player p, int hours) => p?.GetComponent<ZNetView>()?.GetZDO()?.Set(HoursKey, hours);
+
         /// <summary>Lies the player down to sleep at this spot (a bed's or a lean-to's).</summary>
         public static void LieDown(Player p, Transform spot, GameObject bed)
         {
+            // (only a camp asks for hours: anywhere else sleeps the night)
+            if (bed == null || bed.GetComponent<LeanTo>() == null) SetHours(p, 0);
             p.AttachStart(spot, bed, hideWeapons: true, isBed: true, onShip: false, "attach_bed", new Vector3(0f, 0.5f, 0f));
             p.Message(MessageHud.MessageType.Center, Plugin.U5.Ovl.CStr(SZzz).Trim());
         }
 
         static bool wasSleeping;
+
+        /// <summary>
+        /// On the server, before Valheim's own check: when everyone is lying down and all of them at
+        /// camps, the hours they asked for pass (the fewest asked, so nobody oversleeps), by day or night.
+        /// </summary>
+        static bool UpdateSleeping_Prefix(Game __instance)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer() || Britannia.Active == null || EnvMan.instance == null) return true;
+            var t = Traverse.Create(__instance);
+            if (t.Field("m_sleeping").GetValue<bool>() || EnvMan.instance.IsTimeSkipping()) return true;
+            var sleepers = ZNet.instance.GetAllCharacterZDOS();
+            if (sleepers.Count == 0 || !sleepers.All(z => z.GetBool(ZDOVars.s_inBed) && z.GetInt(HoursKey) > 0)) return true;
+            if (ZNet.instance.GetTimeSeconds() - t.Field("m_lastSleepTime").GetValue<double>() < 10.0) return true;
+            int hours = sleepers.Min(z => z.GetInt(HoursKey));
+            Pass(EnvMan.instance, hours);
+            t.Field("m_sleeping").SetValue(true);
+            ZRoutedRpc.instance.InvokeRoutedRPC(0L, "SleepStart");
+            Plugin.Log.LogInfo($"The camp sleeps {hours} hour{(hours == 1 ? "" : "s")}");
+            return false;
+        }
+
+        /// <summary>Time passes this many Britannia hours (quickly, as sleeping does).</summary>
+        static void Pass(EnvMan env, float hours)
+        {
+            double now = ZNet.instance.GetTimeSeconds(), to = now + env.m_dayLengthSec * hours / 24.0;
+            var e = Traverse.Create(env);
+            e.Field("m_skipTime").SetValue(true);
+            e.Field("m_skipToTime").SetValue(to);
+            e.Field("m_timeSkipSpeed").SetValue((to - now) / 12.0);
+        }
 
         /// <summary>On the server, after Valheim's own check: sleeping by day, and the camp's ambush when sleep begins.</summary>
         static void UpdateSleeping_Postfix(Game __instance)
@@ -51,11 +89,7 @@ namespace U5InValheim.WorldGen
                 && ZNet.instance.GetTimeSeconds() - t.Field("m_lastSleepTime").GetValue<double>() >= 10.0)
             {
                 // by day, as the original allows: eight hours pass
-                double now = ZNet.instance.GetTimeSeconds(), to = now + env.m_dayLengthSec * DayHours / 24.0;
-                var e = Traverse.Create(env);
-                e.Field("m_skipTime").SetValue(true);
-                e.Field("m_skipToTime").SetValue(to);
-                e.Field("m_timeSkipSpeed").SetValue((to - now) / 12.0);
+                Pass(env, DayHours);
                 t.Field("m_sleeping").SetValue(true);
                 ZRoutedRpc.instance.InvokeRoutedRPC(0L, "SleepStart");
                 sleeping = true;

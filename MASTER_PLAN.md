@@ -344,8 +344,9 @@ have none; castles get fixed ballistas you can fire.
 - No building in the world. **H** pitches camp ("Hole up & camp!"): a lean-to and a campfire before
   the player (not in a settlement, not on water; one camp each, pitching again moves it). The
   lean-to is slept under as a bed (E: Sleep); the fire burns all night and is where spells are
-  mixed (M near a campfire, with the magic). The night passes when every player is lying down
-  (Valheim's rule); by day, as in the original, eight hours pass. A party asleep at a camp may be
+  mixed (M near a campfire, with the magic). The lean-to asks "For how many hours? (1-9)" and,
+  when every player lying down is at a camp, that many pass (the fewest asked); an inn's bed sleeps
+  until morning (Valheim's rule: everyone lying down; by day eight hours pass). A party asleep at a camp may be
   ambushed ("Ambushed!": time stops, everyone wakes, an encounter comes). Resting/healing hangs off this.
 - Inns (SHOPPES3): each player pays the innkeeper "Rest" for one night (the original's rate,
   discounted for intelligence; "Highwaymen! … OUT!" without the gold) and may sleep in any bed of

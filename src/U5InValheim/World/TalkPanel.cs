@@ -66,6 +66,16 @@ namespace U5InValheim.WorldGen
             Refresh();
         }
 
+        /// <summary>A question from something that is not a conversation (the camp's "For how many hours?"), answered with a button.</summary>
+        public static void Ask(ITalker who, string heading, string question, params (string text, Action click)[] answers)
+        {
+            if (!Start(who, heading)) return;
+            session = null;
+            Show(question);
+            SetButtons(answers.Select(a => (a.text, (Action)(() => { Close(farewell: false); a.click(); }))).ToArray());
+            Refresh();
+        }
+
         /// <summary>A guard come to arrest the player (TOWN guard_arrest): "Wilt thou come quietly?" Yes or No.</summary>
         public static void OpenArrest(TownNpc guard)
         {
