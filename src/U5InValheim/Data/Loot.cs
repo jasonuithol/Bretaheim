@@ -116,6 +116,30 @@ namespace U5InValheim.Data
             }
         }
 
+        // DUNGEON chest (SJOG get_dungeon_chest_contents): seven rolls, each a minimum, a maximum and a kind
+        const int DungeonMin = 0x41bc, DungeonMax = 0x41c4, DungeonKind = 0x41cc;
+
+        /// <summary>
+        /// What a chest standing in a dungeon cell gives (get_dungeon_chest_contents): seven rolls of
+        /// 1..4·level+4, each taken when it reaches its minimum: food, gold (1..8·level), keys,
+        /// gems, torches, a potion and a scroll (of a random colour/kind).
+        /// </summary>
+        public static List<Loot> DungeonChest(DataOvl ovl, int level, Random rnd)
+        {
+            var r = new List<Loot>();
+            for (int i = 0; i < 7; i++)
+            {
+                int roll = Rand(rnd, 1, level * 4 + 4);
+                if (ovl.U8(DungeonMin + i) > roll) continue;
+                Loot loot;
+                if (i == 5) loot = Object(3, Rand(rnd, 0, 7));
+                else if (i == 6) loot = Object(4, Rand(rnd, 0, 7));
+                else loot = Object(ovl.U8(DungeonKind + i), Rand(rnd, 1, i == 1 ? level << 3 : ovl.U8(DungeonMax + i)));
+                if (loot.Kind != LootKind.None && loot.Count > 0) r.Add(loot);
+            }
+            return r;
+        }
+
         /// <summary>A monster dying with this treasure value (its stats +6) leaves a chest of that quality, trapped or not, or a corpse (no chest).</summary>
         public static (bool chest, bool trapped) Drop(int treasure, Random rnd)
         {

@@ -583,7 +583,7 @@ namespace U5InValheim.WorldGen.Core
 
         // ── placement helpers ─────────────────────────────────────────────────────────────────
 
-        class Ctx
+        public class Ctx
         {
             public readonly SettlementPlan Plan;
             readonly PieceGeometry geo;
