@@ -123,6 +123,16 @@ namespace U5InValheim.WorldGen
             finally { viewingGem = false; }
         }
 
+        /// <summary>The map opened as a gem opens it, without spending one (the crystal sphere's strange vision).</summary>
+        public static void ShowMap()
+        {
+            if (Minimap.instance == null) return;
+            InventoryGui.instance?.Hide();
+            viewingGem = true;
+            try { Minimap.instance.SetMapMode(Minimap.MapMode.Large); }
+            finally { viewingGem = false; }
+        }
+
         /// <summary>In Britannia the map opens only through a gem.</summary>
         static bool SetMapMode_Prefix(Minimap.MapMode mode)
         {

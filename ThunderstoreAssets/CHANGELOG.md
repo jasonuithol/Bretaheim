@@ -6,6 +6,16 @@
   the original's own map window and words. In Doom's last room the mirror takes thee to Lord
   British's prison: bring the Sandalwood Box and he leads thee home through the Orb's moongate, to
   the original's ending screens and certificate. `u5 quest` shows how the quest stands.
+- The towns' one-off furnishings work as the original's Look does: look through a telescope at
+  the night sky (not at the sun!), drop a coin down a wishing well and make a wish (a horse, in
+  Paws or Empath Abbey), read the time off a grandfather clock, gaze into a crystal sphere, read a
+  grave's eulogy and dig the earth before it, see thyself in a mirror (and break it), and klimb
+  over fences. Signs spell out the runic letters (TH, NG, EA, ST, EE). The pools of Blackthorn's
+  palace, Buccaneer's Den and Serpent's Hold are flower beds.
+- Real stairs: where the towns' maps draw stairs, a spiral stair now climbs round a newel post to
+  the floor above (walk up it, or press E on it); the ladders stay where the maps draw ladders.
+- The rivers run under wooden bridges (plank decks with rails, log piers and ramps) where the map
+  has bridges, and the land stands as a cliff behind each waterfall, the river cutting a gorge.
 - Britannia keeps the original's calendar (one Valheim day is one Ultima day, starting 4-5-139) and
   its moons: by night a moongate rises at every buried moonstone and carries you to the site the
   moons' phases choose. Moonstones can be dug up (the gate is gone) and buried again (use one).

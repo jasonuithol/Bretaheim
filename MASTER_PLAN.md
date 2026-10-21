@@ -443,6 +443,11 @@ quest flags via world-level custom data; dialogue is per-player. Test in a dedic
   its tool chest, crafting table and barley plot.
 - Exit: Britain, the castle and the hut are walkable and look like the mapping says; new players
   spawn in the hut.
+- Status (2026-10-21): real stairs (spiral flights inside the stairs tile, walked or used with E),
+  the overworld bridges (wooden decks over the river), cliffs at the waterfalls, the one-off props
+  (telescope, wishing well, clocks, graves with their eulogies and dug earth, mirrors, crystal
+  sphere, klimbable fences) and the other towns' small pools as flower beds are built. Still open:
+  walking the stairs and the props' looks checked in a client; falling water at the waterfalls (no asset).
 - Status (2026-10-20): every settlement of the Britannia surface is built (31 of them; Ararat is in
   the Underworld); the server self-test builds each and checks its people keep to their floors.
   The original's creatures in settlement NPC slots live there: those that talk (Sin'Vraal, Grendel,

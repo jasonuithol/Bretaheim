@@ -287,6 +287,49 @@ if (argv.Count > 0 && argv[0] == "converse")
     Console.WriteLine(t.Over ? "\n[over]" : $"\n[waiting: {t.Prompt.Replace("\n", " ")}]");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "census")
+{
+    // census <hex tile>[,<hex tile>…]: every settlement tile of those numbers (location, floor, x, y),
+    // with the tiles round it (n e s w) and the same cell's tile on the floors above and below;
+    // census unlisted: every tile town_tiles.json has no rule for, counted
+    if (argv[1] == "unlisted")
+    {
+        var listed = System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "town_tiles.json")), "\"([0-9a-f]{2})\": \\{\"kind\"")
+            .Select(m => Convert.ToByte(m.Groups[1].Value, 16)).ToHashSet();
+        var counts = new System.Collections.Generic.Dictionary<byte, (int n, string where)>();
+        foreach (var loc in data.Locations.Where(l => l.IsSettlement))
+            for (int z = loc.MinZ; z <= loc.MaxZ; z++)
+                foreach (var t in data.Maps.Floor(loc, z).Where(t => !listed.Contains(t)))
+                    counts[t] = counts.TryGetValue(t, out var c) ? (c.n + 1, c.where.Contains(loc.Name) ? c.where : c.where + ", " + loc.Name) : (1, loc.Name);
+        foreach (var kv in counts.OrderBy(k => k.Key)) Console.WriteLine($"{kv.Key:x2} {data.TileNames[kv.Key],-28} x{kv.Value.n}: {kv.Value.where}");
+        return 0;
+    }
+    var want = argv[1].Split(',').Select(s => Convert.ToByte(s, 16)).ToHashSet();
+    if (argv.Count > 2 && (argv[2] == "britannia" || argv[2] == "underworld"))
+    {
+        // census <tiles> britannia|underworld: those tiles on the overworld, with the 3×3 round each
+        var w = argv[2] == "britannia" ? data.Britannia : data.Underworld;
+        for (int y = 0; y < 256; y++)
+            for (int x = 0; x < 256; x++)
+                if (want.Contains(w[x, y]))
+                    Console.WriteLine($"({x,3},{y,3}) {w[x, y]:x2}  " + string.Join(" | ", Enumerable.Range(-1, 3).Select(dy => string.Join(" ", Enumerable.Range(-1, 3).Select(dx => w[x + dx, y + dy].ToString("x2"))))));
+        return 0;
+    }
+    foreach (var loc in data.Locations.Where(l => l.IsSettlement))
+        for (int z = loc.MinZ; z <= loc.MaxZ; z++)
+        {
+            var m = data.Maps.Floor(loc, z);
+            for (int c = 0; c < 32 * 32; c++)
+            {
+                if (!want.Contains(m[c])) continue;
+                int x = c % 32, y = c / 32;
+                string At(int xx, int yy) => xx < 0 || yy < 0 || xx > 31 || yy > 31 ? "--" : m[yy * 32 + xx].ToString("x2");
+                string Floor(int zz) => zz < loc.MinZ || zz > loc.MaxZ ? "--" : data.Maps.Floor(loc, zz)[c].ToString("x2");
+                Console.WriteLine($"{loc.Number,2} {loc.Name,-18} z{z,2} ({x,2},{y,2}) {m[c]:x2}  n {At(x, y - 1)} e {At(x + 1, y)} s {At(x, y + 1)} w {At(x - 1, y)}  up {Floor(z + 1)} down {Floor(z - 1)}");
+            }
+        }
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "town")
 {
     // town <location> <out.ppm>
@@ -324,7 +367,8 @@ if (argv.Count > 0 && argv[0] == "town")
         File.WriteAllText(outPath, "[" + string.Join(",\n", plan.Pieces.Select(p =>
             System.FormattableString.Invariant($"{{\"p\":\"{p.Prefab}\",\"x\":{p.X},\"y\":{p.Y},\"z\":{p.Z},\"yaw\":{p.Yaw},\"s\":[{(p.Scaled ? p.SX : 1)},{(p.Scaled ? p.SY : 1)},{(p.Scaled ? p.SZ : 1)}]{(p.StandItem != null ? $",\"item\":\"{p.StandItem}\"" : "")}{(p.Look != null ? $",\"look\":\"{p.Look}\"" : "")}}}"))) + "]");
     else TownPreview.Render(plan, geo, outPath);
-    Console.WriteLine($"{loc.Name} ({kind}): {plan.Pieces.Count} pieces, spawn {(plan.HasSpawn ? $"({plan.SpawnX}, {plan.SpawnZ})" : "none")}");
+    Console.WriteLine($"{loc.Name} ({kind}): {plan.Pieces.Count} pieces, spawn {(plan.HasSpawn ? $"({plan.SpawnX}, {plan.SpawnZ})" : "none")}"
+        + $"{(plan.Garden.Any(g => g) ? $", flower beds {plan.Garden.Count(g => g)} tiles" : "")}{(plan.HasWater ? $", water {plan.Water.Count(w => w)} tiles" : "")}");
     foreach (var g in plan.Pieces.GroupBy(p => p.Prefab).OrderByDescending(g => g.Count())) Console.Write($"{g.Key}x{g.Count()} ");
     Console.WriteLine();
     var noGeometry = plan.Pieces.Select(p => p.Prefab).Distinct().Where(p => !geo.Has(p)).ToList();

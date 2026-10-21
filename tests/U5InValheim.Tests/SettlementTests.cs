@@ -41,9 +41,9 @@ namespace U5InValheim.Tests
         public void PlansUseOnlyRealPrefabsWithinTheSquare(int location, string kind)
         {
             var p = Plan(location, kind);
-            // (the plugin's own: the baked ladders)
+            // (the plugin's own: the baked ladders and stairs, the graves' earth)
             Assert.All(p.Pieces.Where(x => !x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, prefabs.Value));
-            Assert.All(p.Pieces.Where(x => x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, new[] { SettlementPlanner.LadderUp, SettlementPlanner.LadderDown }));
+            Assert.All(p.Pieces.Where(x => x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, new[] { SettlementPlanner.LadderUp, SettlementPlanner.LadderDown, SettlementPlanner.GravePlot }.Concat(SettlementPlanner.StairTurns.Select(SettlementPlanner.StairsPrefab))));
             Assert.All(p.Pieces, x => Assert.InRange(x.X, -p.HalfSize - 2, p.HalfSize + 2));
             Assert.All(p.Pieces, x => Assert.InRange(x.Z, -p.HalfSize - 2, p.HalfSize + 2));
             Assert.Contains(p.Pieces, x => x.Prefab.Contains("door"));
@@ -57,7 +57,7 @@ namespace U5InValheim.Tests
             Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof"); // the cobblestone cottages' thatch
             Assert.True(p.Pieces.Where(x => x.Prefab == "wood_floor" && x.Y > 2.5f).Sum(x => x.Scaled ? x.SX * x.SZ : 1) > 100, "upper floors (tiles)");
             Assert.True(p.Pieces.Where(x => x.Prefab.StartsWith("stone_wall")).Sum(WallVolume) > 2000, "solid stone walls");
-            Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text.Contains("PRIVATE"));
+            Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text != null && x.Text.Contains("PRIVATE"));
             Assert.True(p.Garden.Any(g => g), "the flower bed around the plaza");
             Assert.True(p.Pieces.Count(x => x.Climb) >= 2, "ladders between floors");
         }
@@ -508,7 +508,7 @@ namespace U5InValheim.Tests
                 return x >= 0 && y >= 0 && x < 32 && y < 32 && p.Basement[y * 32 + x];
             }));
             for (int c = 0; c < 32 * 32; c++)
-                if (NearDug(c))
+                if (NearDug(c) && !(p.Stands.ContainsKey((-1, c)) && p.Stands.ContainsKey((0, c)))) // (not over the stairwell from the basement)
                     Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Covers(p, pc, c));
             // the corner towers' ladders lead down and back up
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > -1 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a ladder's pivot is its foot)
@@ -559,11 +559,110 @@ namespace U5InValheim.Tests
             Assert.DoesNotContain(climb, pc => pc.Prefab == "wood_pole2" || pc.Prefab == "wood_beam_1");
         }
 
+        [U5Fact]
+        public void StairsAreSpiralFlightsBetweenStoreys()
+        {
+            // Moonglow's central tower (15,19): entered from the south on the ground, left north upstairs: 540°
+            var moonglow = Plan(1, "towne");
+            var (x, z) = (moonglow.LocalX(15), moonglow.LocalZ(19));
+            var flight = moonglow.Pieces.Single(pc => pc.Prefab.StartsWith("u5_stairs_") && Math.Abs(pc.X - x) < 0.01f && Math.Abs(pc.Z - z) < 0.01f);
+            Assert.Equal(SettlementPlanner.StairsPrefab(540), flight.Prefab);
+            Assert.Equal(180, flight.Yaw);
+            Assert.Equal(0, flight.Y);
+            Assert.False(flight.Scaled);
+            Assert.False(flight.Climb);
+            // a stairwell above it, no ladder anywhere on the stairs
+            int c = 19 * 32 + 15;
+            Assert.DoesNotContain(moonglow.Pieces, pc => pc.Prefab == "wood_floor" && pc.Y > 3 && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f);
+            Assert.DoesNotContain(moonglow.Pieces, pc => pc.Prefab.StartsWith("u5_ladder") && Math.Abs(pc.X - x) < 1.5f && Math.Abs(pc.Z - z) < 1.5f);
+            // townsfolk: linked both ways, standing on the bottom step south and the top step north
+            Assert.Contains((0, c, 1), moonglow.Links);
+            Assert.Contains((1, c, 0), moonglow.Links);
+            Assert.True(moonglow.TilePos(0, c).z < z - 0.5f && moonglow.TilePos(0, c).y == 0);
+            Assert.True(moonglow.TilePos(1, c).z > z + 0.5f && moonglow.TilePos(1, c).y == moonglow.LevelY(1));
+            Assert.Equal(c, moonglow.CellAt(moonglow.TilePos(1, c).x, moonglow.TilePos(1, c).z));
+
+            // Waveguide's lighthouse: two flights stacked, the second entered where the first is left (north) and left north: a full turn
+            var waveguide = Plan(12, "lighthouse");
+            var flights = waveguide.Pieces.Where(pc => pc.Prefab.StartsWith("u5_stairs_")).OrderBy(pc => pc.Y).ToList();
+            Assert.Equal(2, flights.Count);
+            Assert.Equal((SettlementPlanner.StairsPrefab(540), 180f), (flights[0].Prefab, flights[0].Yaw));
+            Assert.Equal((SettlementPlanner.StairsPrefab(360), 0f), (flights[1].Prefab, flights[1].Yaw));
+
+            // Lord British's cellar stair: 5 m up to the street, the 4 m stair stretched
+            var castle = Plan(17, "castle");
+            var cellar = castle.Pieces.Single(pc => pc.Prefab.StartsWith("u5_stairs_") && pc.Y < -1);
+            Assert.Equal(castle.LevelY(-1), cellar.Y);
+            Assert.Equal((double)(castle.BasementDepth / SettlementPlanner.StairRise), cellar.SY, 3);
+            Assert.Equal(270, cellar.Yaw);
+            Assert.Equal(SettlementPlanner.StairsPrefab(540), cellar.Prefab);
+        }
+
+        [Fact]
+        public void TheSpiralStairClimbsAStoreyRoundItsPost()
+        {
+            foreach (int turn in SettlementPlanner.StairTurns)
+            {
+                var parts = SettlementPlanner.StairParts(turn).ToList();
+                Assert.Equal(1 + turn * SettlementPlanner.StairStepsPerTurn / 360, parts.Count);
+                var steps = parts.Skip(1).ToList();
+                // every step inside the 2 m tile, the last one's top at the storey above
+                Assert.All(steps, s => Assert.InRange(Math.Sqrt(s.x * s.x + s.z * s.z), 0.4, 0.7));
+                Assert.Equal((double)turn, steps.Last().yaw + 0.5 * turn / steps.Count, 3);
+                var (v, t) = SettlementPlanner.StairRamp(turn);
+                Assert.Equal(0, t.Length % 3);
+                float top = 0, bottom = 99;
+                for (int i = 1; i < v.Length; i += 3) { top = Math.Max(top, v[i]); bottom = Math.Min(bottom, v[i]); }
+                Assert.Equal((double)SettlementPlanner.StairRise, top, 3);
+                Assert.InRange(bottom, 0, 0.2f);
+                // a full turn above any point of the ramp leaves headroom (more than 2 m) but for the 360° flights' 4 m
+                Assert.True(SettlementPlanner.StairRise * 360 / turn > 2.2f);
+            }
+            Assert.Equal(540, SettlementPlanner.StairTurn(180, 0));
+            Assert.Equal(360, SettlementPlanner.StairTurn(0, 0));
+            Assert.Equal(450, SettlementPlanner.StairTurn(270, 0));
+            Assert.Equal(630, SettlementPlanner.StairTurn(90, 0));
+        }
+
+        [U5Fact]
+        public void GravesAreReadAndTheirEarthDug()
+        {
+            // Yew's graveyard: each marker carries its eulogy (SIGNS.DAT), no sign hangs over it,
+            // and the open earth south of a grave can be dug
+            var p = Plan(4, "towne");
+            var markers = p.Pieces.Where(x => x.Look == "grave").ToList();
+            Assert.Contains(markers, x => x.Text == "ALAS\nPOOR FRED\nHE LOST\nHIS HEAD");
+            Assert.Contains(markers, x => x.Text.Contains("BLACKTHORNS"));
+            Assert.DoesNotContain(p.Pieces, x => x.Prefab == "sign" && x.Text != null && x.Text.Contains("FRED"));
+            var plots = p.Pieces.Where(x => x.Prefab == SettlementPlanner.GravePlot).ToList();
+            Assert.InRange(plots.Count, 4, markers.Count);
+            Assert.All(plots, plot => Assert.Contains(markers, m => Math.Abs(m.X - plot.X) < 1.2f && Math.Abs(m.Z - (plot.Z + p.Tile)) < 1.2f));
+        }
+
+        [U5Fact]
+        public void SmallWaterFeaturesAreFlowerBeds()
+        {
+            // the other towns' small pools are planted as Britain's plaza is; North Britanny's pond and
+            // Trinsic's (40 tiles) stay water
+            foreach (var (loc, kind) in new[] { (18, "castle"), (24, "towne"), (32, "castle") })
+            {
+                var p = Plan(loc, kind);
+                Assert.True(p.Garden.Any(g => g), $"flower beds in {loc}");
+                Assert.All(Enumerable.Range(0, p.Garden.Length).Where(c => p.Garden[c]), c => Assert.False(p.Water[c]));
+            }
+            Assert.DoesNotContain(Plan(6, "towne").Garden, g => g);
+            Assert.True(Plan(6, "towne").HasWater);
+            Assert.DoesNotContain(Plan(20, "village").Garden, g => g);
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {
             Assert.Equal("PRIVATE\nCHAMBERS\nDO NOT ENTER",
                 SettlementPlanner.SignText("abbbbbbbbbbbbbc\ng   PRIVATE   g\ng  CHAMBERS   g\ngDO@NOT@ENTER g\ndeeeeeeeeeeeeef"));
+            // the runic font's two-letter runes
+            Assert.Equal("ALAS\nPOOR FRED\nHE LOST\nHIS HEAD", SettlementPlanner.SignText("8lllllllllllll9\ng    ALAS     g\ng  POOR@FRED  g\ng   HE@LO_    g\ng   HIS@H^D   g\njlllllllllllllk"));
+            Assert.Equal("THIS HAS BEEN A\nLONGER", SettlementPlanner.SignText("g[IS@HAS@B\\N@A g\ng LO]ER g"));
         }
 
         [U5Fact]

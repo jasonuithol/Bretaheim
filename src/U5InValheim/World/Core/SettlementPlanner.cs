@@ -88,8 +88,15 @@ namespace U5InValheim.WorldGen.Core
         public readonly List<(int Z, int Cell, int ToZ)> Links = new List<(int, int, int)>();
         /// <summary>Chairs and beds townsfolk sit or lie on, by (storey, cell): where they rest (the piece's attach point) and which way they face.</summary>
         public readonly Dictionary<(int z, int cell), Seat> Seats = new Dictionary<(int, int), Seat>();
-        /// <summary>World-local position of the middle of a tile on storey z, on its floor.</summary>
-        public (float x, float y, float z) TilePos(int z, int cell) => (LocalX(cell % Size), LevelY(z), LocalZ(cell / Size));
+        /// <summary>
+        /// Where townsfolk stand on a stairs tile, by (storey, cell): on the flight's bottom step at
+        /// the side it is entered from (its lower storey), on its top step at the side it is left
+        /// by (its upper storey); the tile's middle is the stair's newel post.
+        /// </summary>
+        public readonly Dictionary<(int z, int cell), (float x, float y, float z)> Stands = new Dictionary<(int, int), (float, float, float)>();
+        /// <summary>World-local position of the middle of a tile on storey z, on its floor (on stairs, where townsfolk stand on them).</summary>
+        public (float x, float y, float z) TilePos(int z, int cell)
+            => Stands.TryGetValue((z, cell), out var at) ? at : (LocalX(cell % Size), LevelY(z), LocalZ(cell / Size));
         /// <summary>The tile under a settlement-local position (clamped to the map).</summary>
         public int CellAt(float x, float z)
         {
@@ -981,6 +988,8 @@ namespace U5InValheim.WorldGen.Core
                 p.Water[c] = false;
                 // (a grate is the only cover over its hole)
                 if (ground != null && ground.Rule[c].Grate) continue;
+                // (nor over a stairwell: the stair from the basement comes up through it)
+                if (ground != null && ground.Rule[c].Kind == TileKind.Stairs && b.Rule[c].Kind == TileKind.Stairs) continue;
                 bool climb = Climbs(b.Rule[c].Kind) || (ground != null && Climbs(ground.Rule[c].Kind));
                 bool trapdoor = ground != null && ground.Rule[c].Trapdoor;
                 if (!climb && !trapdoor) { slab[c] = true; continue; }
@@ -1010,6 +1019,8 @@ namespace U5InValheim.WorldGen.Core
                 bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Walked != null && lv.Walked[c])
                                || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
                 if (!floored || Solid(below, c) || lv.Rule[c].Grate) continue;
+                // (a stairwell: the stair from below comes up through it)
+                if (lv.Rule[c].Kind == TileKind.Stairs && below.Rule[c].Kind == TileKind.Stairs) continue;
                 bool climb = Climbs(lv.Rule[c].Kind) || Climbs(below.Rule[c].Kind);
                 if (!climb && !lv.Rule[c].Trapdoor) { plain[c] = true; continue; }
                 ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
@@ -1747,6 +1758,7 @@ namespace U5InValheim.WorldGen.Core
                         break;
                     case TileKind.Prop:
                         if (r.SignPost == "post" && UnderBanner(lv, c)) break;
+                        if (r.Grave) { Grave(ctx, lv, c, x, y, z, r); break; }
                         if (r.Parts != null) ctx.Parts(r.Parts, x, y, z, r.Yaw);
                         else if (r.Choices != null) ctx.Stand(r.Choices[Hash(tx, ty, 8) % r.Choices.Length], x, y, z, Hash(tx, ty, 9) % 4 * 90);
                         else if (r.Prefab != null && r.WallSide is float side)
@@ -1843,8 +1855,10 @@ namespace U5InValheim.WorldGen.Core
                         break;
                     case TileKind.LadderUp:
                     case TileKind.LadderDown:
-                    case TileKind.Stairs:
                         ClimbPoint(ctx, lv, levels, c, r.Kind, x, y, z);
+                        break;
+                    case TileKind.Stairs:
+                        Stairs(ctx, lv, levels, c, x, y, z);
                         break;
                 }
                 // under a floor grate: the ladder back up to it
@@ -2059,6 +2073,156 @@ namespace U5InValheim.WorldGen.Core
                 }
                 p.Pieces[i] = pl;
             }
+        }
+
+        // ── stairs ────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Stairs (0xc4..0xc7, ascending N, E, S, W): where a stairs tile has stairs on the storey above
+        /// too, a flight climbs between them inside the tile: a spiral stair round a newel post (a
+        /// straight one would need 8 m of run for a storey at Valheim's own 26° stairs; the maps give
+        /// it one 2 m tile walled on three sides). It is entered from the open side of the lower tile
+        /// (the side the tile's arrow comes from, if open) and left by the open side of the upper
+        /// one (the arrow's), turning 360°, 450°, 540° or 630° as those sides lie (the maps' stairs
+        /// mostly come in at one side and leave by the opposite one: 540°). The floor above has a
+        /// stairwell. A stairs tile with no stairs above or below it is still the old ladder.
+        /// Townsfolk change storey on the spot (TownPath's links), standing on the bottom and top
+        /// steps (<see cref="SettlementPlan.Stands"/>); players walk up, or use the stairs (E).
+        /// </summary>
+        void Stairs(Ctx ctx, Level lv, List<Level> levels, int c, float x, float y, float z)
+        {
+            int idx = levels.IndexOf(lv);
+            var p = ctx.Plan;
+            bool up = idx + 1 < levels.Count && levels[idx + 1].Rule[c].Kind == TileKind.Stairs;
+            bool down = idx > 0 && levels[idx - 1].Rule[c].Kind == TileKind.Stairs;
+            if (!up && !down) { ClimbPoint(ctx, lv, levels, c, TileKind.Stairs, x, y, z); return; }
+            if (down)
+            {
+                p.Links.Add((lv.Z, c, levels[idx - 1].Z));
+                var (_, exit) = Flight(levels, idx - 1, c);
+                p.Stands[(lv.Z, c)] = StandAt(x, y, z, exit);
+            }
+            if (up)
+            {
+                p.Links.Add((lv.Z, c, levels[idx + 1].Z));
+                var (entry, exit) = Flight(levels, idx, c);
+                float rise = p.LevelY(levels[idx + 1].Z) - y;
+                int turn = StairTurn(entry, exit);
+                if (Math.Abs(rise - StairRise) < 0.001f) ctx.Add(StairsPrefab(turn), x, y, z, entry);
+                else ctx.Add(StairsPrefab(turn), x, y, z, entry, 1, rise / StairRise, 1);
+                // (the next flight up starts where this one is left: the same side)
+                if (!down) p.Stands[(lv.Z, c)] = StandAt(x, y, z, entry);
+            }
+        }
+
+        /// <summary>The storey a baked stair climbs (others are the same stair stretched: a basement's 5 m).</summary>
+        public const float StairRise = 4f;
+        /// <summary>The turns the baked stairs make, entering at their local north (yaw 0) and turning clockwise seen from above.</summary>
+        public static readonly int[] StairTurns = { 360, 450, 540, 630 };
+        public static string StairsPrefab(int turn) => "u5_stairs_" + turn;
+        /// <summary>The turn from the side a flight is entered by to the side it is left by (yaws, clockwise): at least a full turn, for headroom.</summary>
+        public static int StairTurn(float entry, float exit) => 360 + (((int)Math.Round(exit - entry) % 360) + 360) % 360;
+        /// <summary>Townsfolk stand on a step this far out from the newel post.</summary>
+        const float StandRadius = 0.6f;
+
+        static (float x, float y, float z) StandAt(float x, float y, float z, float yaw)
+            => (x + StandRadius * (float)Math.Sin(yaw * Math.PI / 180), y, z + StandRadius * (float)Math.Cos(yaw * Math.PI / 180));
+
+        /// <summary>The tile beside c on the side of this yaw (0 north = map y − 1, 90 east, 180 south, 270 west), or −1.</summary>
+        static int Beside(int c, float yaw)
+        {
+            int x = c % N, y = c / N, side = ((int)Math.Round(yaw / 90) % 4 + 4) % 4;
+            if (side == 0) return y > 0 ? c - N : -1;
+            if (side == 1) return x < N - 1 ? c + 1 : -1;
+            if (side == 2) return y < N - 1 ? c + N : -1;
+            return x > 0 ? c - 1 : -1;
+        }
+
+        /// <summary>A side of a stairs tile one can step to on that storey (no wall, and floored up there).</summary>
+        static bool OpenSide(Level lv, int c, float yaw)
+        {
+            int n = Beside(c, yaw);
+            if (n < 0 || lv.Barrier[n] || lv.Rule[n].Kind == TileKind.Stairs) return false;
+            return lv.Z == 0 || (lv.Walked != null ? lv.Walked[n] : lv.Interior[n]);
+        }
+
+        /// <summary>
+        /// The sides (yaws) the flight from levels[i] up to levels[i + 1] is entered and left by:
+        /// left by the open side of the upper tile the arrow points to (else another open one);
+        /// entered where the flight below it was left, else by the open side of the lower tile the
+        /// arrow comes from (else another).
+        /// </summary>
+        (float entry, float exit) Flight(List<Level> levels, int i, int c)
+        {
+            float arrow = StairArrow(levels[i].Raw[c]);
+            var upper = levels[i + 1];
+            float exit = OpenSide(upper, c, arrow) ? arrow : new[] { 90f, 270f, 180f }.Select(t => (arrow + t) % 360).Where(t => OpenSide(upper, c, t)).DefaultIfEmpty(arrow).First();
+            float entry;
+            if (i > 0 && levels[i - 1].Rule[c].Kind == TileKind.Stairs) entry = Flight(levels, i - 1, c).exit;
+            else
+            {
+                var lower = levels[i];
+                float back = (arrow + 180) % 360;
+                entry = OpenSide(lower, c, back) ? back : new[] { 90f, 270f, 180f }.Select(t => (back + t) % 360).Where(t => OpenSide(lower, c, t)).DefaultIfEmpty(back).First();
+            }
+            return (entry, exit);
+        }
+
+        /// <summary>The way a stairs tile ascends (0xc4 north, 0xc5 east, 0xc6 south, 0xc7 west), as a yaw.</summary>
+        static float StairArrow(byte tile) => tile >= 0xc4 && tile <= 0xc7 ? (tile - 0xc4) * 90f : 0f;
+
+        /// <summary>Spiral stair: the newel post's radius, the steps' inner and outer radius, their thickness, steps per full turn.</summary>
+        public const float StairPost = 0.12f, StairInner = 0.1f, StairOuter = 0.98f, StairTread = 0.08f;
+        public const int StairStepsPerTurn = 16;
+
+        /// <summary>
+        /// A baked spiral stair's visible parts from its foot (local: entered at +z, turning clockwise
+        /// seen from above, climbing <see cref="StairRise"/>): the newel post (wood_pole_log_4, its
+        /// pivot in its middle) and the steps (wood_floor_1x1, pivot near its top, laid along the radius
+        /// at the middle of each step's sector), each (prefab, x, y, z, yaw, scale).
+        /// </summary>
+        public static IEnumerable<(string prefab, float x, float y, float z, float yaw, float sx, float sy, float sz)> StairParts(int turn)
+        {
+            yield return ("wood_pole_log_4", 0, StairRise / 2 + 0.25f, 0, 0, StairPost / 0.2f, (StairRise + 0.5f) / 4f, StairPost / 0.2f);
+            int steps = turn * StairStepsPerTurn / 360;
+            float mid = (StairInner + StairOuter) / 2, length = StairOuter - StairInner;
+            // (a step is a little wider than its sector at the rim, so the steps overlap)
+            float width = 2 * (float)Math.PI * StairOuter / StairStepsPerTurn + 0.05f;
+            for (int k = 0; k < steps; k++)
+            {
+                float yaw = (k + 0.5f) * turn / steps, top = (k + 1) * StairRise / steps;
+                double a = yaw * Math.PI / 180;
+                // wood_floor_1x1: 1 x 1 m, its top 0.097 m over its pivot, 0.13 m thick
+                yield return ("wood_floor_1x1", (float)(mid * Math.Sin(a)), top - 0.097f * StairTread / 0.13f, (float)(mid * Math.Cos(a)), yaw, width, StairTread / 0.13f, length);
+            }
+        }
+
+        /// <summary>
+        /// The surface a spiral stair is walked on (a helicoid through the steps' middles, from the
+        /// floor to the storey above, both faces): vertex (x, y, z) triples and triangles.
+        /// </summary>
+        public static (float[] vertices, int[] triangles) StairRamp(int turn)
+        {
+            int segments = turn / 15;
+            var v = new List<float>();
+            var t = new List<int>();
+            int steps = turn * StairStepsPerTurn / 360;
+            for (int s = 0; s <= segments; s++)
+            {
+                double yaw = (double)s * turn / segments, a = yaw * Math.PI / 180;
+                float h = (float)Math.Max(0, Math.Min(StairRise, StairRise * yaw / turn + StairRise / steps / 2));
+                foreach (float r in new[] { StairInner, StairOuter })
+                {
+                    v.Add((float)(r * Math.Sin(a)));
+                    v.Add(h);
+                    v.Add((float)(r * Math.Cos(a)));
+                }
+                if (s == 0) continue;
+                int i0 = 2 * (s - 1), o0 = i0 + 1, i1 = 2 * s, o1 = i1 + 1;
+                t.AddRange(new[] { i0, i1, o0, o0, i1, o1 });
+                t.AddRange(new[] { i0, o0, i1, o0, o1, i1 });
+            }
+            return (v.ToArray(), t.ToArray());
         }
 
         /// <summary>Ladder: how far it stands back from its tile's centre, half its width, rail and rung thickness (scale of a 0.4 m pole), rung spacing, and how far its rails reach into the ceiling or floor.</summary>
@@ -2353,6 +2517,8 @@ static int Hash(int x, int y, int salt)
                     if (lv == null) continue;
                     int c = sign.Y * N + sign.X;
                     if (c < 0 || c >= N * N) continue;
+                    // (a grave's eulogy is read off the grave itself)
+                    if (lv.Rule[c].Grave) continue;
                     string text = SignText(sign.Text);
                     if (text.Length == 0) continue;
                     float x = CellX(p, c), z = CellZ(p, c), yaw = 180;
@@ -2368,16 +2534,62 @@ static int Hash(int x, int y, int salt)
                 }
         }
 
-        /// <summary>SIGNS.DAT text without the frame glyphs (lower-case letters) and with '@' as space.</summary>
+        /// <summary>A sign's text in SIGNS.DAT at (z, cell) of the settlement being planned, cleaned, or null.</summary>
+        string SignAt(int z, int c)
+        {
+            foreach (var group in data.Signs)
+                foreach (var sign in group)
+                    if (sign.Location == planning && sign.Z == z && sign.Y * N + sign.X == c)
+                    {
+                        string text = SignText(sign.Text);
+                        return text.Length > 0 ? text : null;
+                    }
+            return null;
+        }
+
+        /// <summary>The u5_grave_plot prefab: the earth before a grave, dug once (World/Furnishings).</summary>
+        public const string GravePlot = "u5_grave_plot";
+
+        /// <summary>
+        /// A grave (0x89 cross, 0x8a headstone): its parts carry its eulogy from SIGNS.DAT (read off
+        /// the marker, look "grave", instead of a sign hung over it); the earth before it (the
+        /// tile to its south, by convention) is a plot that can be dug, where that is open ground.
+        /// </summary>
+        void Grave(Ctx ctx, Level lv, int c, float x, float y, float z, TileRule r)
+        {
+            var p = ctx.Plan;
+            int first = p.Pieces.Count;
+            if (r.Parts != null) ctx.Parts(r.Parts, x, y, z, r.Yaw);
+            else if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, r.Yaw);
+            string eulogy = SignAt(lv.Z, c) ?? "";
+            for (int i = first; i < p.Pieces.Count; i++)
+            {
+                var pl = p.Pieces[i];
+                pl.Look = "grave";
+                pl.Text = eulogy;
+                p.Pieces[i] = pl;
+            }
+            int south = c + N;
+            if (lv.Z != 0 || south >= N * N || lv.Barrier[south] || lv.Interior[south]) return;
+            if (lv.Rule[south].Kind != TileKind.Ground) return;
+            ctx.Add(GravePlot, CellX(p, south), y, CellZ(p, south), 0);
+        }
+
+        /// <summary>
+        /// SIGNS.DAT text without the frame glyphs (lower-case letters) and with '@' as space; the
+        /// runic font's two-letter runes spelt out ('[' TH, ']' NG, '^' EA, '_' ST, '\' EE: "HE LO_ HIS H^D").
+        /// </summary>
         public static string SignText(string raw)
         {
+            raw = raw.Replace("[", "TH").Replace("]", "NG").Replace("^", "EA").Replace("_", "ST").Replace("\\", "EE");
             var lines = raw.Contains('\n') ? raw.Split('\n') : Chunk(raw, 16);
             var sb = new StringBuilder();
             foreach (var line in lines)
             {
                 var clean = new string(line.Select(ch => ch == '@' ? ' ' : char.IsLower(ch) || ch == '&' ? ' ' : ch).ToArray()).Trim();
                 clean = string.Join(" ", clean.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
-                if (!clean.Any(char.IsLetterOrDigit)) continue;
+                // (the frame's top and bottom rows: lower case, and 8 9 : ; at their corners)
+                if (!clean.Any(char.IsUpper)) continue;
                 if (sb.Length > 0) sb.Append('\n');
                 sb.Append(clean);
             }

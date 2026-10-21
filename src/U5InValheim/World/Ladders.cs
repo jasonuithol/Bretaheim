@@ -41,7 +41,7 @@ namespace U5InValheim.WorldGen
         }
 
         /// <summary>A vanilla piece's pristine look and shape only (its "new" state; no scripts or physics body).</summary>
-        static GameObject Visual(string prefabName)
+        internal static GameObject Visual(string prefabName)
         {
             var prefab = PrefabManager.Instance.GetPrefab(prefabName);
             if (prefab == null) return null;
