@@ -36,21 +36,21 @@ namespace U5InValheim.DevTools
             {
                 var list = only.Substring(5).Split(',').Select(int.Parse).ToList();
                 foreach (int n in list) yield return Town(n, list.Count > 1 ? 1 : 3);
-                holding = false;
+                Done();
                 yield break;
             }
             // U5_SELFTEST=sleep: inns and camps
             if (only == "sleep")
             {
                 yield return Sleeping();
-                holding = false;
+                Done();
                 yield break;
             }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {
                 yield return Crimes();
-                holding = false;
+                Done();
                 yield break;
             }
             var b = Settlements.Get(2);
@@ -118,7 +118,20 @@ namespace U5InValheim.DevTools
                 yield return Alarm(north, northFolk, 32, 45, false, zdos);
             }
             yield return Crimes();
+            Done();
+        }
+
+        /// <summary>
+        /// The checks are over: a server started with U5_SELFTEST (town:…, sleep, crime, or any other
+        /// value for the whole test) shuts down, saving its world; one with only the SelfTest setting stays up.
+        /// </summary>
+        static void Done()
+        {
             holding = false;
+            Plugin.Log.LogInfo("townsfolk self-test done");
+            if (string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("U5_SELFTEST"))) return;
+            Plugin.Log.LogInfo("townsfolk self-test: shutting the server down");
+            Application.Quit();
         }
 
         /// <summary>Generates the zones round a point (ground, settlement pieces, townsfolk) as a player arriving would.</summary>

@@ -54,7 +54,7 @@ namespace U5InValheim.Tests
             Assert.True(p.Pieces.Count(x => x.Prefab == "darkwood_roof") > 100, "shingle roofs");
             Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof"); // the cobblestone cottages' thatch
             Assert.True(p.Pieces.Count(x => x.Prefab == "wood_floor" && x.Y > 2.5f) > 100, "upper floors");
-            Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("stone_wall")) > 1000, "solid stone walls");
+            Assert.True(p.Pieces.Where(x => x.Prefab.StartsWith("stone_wall")).Sum(WallVolume) > 2000, "solid stone walls");
             Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text.Contains("PRIVATE"));
             Assert.True(p.Garden.Any(g => g), "the flower bed around the plaza");
             Assert.True(p.Pieces.Count(x => x.Climb) >= 2, "ladders between floors");
@@ -75,6 +75,13 @@ namespace U5InValheim.Tests
             Assert.Contains(p.Pieces, x => x.Prefab == "ashwood_door" && x.Lock != null);
         }
 
+        /// <summary>A stone wall piece's volume (m³; slabs and bricks may be squeezed or stretched).</summary>
+        static double WallVolume(Placement x)
+        {
+            double v = x.Prefab == "stone_wall_4x2" ? 8 : x.Prefab == "stone_wall_2x1" ? 2 : 1;
+            return x.Scaled ? v * x.SX * x.SY * x.SZ : v;
+        }
+
         [U5Theory]
         [InlineData(13, "dwelling", 1300)]
         [InlineData(2, "towne", 6000)]
@@ -89,7 +96,7 @@ namespace U5InValheim.Tests
             int big = p.Pieces.Count(x => x.Prefab == "stone_wall_2x1"), small = p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && !x.Scaled);
             if (big + small + slab < 100) return; // (a hut's few bricks)
             Assert.True(slab > 0, "slabs");
-            double slabVolume = 8 * p.Pieces.Where(x => x.Prefab == "stone_wall_4x2").Sum(x => x.Scaled ? x.SX : 1);
+            double slabVolume = 8 * p.Pieces.Where(x => x.Prefab == "stone_wall_4x2").Sum(x => x.Scaled ? x.SX * x.SZ : 1);
             Assert.True(slabVolume > 2 * big + small, $"walls mostly slabs ({slabVolume} m³ slabs, {2 * big + small} m³ bricks)");
         }
 
@@ -454,7 +461,7 @@ namespace U5InValheim.Tests
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a pole's pivot is its middle)
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y < -2 && Math.Abs(pc.ClimbY - 0.2f) < 0.01f);
             // its walls and the armourer's display wall stand a storey down
-            Assert.True(p.Pieces.Count(pc => pc.Prefab.StartsWith("stone_wall") && pc.Y < 0) > 500);
+            Assert.True(p.Pieces.Where(pc => pc.Prefab.StartsWith("stone_wall") && pc.Y < 0).Sum(WallVolume) > 500);
             Assert.True(p.Pieces.Count(pc => pc.Prefab == "itemstand" && pc.Y < 0 && pc.StandItem != null && !pc.StandItem.StartsWith("Trophy")) >= 6);
             // the ground is dug a storey down, right up to (and on) the edges of the dug tiles
             var site = new SettlementSite { Half = p.HalfSize, Tile = p.Tile, Base = 6, Paint = p.GroundPaint, Water = p.Water, Basement = p.Basement, Depth = p.BasementDepth };

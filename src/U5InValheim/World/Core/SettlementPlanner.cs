@@ -1012,8 +1012,10 @@ namespace U5InValheim.WorldGen.Core
                         return along[c] == alongX && !SecretWall(c) && BrickAt(c, band) && BrickAt(c, band + 1);
                     }
                     float by = y0 + band + 1f;
-                    // the full slabs, on their band's phase; then halves (a full slab squeezed) where a whole one does not fit
+                    // the full slabs, on their band's phase; then halves (a full slab squeezed) where a whole
+                    // one does not fit; each made 2 m deep (stretched) where both of a tile's rows are solid
                     foreach (int length in new[] { style.SlabLength, style.SlabLength / 2 })
+                    foreach (int depth in new[] { 2, 1 })
                     {
                         if (length < 1) continue;
                         for (int gy = 0; gy < G; gy++)
@@ -1022,21 +1024,26 @@ namespace U5InValheim.WorldGen.Core
                             int c = (gy / 2) * N + gx / 2;
                             bool ax = along[c];
                             if (!Solid2(gx, gy, ax)) continue;
+                            // (a deep slab starts on a tile's first row)
+                            if (depth == 2 && (ax ? gy : gx) % 2 != 0) continue;
                             int pos = ax ? gx : gy;
                             // (every other band, counted up through the storeys, half a slab along: the joints alternate)
                             int bandNo = (lv.Z * courses + band) / 2, shift = (bandNo % 2 + 2) % 2 * (length / 2);
                             if (length == style.SlabLength && (pos + shift) % length != 0) continue;
                             bool fits = true;
-                            for (int i = 1; i < length && fits; i++) fits = ax ? Solid2(gx + i, gy, true) : Solid2(gx, gy + i, false);
+                            for (int d = 0; d < depth && fits; d++)
+                            for (int i = 0; i < length && fits; i++)
+                                fits = (i == 0 && d == 0) || (ax ? Solid2(gx + i, gy + d, true) : Solid2(gx + d, gy + i, false));
                             if (!fits) continue;
+                            for (int d = 0; d < depth; d++)
                             for (int i = 0; i < length; i++)
                             {
-                                int cell = ax ? gy * G + gx + i : (gy + i) * G + gx;
+                                int cell = ax ? (gy + d) * G + gx + i : (gy + i) * G + gx + d;
                                 laid[band][cell] = laid[band + 1][cell] = true;
                             }
                             float scale = (float)length / style.SlabLength;
-                            if (ax) ctx.Centre(style.Slab, gx + length / 2f - N, by, N - gy - 0.5f, 0, scale, 1, 1);
-                            else ctx.Centre(style.Slab, gx + 0.5f - N, by, N - gy - length / 2f, 90, scale, 1, 1);
+                            if (ax) ctx.Centre(style.Slab, gx + length / 2f - N, by, N - gy - depth / 2f, 0, scale, 1, depth);
+                            else ctx.Centre(style.Slab, gx + depth / 2f - N, by, N - gy - length / 2f, 90, scale, 1, depth);
                         }
                     }
                 }

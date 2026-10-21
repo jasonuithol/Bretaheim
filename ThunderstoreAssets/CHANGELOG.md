@@ -23,7 +23,8 @@ Britain, Lord British's castle and Iolo's hut):
   its slopes. North Britanny's stream runs in a ditch into its pond.
 - Drawbridges: bridge planks with water at both ends are wooden decks over the river that swing
   up at night and down in the morning.
-- Stone walls are laid in big slabs: well under half the pieces, for quicker loading.
+- Stone walls are laid in big slabs, a whole wall thick, their joints staggered: a quarter of the
+  pieces, for quicker loading.
 - Lord British's throne room has his throne, and the dead come back there (not at a bed).
 - Inns: pay the innkeeper for a night's rest (the original's price and words) and sleep in one of
   the inn's beds until morning. Everyone must be in bed for the night to pass.
