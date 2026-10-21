@@ -529,9 +529,12 @@ namespace U5InValheim.Tests
                 var rails = SettlementPlanner.LadderParts(up, p.Storey).Where(x => x.prefab == "wood_pole2").ToList();
                 Assert.Equal(2, rails.Count);
                 Assert.All(rails, r => Assert.True(r.sx < 0.5f && r.sz < 0.5f, "thin rails"));
-                float bottom = pc.Y - Floor(pc), top = bottom + rails[0].sy * 2;
-                if (up) { Assert.InRange(bottom, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); Assert.True(top > p.Storey, $"{pc} top {top}"); }
-                else { Assert.True(bottom < 0, $"{pc} bottom {bottom}"); Assert.InRange(top, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); }
+                float bottom = pc.Y - Floor(pc), top = bottom + rails[0].sy * 2 * (pc.Scaled ? pc.SY : 1);
+                // its end reaches into the slab it meets, never through the thinnest one (wood_floor, 0.13 m below the
+                // storey line); a basement's ceiling is the ground floor's 1 m stone slab, its underside 1 m down
+                if (up && pc.Y < -0.5f) Assert.InRange(pc.Y + rails[0].sy * 2 * (pc.Scaled ? pc.SY : 1), p.LevelY(0) - 1 + 0.01f, p.LevelY(0) - 0.01f);
+                else if (up) { Assert.InRange(bottom, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); Assert.InRange(top, p.Storey - 0.12f, p.Storey - 0.01f); }
+                else { Assert.InRange(bottom, -0.12f, -0.01f); Assert.InRange(top, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); }
                 Assert.True(SettlementPlanner.LadderParts(up, p.Storey).Count(x => x.prefab == "wood_beam_1") >= 5, "rungs");
             });
             // nothing of a ladder is left as loose pieces

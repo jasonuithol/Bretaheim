@@ -2021,15 +2021,22 @@ namespace U5InValheim.WorldGen.Core
             float dx = 0, dz = 1;
             if (from >= 0) { dx = Math.Sign(CellX(p, from) - x); dz = Math.Sign(CellZ(p, from) - z); }
             float lx = x - dx * LadderBack, lz = z - dz * LadderBack, yaw = dx != 0 ? 90 : 0;
-            float height = p.Storey / 2 + LadderSink, bottom = y + (up ? p.Storey / 2 : -LadderSink);
+            float bottom = y + (up ? p.Storey / 2 : -LadderInto);
             int first = p.Pieces.Count;
             bool grate = !up && lv.Rule[c].Grate;
             if (grate)
                 // a floor grate: the iron grate over the hole is the way down (stood on, not walked through)
                 ctx.Top("iron_floor_2x2", x, y + 0.02f, z, 0);
             else
-                // the ladder baked into one piece (rails and rungs: LadderRails, LadderRungs), its pivot at its foot
-                ctx.Add(up ? LadderUp : LadderDown, lx, bottom, lz, yaw);
+            {
+                // the ladder baked into one piece (LadderParts), its pivot at its foot
+                // (going up from a basement, whose ceiling is the ground floor's 1 m stone slab: stretched
+                // to reach into its underside as other ladders reach into theirs)
+                float stretch = 1;
+                if (up && lv.Z < 0) stretch = (p.LevelY(0) - 1 + LadderInto - bottom) / (p.Storey / 2 - LadderInto);
+                if (Math.Abs(stretch - 1) < 0.001f) ctx.Add(up ? LadderUp : LadderDown, lx, bottom, lz, yaw);
+                else ctx.Add(LadderUp, lx, bottom, lz, yaw, 1, stretch, 1);
+            }
             bool climb = target >= 0 && target < levels.Count;
             if (climb) p.Links.Add((lv.Z, c, levels[target].Z));
             // stand the arrival a step off the ladder, on a floor tile of the target level
@@ -2051,7 +2058,14 @@ namespace U5InValheim.WorldGen.Core
         }
 
         /// <summary>Ladder: how far it stands back from its tile's centre, half its width, rail and rung thickness (scale of a 0.4 m pole), rung spacing, and how far its rails reach into the ceiling or floor.</summary>
-        const float LadderBack = 0.55f, LadderHalfWidth = 0.3f, LadderRail = 0.25f, LadderRung = 0.18f, LadderRungStep = 0.33f, LadderSink = 0.15f;
+        const float LadderBack = 0.55f, LadderHalfWidth = 0.3f, LadderRail = 0.25f, LadderRung = 0.18f, LadderRungStep = 0.33f;
+
+        /// <summary>
+        /// How far a ladder's end reaches into the floor slab it meets (the ceiling going up, the floor
+        /// going down): less than the thinnest floor (wood_floor, 0.13 m, its top on the storey line),
+        /// so no end shows on the slab's far side.
+        /// </summary>
+        public const float LadderInto = 0.05f;
 
         /// <summary>The baked ladders (the plugin's prefabs): one going up into the ceiling, one down into the floor.</summary>
         public const string LadderUp = "u5_ladder_up", LadderDown = "u5_ladder_down";
@@ -2062,10 +2076,10 @@ namespace U5InValheim.WorldGen.Core
         /// </summary>
         public static IEnumerable<(string prefab, float x, float y, float sx, float sy, float sz)> LadderParts(bool up, float storey = 4f)
         {
-            float height = storey / 2 + LadderSink;
+            float height = storey / 2 + (up ? -LadderInto : LadderInto);
             foreach (int side in new[] { -1, 1 })
                 yield return ("wood_pole2", side * LadderHalfWidth, height / 2, LadderRail, height / 2, LadderRail);
-            for (float h = up ? 0.15f : LadderSink + LadderRungStep; h < height - (up ? LadderSink : 0.15f); h += LadderRungStep)
+            for (float h = up ? 0.15f : LadderInto + LadderRungStep; h < height - 0.15f; h += LadderRungStep)
                 yield return ("wood_beam_1", 0, h, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
         }
 

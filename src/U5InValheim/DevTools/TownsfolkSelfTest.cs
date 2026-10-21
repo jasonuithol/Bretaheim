@@ -496,6 +496,15 @@ namespace U5InValheim.DevTools
             var under = Physics.RaycastAll(grate + Vector3.up * 1f, Vector3.down, 8f, solid).OrderBy(h => h.distance).Select(h => $"{h.collider.transform.root.name} {h.point.y - yew.Origin.y:0.0}");
             Plugin.Log.LogInfo($"townsfolk self-test jail: down through the grate (25,9): {string.Join(", ", under)}; ladders back up {FindObjectsByType<ClimbPoint>(FindObjectsSortMode.None).Count(c => Flat(c.transform.position, grate) < 2.5f && c.Verb == "Climb up")} pieces");
             var baked = FindObjectsByType<U5Ladder>(FindObjectsSortMode.None).Where(l => Vector3.Distance(l.transform.position, yew.Origin) < 50f).ToList();
+            foreach (var l in baked)
+            {
+                // the ends against the storey lines: an up ladder's top below the floor above's
+                // surface, a down ladder's foot above the underside of its floor (wood_floor, 0.13 m)
+                var bounds = l.GetComponentsInChildren<Collider>().Select(c => c.bounds).Aggregate((a, b2) => { a.Encapsulate(b2); return a; });
+                var r = l.GetComponentsInChildren<Renderer>().Select(c => c.bounds).Aggregate((a, b2) => { a.Encapsulate(b2); return a; });
+                float lo = bounds.min.y - yew.Origin.y, hi = bounds.max.y - yew.Origin.y;
+                Plugin.Log.LogInfo($"townsfolk self-test jail: ladder {Utils.GetPrefabName(l.gameObject)} at {l.transform.position - yew.Origin}: colliders {lo:0.00}..{hi:0.00}, drawn {r.min.y - yew.Origin.y:0.00}..{r.max.y - yew.Origin.y:0.00}");
+            }
             Plugin.Log.LogInfo($"townsfolk self-test jail: {baked.Count} baked ladders in Yew, {baked.Count(l => l.GetComponent<ClimbPoint>() != null)} climbable, {baked.Sum(l => l.GetComponentsInChildren<Collider>().Length)} colliders, layer {(baked.Count > 0 ? LayerMask.LayerToName(baked[0].GetComponentInChildren<Collider>().gameObject.layer) : "-")}");
             // the torture table in the hall (21,8): the axe and knife flat on it, blood on the top, the chain over it
             foreach (var tableAt in new[] { At(0, 21, 8), At(0, 29, 8) })
