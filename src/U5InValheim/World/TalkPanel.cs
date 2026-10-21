@@ -173,7 +173,7 @@ namespace U5InValheim.WorldGen
 
         // ── selling to an armourer ──────────────────────────────────────────────────────────
 
-        public static int Intelligence => Player.m_localPlayer != null && Player.m_localPlayer.m_customData.TryGetValue("u5_int", out var v) && int.TryParse(v, out int i) ? i : Shops.DefaultIntelligence;
+        public static int Intelligence => Player.m_localPlayer != null ? AvatarStats.Mine.Intelligence : Shops.DefaultIntelligence;
 
         /// <summary>"What dost thou wish to sell?" in the trade window (the arms carried, at the armourer's offers), or "Thou hast nothing to sell!".</summary>
         static void Sell()

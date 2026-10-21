@@ -252,7 +252,8 @@ namespace U5InValheim.WorldGen
             var (cu, cv) = DungeonLevelPlan.CellCentre(DungeonInfo.StartY * 8 + DungeonInfo.StartX);
             var (u, v) = Stand(plan, cu, cv, besides: true);
             var to = World(d, DungeonInfo.StartLevel, u, v, 0.3f);
-            player.TeleportTo(to, Quaternion.Euler(0, 90, 0), false);
+            // (Valheim refuses a teleport within 2 s of the last one)
+            if (!player.TeleportTo(to, Quaternion.Euler(0, 90, 0), false)) return;
             player.Message(MessageHud.MessageType.Center, Name(d));
             Plugin.Log.LogInfo($"{player.GetPlayerName()} enters {Name(d)} at {to}");
         }
