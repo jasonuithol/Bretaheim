@@ -31,6 +31,7 @@ namespace U5InValheim
         public static ConfigEntry<bool> NewWorldsAreBritannia { get; private set; }
         public static ConfigEntry<string> DumpPieceGeometry { get; private set; }
         public static ConfigEntry<bool> SelfTest { get; private set; }
+        public static ConfigEntry<bool> LogHitches { get; private set; }
         public static ConfigEntry<string> BuildSettlements { get; private set; }
         public static ConfigEntry<string> CombinedShells { get; private set; }
         public static ConfigEntry<int> SpawnLocation { get; private set; }
@@ -70,6 +71,7 @@ namespace U5InValheim
                 "BepInEx/u5_piece_geometry.json at start-up. Leave empty.");
 
             SelfTest = Config.Bind("Development", "SelfTest", false, "Log development self-checks at start-up. Leave off.");
+            LogHitches = Config.Bind("Development", "LogHitches", true, "Log every frame over 150 ms (\"hitch\") with what ran in it: zone spawning, terrain, object creation, settlement pieces, townsfolk, structures.");
 
             harmony = new Harmony(PluginGUID);
             DevTools.PieceGeometryDump.Install(harmony);
@@ -108,6 +110,7 @@ namespace U5InValheim
                 ResidentMonster.Install(harmony);
                 Sleep.Install(harmony);
                 Respawn.Install(harmony);
+                if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();
                 gameObject.AddComponent<UltimaSpawner>();
@@ -116,6 +119,7 @@ namespace U5InValheim
                 RiverBanks.Install(harmony);
                 gameObject.AddComponent<WorldWrap>();
                 if (SelfTest.Value) gameObject.AddComponent<DevTools.TownsfolkSelfTest>();
+                if (LogHitches.Value) gameObject.AddComponent<DevTools.LoadProfiler>();
             }
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         }

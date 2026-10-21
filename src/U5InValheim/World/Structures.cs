@@ -21,6 +21,16 @@ namespace U5InValheim.WorldGen
 
         static GameObject templateRoot;
         static readonly Dictionary<string, GameObject> templates = new Dictionary<string, GameObject>();
+        static readonly Dictionary<string, (int objects, int renderers, int colliders)> weights = new Dictionary<string, (int, int, int)>();
+
+        /// <summary>What one copy of a template is made of (for the load profiler).</summary>
+        public static (int objects, int renderers, int colliders) Weight(string prefabName)
+        {
+            if (weights.TryGetValue(prefabName, out var w)) return w;
+            var t = Template(prefabName);
+            if (t == null) return weights[prefabName] = (0, 0, 0);
+            return weights[prefabName] = (t.GetComponentsInChildren<Transform>(true).Length, t.GetComponentsInChildren<Renderer>(true).Length, t.GetComponentsInChildren<Collider>(true).Length);
+        }
 
         /// <summary>Registers the u5_structure prefab (a ZNetView and the rebuilding component).</summary>
         public static void Register()
@@ -143,6 +153,12 @@ namespace U5InValheim.WorldGen
                 go.SetActive(true);
             }
             if (missing > 0) Plugin.Log.LogWarning($"Structure {loc}/{zone}: {missing} pieces with unknown prefabs");
+            if (Plugin.LogHitches.Value)
+            {
+                int o = 0, r = 0, c = 0;
+                foreach (var p in pieces) { var w = Structures.Weight(p.Prefab); o += w.objects; r += w.renderers; c += w.colliders; }
+                DevTools.LoadProfiler.Built(o, r, c);
+            }
         }
     }
 }
