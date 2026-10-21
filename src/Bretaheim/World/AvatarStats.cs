@@ -35,7 +35,13 @@ namespace Bretaheim.WorldGen
             Patch(harmony, typeof(Skills), nameof(Skills.RaiseSkill), prefix: nameof(RaiseSkill_Prefix));
             Patch(harmony, typeof(Skills), nameof(Skills.GetSkillLevel), prefix: nameof(GetSkillLevel_Prefix));
             Patch(harmony, typeof(Skills), nameof(Skills.OnDeath), prefix: nameof(RaiseSkill_Prefix));
+            var byHash = AccessTools.Method(typeof(SEMan), nameof(SEMan.AddStatusEffect), new[] { typeof(int), typeof(bool), typeof(int), typeof(float), typeof(short) });
+            var bySe = AccessTools.Method(typeof(SEMan), nameof(SEMan.AddStatusEffect), new[] { typeof(StatusEffect), typeof(bool), typeof(int), typeof(float), typeof(short) });
+            if (byHash != null) harmony.Patch(byHash, prefix: new HarmonyMethod(typeof(AvatarStats), nameof(AddStatusEffectHash_Prefix)));
+            if (bySe != null) harmony.Patch(bySe, prefix: new HarmonyMethod(typeof(AvatarStats), nameof(AddStatusEffect_Prefix)));
+            if (byHash == null || bySe == null) Plugin.Log.LogWarning("Avatar stats: SEMan.AddStatusEffect not found (Valheim's Rested stays)");
             Patch(harmony, typeof(Game), "Start", postfix: nameof(GameStart_Postfix));
+            Patch(harmony, typeof(Player), "OnSpawned", postfix: nameof(OnSpawned_Postfix));
             Patch(harmony, typeof(Player), "RPC_UseStamina", prefix: nameof(UseStamina_Prefix));
             Patch(harmony, typeof(Bed), "Interact", prefix: nameof(BedInteract_Prefix));
             Patch(harmony, typeof(Bed), "GetHoverText", prefix: nameof(BedHover_Prefix));
@@ -178,6 +184,35 @@ namespace Bretaheim.WorldGen
         {
             if (!Active) return true;
             __result = 0f;
+            return false;
+        }
+
+        /// <summary>
+        /// No Rested in Britannia, nor the comfort that builds it (Resting): they quicken stamina
+        /// and skills, neither of which Britannia has. A night's sleep heals and restores mana as
+        /// the original's does (Sleep). Our own looks borrowed from Rested are named U5_SE_….
+        /// </summary>
+        static bool Restful(int hash) => hash == SEMan.s_statusEffectRested || hash == SEMan.s_statusEffectResting;
+
+        /// <summary>A Rested brought from a Valheim world is gone on arriving in Britannia.</summary>
+        static void OnSpawned_Postfix(Player __instance)
+        {
+            if (!Active || __instance != Me) return;
+            __instance.GetSEMan().RemoveStatusEffect(SEMan.s_statusEffectRested);
+            __instance.GetSEMan().RemoveStatusEffect(SEMan.s_statusEffectResting);
+        }
+
+        static bool AddStatusEffectHash_Prefix(int nameHash, ref StatusEffect __result)
+        {
+            if (!Active || !Restful(nameHash)) return true;
+            __result = null;
+            return false;
+        }
+
+        static bool AddStatusEffect_Prefix(StatusEffect statusEffect, ref StatusEffect __result)
+        {
+            if (!Active || statusEffect == null || !Restful(statusEffect.NameHash())) return true;
+            __result = null;
             return false;
         }
 

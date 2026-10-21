@@ -134,10 +134,9 @@ namespace Bretaheim.WorldGen
             bool goodMorning = !ambushed && slept >= GoodNight && hour >= MorningFrom && hour <= MorningTo;
             asleepAt = -1;
             if (goodMorning) return true;
-            // up without "Good morning": rested all the same after an unbroken sleep
+            // up without "Good morning" (no Valheim Rested in Britannia: AvatarStats)
             Traverse.Create(__instance).Field("m_sleeping").SetValue(false);
             Traverse.Create(__instance).Field("m_wakeupTime").SetValue(ZNet.instance.GetTimeSeconds());
-            if (!ambushed) __instance.GetSEMan().AddStatusEffect(SEMan.s_statusEffectRested, resetTime: true);
             ambushed = false;
             return false;
         }
