@@ -20,8 +20,8 @@ namespace U5InValheim.Data
             "  items                     equipment names, attack/defence/range/price\n" +
             "  monsters                  creature names and raw stats\n" +
             "  spells | reagents | virtues | words\n" +
-            "  dungeon <0-7> <level>     DUNGEON.DAT cells\n" +
-            "  room <index>              a DUNGEON.CBT room (11x11 + metadata)\n" +
+            "  dungeon <0-7|name> <level> [plan]  DUNGEON.DAT cells; plan: the level as built (88x88 tiles), its rooms\n" +
+            "  room <index> | room <dungeon> <n>  a DUNGEON.CBT room (11x11 + metadata), by file index or by dungeon\n" +
             "  world <x> <y> [w] [h] [under]  overworld tile ids\n" +
             "  tiles [from] [count]      LOOK2.DAT tile names\n" +
             "  signs [location]          SIGNS.DAT\n" +
@@ -48,8 +48,15 @@ namespace U5InValheim.Data
                     case "words":
                         var w = d.Ovl.WordsOfPower;
                         return Lines(Enumerable.Range(0, 8).Select(i => $"{i} {d.Location(33 + i).Name,-10} {w[i]}"));
-                    case "dungeon": return Dungeon(d, int.Parse(Need(args, 1)), int.Parse(Need(args, 2)));
-                    case "room": return Room(d.DungeonRooms[int.Parse(Need(args, 1))]);
+                    case "dungeon":
+                    {
+                        int dn = DungeonNumber(d, Need(args, 1)), level = int.Parse(Need(args, 2));
+                        return args.Length > 3 && args[3] == "plan" ? new WorldGen.Core.DungeonPlanner(d).Describe(dn, level) : Dungeon(d, dn, level);
+                    }
+                    case "room":
+                        return args.Length > 2
+                            ? Room(d.DungeonRooms[WorldGen.Core.DungeonInfo.RoomIndex(DungeonNumber(d, args[1]), int.Parse(args[2]))])
+                            : Room(d.DungeonRooms[int.Parse(Need(args, 1))]);
                     case "world":
                         bool under = args.Contains("under");
                         var nums = args.Skip(1).Where(a => a != "under").Select(int.Parse).ToArray();
@@ -80,6 +87,15 @@ namespace U5InValheim.Data
             {
                 return $"error: {e.Message}\n{Usage}";
             }
+        }
+
+        /// <summary>A dungeon by number 0..7 or by name.</summary>
+        static int DungeonNumber(U5Data d, string s)
+        {
+            if (int.TryParse(s, out int n)) return n;
+            var l = d.FindLocation(s) ?? throw new ArgumentException($"no location '{s}'");
+            if (l.IsSettlement) throw new ArgumentException($"{l.Name} is no dungeon");
+            return l.Number - WorldGen.Core.DungeonInfo.FirstLocation;
         }
 
         static string Need(string[] a, int i) => i < a.Length ? a[i] : throw new ArgumentException("missing argument");

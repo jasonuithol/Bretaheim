@@ -46,6 +46,13 @@
   (right-click) and cast with Z, with the original's circles, mana, level and places; the 48 spells
   as real-time effects (bolts, fields, winds, the earthquake, sleep, fear, charm, summons, light,
   protection, blink …). Scrolls are read and potions drunk with a right-click.
+- Dungeons: the seven dungeons on Britannia have stone doors in the mountainside, sealed until their
+  word of power is said in chat beside them (say it again to seal it). Inside, every level is built from
+  the original's maps: hallways, ladders and grates between the levels, rooms with their monsters,
+  treasure and traps (tiles that change when stepped on), fountains to drink from, hidden pits, bomb
+  traps, sleep/poison/fire/electric fields, heavy doors, secret doors found with a blow, chests of the
+  dungeon's own loot. Dark inside: bring a torch. Rooms stay cleared, except the few that always fill
+  again. Doom (in the Underworld) waits for the Underworld.
 
 Settlements (built from TOWNE/DWELLING/CASTLE/KEEP.DAT, setting `BuildSettlements`; tried in-game on
 Britain, Lord British's castle and Iolo's hut):

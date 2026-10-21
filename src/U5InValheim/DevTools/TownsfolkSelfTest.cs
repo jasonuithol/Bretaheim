@@ -67,6 +67,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=dungeon[:<0-7>]: a dungeon's entrance, levels, rooms (DungeonSelfTest)
+            if (only.StartsWith("dungeon"))
+            {
+                yield return DungeonSelfTest.Run(only.Length > 8 ? int.Parse(only.Substring(8)) : 2, Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {

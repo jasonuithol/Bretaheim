@@ -103,6 +103,8 @@ namespace U5InValheim.Data
         public int PartyZ => (sbyte)d[0x2ef];
         public int PartyX => d[0x2f0];
         public int PartyY => d[0x2f1];
+        /// <summary>Dungeon 0..7 (Deceit … Doom) unsealed (g_dungeon_open 0x80); a sealed one's entrance shows as 0xdf until its word of power is spoken.</summary>
+        public bool DungeonOpen(int i) => d[0x32a + i] >= 0x80;
 
         int U16(int o) => d[o] | d[o + 1] << 8;
     }
