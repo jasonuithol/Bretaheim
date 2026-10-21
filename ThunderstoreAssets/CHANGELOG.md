@@ -25,6 +25,7 @@ Britain, Lord British's castle and Iolo's hut):
   up at night and down in the morning.
 - Stone walls are laid in big slabs, a whole wall thick, their joints staggered: a quarter of the
   pieces, for quicker loading.
+- Floors are laid in 4x4 m pieces where they can be: under half the floor pieces.
 - Lord British's throne room has his throne, and the dead come back there (not at a bed).
 - Inns: pay the innkeeper for a night's rest (the original's price and words) and sleep in one of
   the inn's beds until morning. Everyone must be in bed for the night to pass.

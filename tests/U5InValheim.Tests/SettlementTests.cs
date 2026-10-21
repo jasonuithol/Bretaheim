@@ -53,7 +53,7 @@ namespace U5InValheim.Tests
             var p = Plan(2, "towne");
             Assert.True(p.Pieces.Count(x => x.Prefab == "darkwood_roof") > 100, "shingle roofs");
             Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof"); // the cobblestone cottages' thatch
-            Assert.True(p.Pieces.Count(x => x.Prefab == "wood_floor" && x.Y > 2.5f) > 100, "upper floors");
+            Assert.True(p.Pieces.Where(x => x.Prefab == "wood_floor" && x.Y > 2.5f).Sum(x => x.Scaled ? x.SX * x.SZ : 1) > 100, "upper floors (tiles)");
             Assert.True(p.Pieces.Where(x => x.Prefab.StartsWith("stone_wall")).Sum(WallVolume) > 2000, "solid stone walls");
             Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text.Contains("PRIVATE"));
             Assert.True(p.Garden.Any(g => g), "the flower bed around the plaza");
@@ -73,6 +73,13 @@ namespace U5InValheim.Tests
             Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("piece_grausten_roof")) > 200);
             Assert.True(p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && Math.Abs((x.Y % 4 + 4) % 4 - 1.5f) < 0.01f) > 20, "merlons");
             Assert.Contains(p.Pieces, x => x.Prefab == "ashwood_door" && x.Lock != null);
+        }
+
+        /// <summary>A floor piece (a tile's, or stretched over 2x2 or 2x1 tiles) lies over this tile.</summary>
+        static bool Covers(SettlementPlan p, Placement pc, int c)
+        {
+            float hx = (pc.Scaled ? pc.SX : 1) * p.Tile / 2, hz = (pc.Scaled ? pc.SZ : 1) * p.Tile / 2;
+            return Math.Abs(pc.X - p.LocalX(c % 32)) < hx && Math.Abs(pc.Z - p.LocalZ(c / 32)) < hz;
         }
 
         /// <summary>A stone wall piece's volume (m³; slabs and bricks may be squeezed or stretched).</summary>
@@ -456,7 +463,7 @@ namespace U5InValheim.Tests
             }));
             for (int c = 0; c < 32 * 32; c++)
                 if (NearDug(c))
-                    Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Math.Abs(pc.X - p.LocalX(c % 32)) < 0.1f && Math.Abs(pc.Z - p.LocalZ(c / 32)) < 0.1f);
+                    Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Covers(p, pc, c));
             // the corner towers' ladders lead down and back up
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a pole's pivot is its middle)
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y < -2 && Math.Abs(pc.ClimbY - 0.2f) < 0.01f);

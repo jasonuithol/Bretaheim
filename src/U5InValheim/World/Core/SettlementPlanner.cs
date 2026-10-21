@@ -706,6 +706,7 @@ namespace U5InValheim.WorldGen.Core
         void Ground(Ctx ctx, Level g)
         {
             var p = ctx.Plan;
+            var planks = new bool[N * N];
             var garden = Array.IndexOf(tiles.Garden.Locations, p.Location.Number) >= 0 ? Gardens(g) : new bool[N * N];
             for (int c = 0; c < N * N; c++)
             {
@@ -725,13 +726,41 @@ namespace U5InValheim.WorldGen.Core
                 }
                 if (r.Paint == Paint.Planks)
                 {
-                    ctx.Top("wood_floor", CellX(p, c), 0.05f, CellZ(p, c), 0);
+                    planks[c] = true;
                     continue;
                 }
                 if (g.Barrier[c] || g.Doorway[c]) p.GroundPaint[c] = g.Building[c] || g.Doorway[c] ? Paint.Paved : Paint.None;
                 else if (g.Interior[c]) p.GroundPaint[c] = r.Paint == Paint.None ? Paint.Paved : r.Paint; // floor continues under furniture
                 else p.GroundPaint[c] = r.Paint;
             }
+            Tiled(ctx, "wood_floor", planks, 0.05f);
+        }
+
+        /// <summary>
+        /// Lays a floor piece over these tiles, few pieces as can be: a 2x2 square of tiles under
+        /// one piece stretched to 4x4 m, then pairs (4x2), then single tiles.
+        /// </summary>
+        static void Tiled(Ctx ctx, string prefab, bool[] cells, float y)
+        {
+            var p = ctx.Plan;
+            var used = new bool[N * N];
+            bool Free(int x, int yy) => x < N && yy < N && cells[yy * N + x] && !used[yy * N + x];
+            foreach (var (w, h) in new[] { (2, 2), (2, 1), (1, 2), (1, 1) })
+                for (int ty = 0; ty < N; ty++)
+                for (int tx = 0; tx < N; tx++)
+                {
+                    bool fits = true;
+                    for (int dy = 0; dy < h && fits; dy++)
+                    for (int dx = 0; dx < w && fits; dx++)
+                        fits = Free(tx + dx, ty + dy);
+                    if (!fits) continue;
+                    for (int dy = 0; dy < h; dy++)
+                    for (int dx = 0; dx < w; dx++)
+                        used[(ty + dy) * N + tx + dx] = true;
+                    float x = (p.LocalX(tx) + p.LocalX(tx + w - 1)) / 2, z = (p.LocalZ(ty) + p.LocalZ(ty + h - 1)) / 2;
+                    if (w == 1 && h == 1) ctx.Top(prefab, x, y, z, 0);
+                    else ctx.Top(prefab, x, y, z, 0, w, 1, h);
+                }
         }
 
         /// <summary>
@@ -875,6 +904,7 @@ namespace U5InValheim.WorldGen.Core
             if (b == null) return;
             var ground = levels.FirstOrDefault(l => l.Z == 0);
             var p = ctx.Plan;
+            var slab = new bool[N * N];
             for (int c = 0; c < N * N; c++)
             {
                 // the rooms, and the doors, arches and secret walls walked through between them
@@ -884,19 +914,23 @@ namespace U5InValheim.WorldGen.Core
                 p.Basement[c] = true;
                 p.GroundPaint[c] = Paint.Paved;
                 p.Water[c] = false;
+                // (a grate is the only cover over its hole)
+                if (ground != null && ground.Rule[c].Grate) continue;
+                bool climb = Climbs(b.Rule[c].Kind) || (ground != null && Climbs(ground.Rule[c].Kind));
+                bool trapdoor = ground != null && ground.Rule[c].Trapdoor;
+                if (!climb && !trapdoor) { slab[c] = true; continue; }
                 ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
                 // (a ladder climbing through the slab: semi-transparent)
-                if (Climbs(b.Rule[c].Kind) || (ground != null && Climbs(ground.Rule[c].Kind))) ctx.Last(pl => { pl.Look = SeeThrough; return pl; });
+                if (climb) ctx.Last(pl => { pl.Look = SeeThrough; return pl; });
                 // a trapdoor above: the stone underfoot drops whoever steps on it into the basement
-                if (ground != null && ground.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
-                // (a grate is the only cover over its hole)
-                if (ground != null && ground.Rule[c].Grate) p.Pieces.RemoveAt(p.Pieces.Count - 1);
+                if (trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
             }
             // the tiles round the dug ones (the basement's walls) dip to its floor at their dug
             // edges, under walls that stop at the slab: the slab covers them too
             for (int c = 0; c < N * N; c++)
                 if (!p.Basement[c] && Neighbours8(c).Any(n => p.Basement[n]))
-                    ctx.Top(style.Sill, CellX(p, c), 0, CellZ(p, c), 0);
+                    slab[c] = true;
+            Tiled(ctx, style.Sill, slab, 0);
         }
 
         void Floors(Ctx ctx, Level lv, Level below, TownStyle style)
@@ -904,17 +938,22 @@ namespace U5InValheim.WorldGen.Core
             if (lv.Z == 0 || below == null) return;
             var p = ctx.Plan;
             float y = p.LevelY(lv.Z);
+            var plain = new bool[N * N];
             for (int c = 0; c < N * N; c++)
             {
                 var k = lv.Rule[c].Kind;
                 bool floored = lv.Interior[c] || lv.Doorway[c] || (lv.Walked != null && lv.Walked[c])
                                || (lv.Built[c] && (lv.Rule[c].IsOpening || k == TileKind.Battlement));
                 if (!floored || Solid(below, c) || lv.Rule[c].Grate) continue;
+                bool climb = Climbs(lv.Rule[c].Kind) || Climbs(below.Rule[c].Kind);
+                if (!climb && !lv.Rule[c].Trapdoor) { plain[c] = true; continue; }
                 ctx.Top(style.Floor, CellX(p, c), y, CellZ(p, c), 0);
                 // (where a ladder climbs through, the floor is semi-transparent)
-                if (Climbs(lv.Rule[c].Kind) || Climbs(below.Rule[c].Kind)) ctx.Last(pl => { pl.Look = SeeThrough; return pl; });
+                if (climb) ctx.Last(pl => { pl.Look = SeeThrough; return pl; });
                 if (lv.Rule[c].Trapdoor) ctx.Last(pl => { pl.Look = "passable"; return pl; });
             }
+            // the rest in as few pieces as can be
+            Tiled(ctx, style.Floor, plain, y);
         }
 
         // ── walls ─────────────────────────────────────────────────────────────────────────────
