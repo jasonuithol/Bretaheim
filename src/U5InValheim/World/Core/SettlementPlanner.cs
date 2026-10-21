@@ -1134,6 +1134,7 @@ namespace U5InValheim.WorldGen.Core
             }
 
             var posts = new HashSet<(int, int)>();
+            CobbleFill(ctx, lv, cobble, along, low, y0);
             for (int c = 0; c < N * N; c++)
             {
                 if (!lv.Built[c] || lv.Rule[c].Kind == TileKind.Battlement) continue;
@@ -1249,21 +1250,43 @@ namespace U5InValheim.WorldGen.Core
         static bool IsDoor(Level lv, int c) => lv.Built[c] && lv.Rule[c].Kind == TileKind.Door && !lv.Rule[c].Gate;
 
         /// <summary>
-        /// A cobblestone wall tile: two rows of stone fence, a storey high, in a frame of posts on
-        /// the tile corners (shared along a run) with a beam along the top of each open face.
+        /// The stone of the cobblestone walls: the stone fence doubled every way, so one piece fills
+        /// two tiles of a run (one where the run has no partner), the wall's whole thickness, and two
+        /// 1 m courses (the last course alone on an odd count).
+        /// </summary>
+        static void CobbleFill(Ctx ctx, Level lv, CobbleStyle s, bool[] along, bool[] low, float y0)
+        {
+            var p = ctx.Plan;
+            bool Cobble(int c) => lv.Built[c] && lv.Rule[c].Kind == TileKind.Wall && lv.Rule[c].Build == WallBuild.Cobble;
+            var used = new bool[N * N];
+            for (int c = 0; c < N * N; c++)
+            {
+                if (!Cobble(c) || used[c]) continue;
+                used[c] = true;
+                bool ax = along[c];
+                int x = c % N, y = c / N, next = ax ? (x + 1 < N ? c + 1 : -1) : (y + 1 < N ? c + N : -1);
+                bool pair = next >= 0 && Cobble(next) && !used[next] && along[next] == ax && low[next] == low[c];
+                if (pair) used[next] = true;
+                float cx = CellX(p, c), cz = CellZ(p, c), len = 1;
+                if (pair) { cx = (cx + CellX(p, next)) / 2; cz = (cz + CellZ(p, next)) / 2; len = 2; }
+                // (an enclosure with no floor: half a storey)
+                float storey = low[c] ? p.Storey / 2 : p.Storey;
+                int courses = (int)Math.Ceiling(storey);
+                for (int course = 0; course < courses; course += 2)
+                    ctx.Pivot(s.Fence, cx, y0 + course, cz, ax ? 0 : 90, len, course + 1 < courses ? 2 : 1, 2);
+            }
+        }
+
+        /// <summary>
+        /// A cobblestone wall tile's frame (its stone is CobbleFill's): posts on the tile corners
+        /// (shared along a run) with a beam along the top of each open face.
         /// </summary>
         static void CobbleWall(Ctx ctx, Level lv, CobbleStyle s, int c, bool alongX, float y0, HashSet<(int, int)> posts, bool low = false)
         {
             var p = ctx.Plan;
-            float cx = CellX(p, c), cz = CellZ(p, c), yaw = alongX ? 0 : 90;
+            float cx = CellX(p, c), cz = CellZ(p, c);
             // (an enclosure with no floor: half a storey)
             float storey = low ? p.Storey / 2 : p.Storey;
-            for (int course = 0; course < storey; course++)
-                for (int side = -1; side <= 1; side += 2)
-                {
-                    Ctx.Rotate(0, side * 0.5f, yaw, out float ox, out float oz);
-                    ctx.Pivot(s.Fence, cx + ox, y0 + course, cz + oz, yaw);
-                }
             foreach (var (dx, dz) in new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) })
             {
                 if (!posts.Add(((int)Math.Round(cx + dx), (int)Math.Round(cz + dz)))) continue;
