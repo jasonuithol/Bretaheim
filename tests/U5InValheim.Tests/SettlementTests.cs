@@ -75,6 +75,17 @@ namespace U5InValheim.Tests
             Assert.Contains(p.Pieces, x => x.Prefab == "ashwood_door" && x.Lock != null);
         }
 
+        [U5Fact]
+        public void YewsSecretWallSurvivesTheSecondPass()
+        {
+            // the jail's secret wall (25,2) stays bricks of its group, its door hidden behind them,
+            // and the cell's door stays locked
+            var p = Plan(4, "towne");
+            Assert.True(p.Pieces.Count(x => x.Secret != 0) >= 8, $"{p.Pieces.Count(x => x.Secret != 0)} secret bricks");
+            Assert.Contains(p.Pieces, x => x.Hidden != 0);
+            Assert.Contains(p.Pieces, x => x.Lock == "key");
+        }
+
         /// <summary>A floor piece (a tile's, or stretched over 2x2 or 2x1 tiles) lies over this tile.</summary>
         static bool Covers(SettlementPlan p, Placement pc, int c)
         {

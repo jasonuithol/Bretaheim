@@ -203,6 +203,7 @@ namespace U5InValheim.WorldGen.Core
             Roofs(ctx, levels, tiles.Roofs[materials.roof], tiles.Roofs[tiles.CottageRoof]);
             Signs(ctx, loc, levels);
             ArmouryWall(ctx, loc, levels);
+            foreach (var st in tiles.Styles.Values.Distinct()) Consolidate(ctx, st);
             Spawn(plan, ground);
             if (loc.Number == 13) IolosHut(ctx, ground);
             foreach (var lv in levels)
@@ -700,6 +701,70 @@ namespace U5InValheim.WorldGen.Core
 
         static float CellX(SettlementPlan p, int c) => p.LocalX(c % N);
         static float CellZ(SettlementPlan p, int c) => p.LocalZ(c / N);
+
+        /// <summary>
+        /// A second pass over the bricks left where nothing bigger fitted (lintels, run ends,
+        /// parapets, merlons): the plain ones of a style are taken as 1 m cubes and cut again into
+        /// as few boxes as can be (up to 4 m along, 2 m across, 2 m high), each its slab stretched
+        /// to fit (a single cube stays a small brick, two a brick). Bricks with a part to play
+        /// (secret walls, rune clues, anything locked, climbed or with a look) are left alone. Cubes
+        /// are matched in half metres, so bricks on the tile grid and on the mid-tile grid (the
+        /// parapets) never merge with each other. Kept only when it means fewer pieces.
+        /// </summary>
+        static void Consolidate(Ctx ctx, TownStyle style)
+        {
+            var p = ctx.Plan;
+            if (style.Slab == null || !ctx.Known(style.Slab) || style.Brick == null || style.BrickSmall == null) return;
+            var cubes = new HashSet<(int x, int y, int z)>();
+            var keep = new List<Placement>();
+            int taken = 0;
+            static int H(float v) => (int)Math.Round(v * 2);
+            static bool Half(float v) => Math.Abs(v * 2 - Math.Round(v * 2)) < 0.02f;
+            foreach (var pc in p.Pieces)
+            {
+                bool small = pc.Prefab == style.BrickSmall, big = pc.Prefab == style.Brick;
+                float yaw = ((pc.Yaw % 360) + 360) % 360;
+                bool plain = (small || big) && !pc.Scaled && pc.Lock == null && pc.Look == null && pc.Secret == 0 && pc.Hidden == 0
+                             && !pc.Climb && !pc.Turned && pc.Text == null && pc.Items == null && pc.StandItem == null
+                             && Math.Abs(yaw % 90) < 0.01f && Half(pc.X) && Half(pc.Y) && Half(pc.Z);
+                if (!plain) { keep.Add(pc); continue; }
+                taken++;
+                if (small) { cubes.Add((H(pc.X), H(pc.Y), H(pc.Z))); continue; }
+                bool alongX = Math.Abs(yaw % 180) < 0.01f;
+                cubes.Add((H(pc.X - (alongX ? 0.5f : 0)), H(pc.Y), H(pc.Z - (alongX ? 0 : 0.5f))));
+                cubes.Add((H(pc.X + (alongX ? 0.5f : 0)), H(pc.Y), H(pc.Z + (alongX ? 0 : 0.5f))));
+            }
+            if (taken < 2) return;
+            // greedy boxes, from the lowest course up
+            var used = new HashSet<(int, int, int)>();
+            bool Free((int x, int y, int z) v) => cubes.Contains(v) && !used.Contains(v);
+            var boxes = new List<(int x, int y, int z, int lx, int ly, int lz)>();
+            foreach (var v in cubes.OrderBy(v => v.y).ThenBy(v => v.z).ThenBy(v => v.x))
+            {
+                if (used.Contains(v)) continue;
+                int lx = 1, lz = 1, ly = 1;
+                while (lx < 4 && Free((v.x + 2 * lx, v.y, v.z))) lx++;
+                int maxZ = lx == 1 ? 4 : 2;
+                while (lz < maxZ && Enumerable.Range(0, lx).All(i => Free((v.x + 2 * i, v.y, v.z + 2 * lz)))) lz++;
+                while (ly < 2 && Enumerable.Range(0, lx).All(i => Enumerable.Range(0, lz).All(k => Free((v.x + 2 * i, v.y + 2 * ly, v.z + 2 * k))))) ly++;
+                for (int i = 0; i < lx; i++) for (int j = 0; j < ly; j++) for (int k = 0; k < lz; k++) used.Add((v.x + 2 * i, v.y + 2 * j, v.z + 2 * k));
+                boxes.Add((v.x, v.y, v.z, lx, ly, lz));
+            }
+            if (boxes.Count >= taken) return;
+            p.Pieces.Clear();
+            p.Pieces.AddRange(keep);
+            foreach (var b in boxes)
+            {
+                // (the box's middle, from its first cube's)
+                float cx = b.x / 2f + (b.lx - 1) / 2f, cy = b.y / 2f + (b.ly - 1) / 2f, cz = b.z / 2f + (b.lz - 1) / 2f;
+                int cubesIn = b.lx * b.ly * b.lz;
+                if (cubesIn == 1) { ctx.Centre(style.BrickSmall, cx, cy, cz, 0); continue; }
+                if (cubesIn == 2 && b.ly == 1) { ctx.Centre(style.Brick, cx, cy, cz, b.lx == 2 ? 0 : 90); continue; }
+                bool ax = b.lx >= b.lz;
+                int along = ax ? b.lx : b.lz, across = ax ? b.lz : b.lx;
+                ctx.Centre(style.Slab, cx, cy, cz, ax ? 0 : 90, (float)along / style.SlabLength, b.ly / 2f, across);
+            }
+        }
 
         // ── ground, floors ────────────────────────────────────────────────────────────────────
 
