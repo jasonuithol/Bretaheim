@@ -159,7 +159,7 @@ namespace U5InValheim.WorldGen
                 var shared = prefab.GetComponent<ItemDrop>().m_itemData.m_shared;
                 int room = Math.Max(0, Magic.MostMixed - me.GetInventory().CountItems(shared.m_name));
                 int n = Math.Min(count, room);
-                if (n > 0 && !me.GetInventory().AddItem(prefab, n)) ItemDrop.DropItem(prefab.GetComponent<ItemDrop>().m_itemData, n, me.transform.position + Vector3.up, Quaternion.identity);
+                if (n > 0 && !me.GetInventory().AddItem(prefab, n)) Treasure.DropOnGround(prefab, n, me.transform.position + Vector3.up);
             }
             SpellStatus.Fx("vfx_bowl_AddItem", me.transform.position, 3f);
             info.text = S(SMixing) + " " + S(SDone) + " " + Mixed(spell);

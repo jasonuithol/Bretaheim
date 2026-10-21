@@ -332,7 +332,7 @@ namespace U5InValheim.WorldGen
             static void Drop(string prefabName, int count, Vector3 at)
             {
                 var drop = ObjectDB.instance?.GetItemPrefab(prefabName)?.GetComponent<ItemDrop>();
-                if (drop != null) ItemDrop.DropItem(drop.m_itemData, count, at + Vector3.up, Quaternion.identity);
+                if (drop != null) Treasure.DropOnGround(drop.gameObject, count, at + Vector3.up);
             }
         }
 

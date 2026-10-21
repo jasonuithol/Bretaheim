@@ -324,7 +324,7 @@ namespace U5InValheim.WorldGen
                     var prefab = food != null ? ObjectDB.instance?.GetItemPrefab(food.Prefab) : null;
                     if (prefab == null) return Failed;
                     int n = Magic.CreatedFood(random);
-                    if (!me.GetInventory().AddItem(prefab, n)) ItemDrop.DropItem(prefab.GetComponent<ItemDrop>().m_itemData, n, at + Vector3.up, Quaternion.identity);
+                    if (!me.GetInventory().AddItem(prefab, n)) Treasure.DropOnGround(prefab, n, at + Vector3.up);
                     Flash(me, "vfx_lootspawn");
                     return Succeeded;
                 }

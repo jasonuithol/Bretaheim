@@ -179,7 +179,7 @@ namespace U5InValheim.WorldGen
             var me = Player.m_localPlayer;
             var barley = ObjectDB.instance?.GetItemPrefab(Rations.Item);
             if (me != null && barley != null && !me.GetInventory().AddItem(barley, 1))
-                ItemDrop.DropItem(barley.GetComponent<ItemDrop>().m_itemData, 1, me.transform.position + me.transform.forward, Quaternion.identity);
+                Treasure.DropOnGround(barley, 1, me.transform.position + me.transform.forward);
             bought = true;
             TavernAnythingElse();
         }

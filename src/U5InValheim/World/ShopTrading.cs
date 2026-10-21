@@ -67,7 +67,7 @@ namespace U5InValheim.WorldGen
                 {
                     var prefab = ObjectDB.instance.GetItemPrefab(extra);
                     if (prefab != null && me != null && !me.GetInventory().AddItem(prefab, 1))
-                        ItemDrop.DropItem(prefab.GetComponent<ItemDrop>().m_itemData, 1, me.transform.position + me.transform.forward, Quaternion.identity);
+                        Treasure.DropOnGround(prefab, 1, me.transform.position + me.transform.forward);
                 }
                 break;
             }

@@ -96,6 +96,17 @@ namespace U5InValheim.WorldGen
         // ── giving ──────────────────────────────────────────────────────────────────────────────
 
         /// <summary>Loot into an inventory (in stacks it can hold); what does not fit is dropped at <paramref name="at"/>. Returns its name for messages.</summary>
+        /// <summary>Items lying on the ground: Valheim's DropItem makes the item's own prefab (the
+        /// prefab's item data has none set, so it is given here).</summary>
+        public static void DropOnGround(GameObject prefab, int count, Vector3 at)
+        {
+            var drop = prefab != null ? prefab.GetComponent<ItemDrop>() : null;
+            if (drop == null || count <= 0) return;
+            var data = drop.m_itemData.Clone();
+            data.m_dropPrefab = prefab;
+            ItemDrop.DropItem(data, count, at, Quaternion.identity);
+        }
+
         public static string Give(Inventory inv, Loot loot, Vector3 at)
         {
             var names = new List<string>();
@@ -109,7 +120,7 @@ namespace U5InValheim.WorldGen
                 {
                     int n = Mathf.Min(stack, left);
                     if (inv == null || !inv.AddItem(prefab, n))
-                        ItemDrop.DropItem(drop.m_itemData, n, at + Vector3.up + Random.insideUnitSphere * 0.3f, Quaternion.identity);
+                        Treasure.DropOnGround(drop.gameObject, n, at + Vector3.up + Random.insideUnitSphere * 0.3f);
                 }
                 string name = Localization.instance != null ? Localization.instance.Localize(drop.m_itemData.m_shared.m_name) : drop.m_itemData.m_shared.m_name;
                 if (!prefabName.EndsWith("_Legs")) names.Add(count > 1 ? $"{count} {name}" : name);
@@ -387,7 +398,7 @@ namespace U5InValheim.WorldGen
                 {
                     int n = random.Next(2, 16);
                     var prefab = ObjectDB.instance.GetItemPrefab(reagent.Prefab);
-                    if (prefab != null && !inv.AddItem(prefab, n)) ItemDrop.DropItem(prefab.GetComponent<ItemDrop>().m_itemData, n, player.transform.position, Quaternion.identity);
+                    if (prefab != null && !inv.AddItem(prefab, n)) Treasure.DropOnGround(prefab, n, player.transform.position);
                     Found(player, $"{n} {reagent.Name}");
                 }
                 nview.ClaimOwnership();

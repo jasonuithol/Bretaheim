@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- A new Avatar starts as the original's: Chain Coif, Chain Mail, Long Sword and the Ankh worn, with
+  the party's spells, scrolls, potions, reagents, keys and torches. Items that do not fit in the pack
+  now drop at thy feet (they used to vanish).
 - Whirlpools are the edge of the world in one place: the sea sinks into a funnel, ships are drawn
   in and fall through to the Underworld. The Amulet of Lord British shines. Dungeons are entered only
   on foot. Britannia's deserts are sand again, not lava. `u5 quest` shows where the three flames are.
