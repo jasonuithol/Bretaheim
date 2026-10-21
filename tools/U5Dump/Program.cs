@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
-using U5InValheim.Data;
+using Bretaheim.Data;
 
 // Usage: dotnet run --project tools/U5Dump -- [--u5 <dir>] <what> [args]   (see Dump.Usage)
 // The Ultima V directory defaults to $U5_DIR, then ~/Projects/Ultima 5.
@@ -110,9 +110,9 @@ if (argv.Count > 0 && argv[0] == "preview")
     string terrainJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json"));
     // (the Underworld as built in game: its own terrain changes, east of Britannia, deep lakes; its places marked)
     var shape = under
-        ? U5InValheim.WorldGen.Core.Continents.UnderworldShape(data.Underworld, U5InValheim.WorldGen.Core.TerrainTable.Parse(terrainJson, underworld: true), 1234)
-        : new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, U5InValheim.WorldGen.Core.TerrainTable.Parse(terrainJson), seed: 1234);
-    Preview.Render(shape, U5InValheim.WorldGen.Core.Pois.Build(data), outPath, px, extra);
+        ? Bretaheim.WorldGen.Core.Continents.UnderworldShape(data.Underworld, Bretaheim.WorldGen.Core.TerrainTable.Parse(terrainJson, underworld: true), 1234)
+        : new Bretaheim.WorldGen.Core.BritanniaShape(data.Britannia, Bretaheim.WorldGen.Core.TerrainTable.Parse(terrainJson), seed: 1234);
+    Preview.Render(shape, Bretaheim.WorldGen.Core.Pois.Build(data), outPath, px, extra);
     Console.WriteLine($"wrote {outPath}");
     return 0;
 }
@@ -123,13 +123,13 @@ if (argv.Count > 0 && argv[0] == "banners")
     var tiles = argv.Count > 2 ? argv.Skip(2).Select(t => Convert.ToInt32(t, 16)).ToList()
         : Enumerable.Range(0xf0, 10).Where(t => t != 0xf8).ToList();
     const int s = 2, gap = 4;
-    int bw = U5InValheim.WorldGen.Core.BannerArt.Width, bh = U5InValheim.WorldGen.Core.BannerArt.Height;
+    int bw = Bretaheim.WorldGen.Core.BannerArt.Width, bh = Bretaheim.WorldGen.Core.BannerArt.Height;
     int w = tiles.Count * (bw + gap) * s, h = bh * s;
     var img = new byte[w * h * 3];
     for (int k = 0; k < img.Length; k++) img[k] = 96;
     for (int n = 0; n < tiles.Count; n++)
     {
-        var rgba = U5InValheim.WorldGen.Core.BannerArt.Render(data.Tiles, tiles[n]);
+        var rgba = Bretaheim.WorldGen.Core.BannerArt.Render(data.Tiles, tiles[n]);
         for (int y = 0; y < h; y++)
         for (int x = 0; x < bw * s; x++)
         {
@@ -152,9 +152,9 @@ if (argv.Count > 0 && argv[0] == "bench")
     // bench [n=200000]: how fast the terrain builder's questions are answered (biome, height, paint
     // per sample), at random over the world and over a zone-mesh grid near Britain (no settlement sites)
     int n = argv.Count > 1 ? int.Parse(argv[1]) : 200000;
-    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var table = Bretaheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
     var sw0 = System.Diagnostics.Stopwatch.StartNew();
-    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    var shape = new Bretaheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
     Console.WriteLine($"shape built in {sw0.ElapsedMilliseconds} ms; world {shape.WrapMetres:0} m");
     var rnd = new Random(1);
     var pts = Enumerable.Range(0, n).Select(_ => ((float)(rnd.NextDouble() - 0.5) * shape.WrapMetres, (float)(rnd.NextDouble() - 0.5) * shape.WrapMetres)).ToArray();
@@ -178,11 +178,11 @@ if (argv.Count > 0 && argv[0] == "bench")
 if (argv.Count > 0 && argv[0] == "sites")
 {
     // sites <loc,loc,...>: where those settlements are built (moved apart as in game) and the land there
-    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
-    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    var table = Bretaheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var shape = new Bretaheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
     var locs = (argv.Count > 1 ? argv[1] : "2,13,17").Split(',').Select(int.Parse).OrderBy(n => n).ToList();
     var squares = locs.Select(n => { var l = data.Location(n); shape.TileCentre(l.X, l.Y, out float x, out float z); return (x, z, half: 32f); }).ToList();
-    U5InValheim.WorldGen.Core.SiteLayout.Separate(squares, 16, out var centres);
+    Bretaheim.WorldGen.Core.SiteLayout.Separate(squares, 16, out var centres);
     for (int k = 0; k < locs.Count; k++)
     {
         var (x, z) = centres[k];
@@ -196,11 +196,11 @@ if (argv.Count > 0 && argv[0] == "sites")
 if (argv.Count > 0 && argv[0] == "dressing")
 {
     // dressing: how many of each prefab dressing.json scatters over the whole overworld
-    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
-    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
-    var d = U5InValheim.WorldGen.Core.Dressing.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "dressing.json")));
+    var table = Bretaheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var shape = new Bretaheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    var d = Bretaheim.WorldGen.Core.Dressing.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "dressing.json")));
     var counts = new System.Collections.Generic.Dictionary<string, int>();
-    int cells = (int)(shape.WrapMetres / U5InValheim.WorldGen.Core.Dressing.Cell) / 2;
+    int cells = (int)(shape.WrapMetres / Bretaheim.WorldGen.Core.Dressing.Cell) / 2;
     for (int cz = -cells; cz < cells; cz++)
     for (int cx = -cells; cx < cells; cx++)
     {
@@ -215,8 +215,8 @@ if (argv.Count > 0 && argv[0] == "slopes")
 {
     // slopes [step=4]: slope angle percentiles per terrain class over the whole overworld
     float step = argv.Count > 1 ? float.Parse(argv[1]) : 4f;
-    var table = U5InValheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
-    var shape = new U5InValheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
+    var table = Bretaheim.WorldGen.Core.TerrainTable.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "terrain.json")));
+    var shape = new Bretaheim.WorldGen.Core.BritanniaShape(data.Britannia, table, seed: 1234);
     var byClass = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<float>>();
     float half = shape.WrapMetres / 2;
     for (float z = -half; z < half; z += step)
@@ -245,24 +245,24 @@ if (argv.Count > 0 && argv[0] == "shops")
     foreach (var npc in data.NpcsOf(loc).Where(n => n.IsShopkeeper))
     {
         var s = data.Shops.Of(loc, npc);
-        var open = Enumerable.Range(0, 24).Where(h => U5InValheim.Data.Shops.IsOpen(npc, h)).ToList();
+        var open = Enumerable.Range(0, 24).Where(h => Bretaheim.Data.Shops.IsOpen(npc, h)).ToList();
         Console.WriteLine($"== {s.Trade} slot {s.Slot}: {s.Name}, kept by {s.Keeper}; open {(open.Count > 0 ? $"{open.First()}:00-{open.Last() + 1}:00" : "never")}");
         Console.WriteLine("closed: " + data.Shops.Closed(s));
         Console.WriteLine(data.Shops.Greeting(s, 10, rnd));
         foreach (var w in data.Shops.Stock(s)) Console.WriteLine($"  {w.Name} x{w.Quantity}: {w.Price} gp");
-        if (s.Trade == U5InValheim.Data.ShopTrade.Armoury)
+        if (s.Trade == Bretaheim.Data.ShopTrade.Armoury)
         {
             Console.WriteLine(data.Shops.SellPrompt(rnd));
             foreach (int id in new[] { 0x1a, 0x1b, 0x0f })
             {
-                int offer = data.Shops.SellOffer(id, U5InValheim.Data.Shops.DefaultIntelligence);
-                Console.WriteLine(offer > 0 && !U5InValheim.Data.Shops.IsAmmo(id) ? data.Shops.Offer(s, id, offer, 10, rnd) + " " + data.Shops.Sold(s, 10) : data.Shops.WillNotBuy(s, id, 10));
+                int offer = data.Shops.SellOffer(id, Bretaheim.Data.Shops.DefaultIntelligence);
+                Console.WriteLine(offer > 0 && !Bretaheim.Data.Shops.IsAmmo(id) ? data.Shops.Offer(s, id, offer, 10, rnd) + " " + data.Shops.Sold(s, 10) : data.Shops.WillNotBuy(s, id, 10));
             }
         }
-        if (s.Trade == U5InValheim.Data.ShopTrade.Healer) Console.WriteLine($"  heal {data.Shops.HealerPrices(s).heal} gp, cure {data.Shops.HealerPrices(s).cure} gp");
-        if (s.Trade == U5InValheim.Data.ShopTrade.Inn)
+        if (s.Trade == Bretaheim.Data.ShopTrade.Healer) Console.WriteLine($"  heal {data.Shops.HealerPrices(s).heal} gp, cure {data.Shops.HealerPrices(s).cure} gp");
+        if (s.Trade == Bretaheim.Data.ShopTrade.Inn)
         {
-            int price = data.Shops.InnPrice(s, U5InValheim.Data.Shops.DefaultIntelligence);
+            int price = data.Shops.InnPrice(s, Bretaheim.Data.Shops.DefaultIntelligence);
             Console.WriteLine($"  rest {price} gp, {data.Shops.InnRoomCount(s)} rooms, bed {data.Shops.InnBed(s)}");
             Console.WriteLine(data.Shops.InnRoom(s, 21, price));
             Console.WriteLine(data.Shops.InnGoodNight(s, 21, false));
@@ -278,7 +278,7 @@ if (argv.Count > 0 && argv[0] == "converse")
     // converse <location> <name> [line ...]: a conversation as the in-game panel shows it
     var loc = data.FindLocation(argv[1]);
     var npc = data.NpcsOf(loc).First(n => string.Equals(data.NpcName(loc, n), argv[2], StringComparison.OrdinalIgnoreCase));
-    var t = new U5InValheim.Data.TalkSession(data.ScriptOf(loc, npc), data.Ovl, new DumpTalkWorld());
+    var t = new Bretaheim.Data.TalkSession(data.ScriptOf(loc, npc), data.Ovl, new DumpTalkWorld());
     Console.Write(t.TakeOutput());
     foreach (var line in argv.Skip(3))
     {
@@ -336,16 +336,16 @@ if (argv.Count > 0 && argv[0] == "town")
 {
     // town <location> <out.ppm>
     string maps = AppContext.BaseDirectory;
-    var tiles = U5InValheim.WorldGen.Core.TownTiles.Parse(File.ReadAllText(Path.Combine(maps, "town_tiles.json")));
-    var geo = U5InValheim.WorldGen.Core.PieceGeometry.Parse(File.ReadAllText(Path.Combine(maps, "piece_geometry.json")));
+    var tiles = Bretaheim.WorldGen.Core.TownTiles.Parse(File.ReadAllText(Path.Combine(maps, "town_tiles.json")));
+    var geo = Bretaheim.WorldGen.Core.PieceGeometry.Parse(File.ReadAllText(Path.Combine(maps, "piece_geometry.json")));
     var loc = data.FindLocation(argv[1]);
-    var pois = U5InValheim.WorldGen.Core.Pois.Build(data);
+    var pois = Bretaheim.WorldGen.Core.Pois.Build(data);
     string kind = pois.First(p => p.Location == loc.Number).Kind;
-    var plan = new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Plan(loc, kind, U5InValheim.WorldGen.Core.VBiome.Meadows);
+    var plan = new Bretaheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Plan(loc, kind, Bretaheim.WorldGen.Core.VBiome.Meadows);
     string outPath = argv.Count > 2 ? argv[2] : "town.ppm";
     if (outPath == "probe")
     {
-        Console.WriteLine(new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Probe(loc, int.Parse(argv[3]), int.Parse(argv[4]), int.Parse(argv[5])));
+        Console.WriteLine(new Bretaheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).Probe(loc, int.Parse(argv[3]), int.Parse(argv[4]), int.Parse(argv[5])));
         return 0;
     }
     if (outPath == "inn")
@@ -362,7 +362,7 @@ if (argv.Count > 0 && argv[0] == "town")
     }
     if (outPath == "floors")
     {
-        Console.Write(new U5InValheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).DescribeFloors(loc));
+        Console.Write(new Bretaheim.WorldGen.Core.SettlementPlanner(data, tiles, geo).DescribeFloors(loc));
         return 0;
     }
     if (outPath.EndsWith(".json"))
@@ -380,7 +380,7 @@ if (argv.Count > 0 && argv[0] == "town")
 Console.WriteLine(Dump.Run(data, argv.ToArray()));
 return 0;
 
-class DumpTalkWorld : U5InValheim.Data.ITalkWorld
+class DumpTalkWorld : Bretaheim.Data.ITalkWorld
 {
     public string AvatarName => "Avatar";
     public System.Collections.Generic.IEnumerable<string> PartyNames => new[] { "Avatar" };

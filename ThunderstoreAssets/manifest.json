@@ -1,8 +1,8 @@
 {
     "namespace": "tarbaby",
-    "name": "U5InValheim",
+    "name": "Bretaheim",
     "version_number": "0.2.0",
-    "website_url": "https://github.com/jasonuithol/U5InValheim",
+    "website_url": "https://github.com/jasonuithol/Bretaheim",
     "description": "Ultima V: Warriors of Destiny rebuilt inside Valheim, read at runtime from your own copy of Ultima V.",
     "dependencies": [
         "denikson-BepInExPack_Valheim-5.4.2350",

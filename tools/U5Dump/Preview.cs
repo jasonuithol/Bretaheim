@@ -1,7 +1,7 @@
 using System;
 using System.IO;
-using U5InValheim.Data;
-using U5InValheim.WorldGen.Core;
+using Bretaheim.Data;
+using Bretaheim.WorldGen.Core;
 
 /// <summary>Renders a BritanniaShape to a PPM image: biome colours, hill shading, POI dots.</summary>
 static class Preview

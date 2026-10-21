@@ -56,7 +56,7 @@ Bigger challenge is wells.  Just build it from rock walls or something idk.
 
 [Mix Spell]
 
-Valheim requires a mead kettle for this, Ultima doesnt.  The mead kettle is part of the progression system of valheim, something we are completely bypassing in the U5InValheim approach.
+Valheim requires a mead kettle for this, Ultima doesnt.  The mead kettle is part of the progression system of valheim, something we are completely bypassing in the Bretaheim approach.
 
 Instead, just press M and you'll get a menu of recipes you can mix.  I'm going to add a random rule - you need to be within range of a campfire.
 

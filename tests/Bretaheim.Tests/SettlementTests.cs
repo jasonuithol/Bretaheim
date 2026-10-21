@@ -1,0 +1,698 @@
+using System;
+using System.IO;
+using System.Linq;
+using Xunit;
+using Bretaheim.WorldGen.Core;
+
+namespace Bretaheim.Tests
+{
+    public class SettlementTests
+    {
+        static string Mapping(string f) => File.ReadAllText(Path.Combine(Env.RepoRoot, "assets/mappings", f));
+        static readonly Lazy<PieceGeometry> geo = new Lazy<PieceGeometry>(() => PieceGeometry.Parse(Mapping("piece_geometry.json")));
+        static readonly Lazy<SettlementPlanner> planner = new Lazy<SettlementPlanner>(() =>
+            new SettlementPlanner(Env.Data, TownTiles.Parse(Mapping("town_tiles.json")), geo.Value));
+        static readonly Lazy<System.Collections.Generic.HashSet<string>> prefabs = new Lazy<System.Collections.Generic.HashSet<string>>(() =>
+            new System.Collections.Generic.HashSet<string>(File.ReadAllLines(Path.Combine(Env.RepoRoot, "tools/data/valheim_prefabs.txt")).Where(l => !l.StartsWith("#"))));
+
+        static SettlementPlan Plan(int location, string kind) => planner.Value.Plan(Env.Data.Location(location), kind, VBiome.BlackForest);
+
+        [U5Fact]
+        public void IolosHutHasToolsWorkbenchAndSpawn()
+        {
+            var p = Plan(13, "dwelling");
+            var chest = p.Pieces.Single(x => x.Items != null);
+            Assert.Equal("piece_chest_wood", chest.Prefab);
+            Assert.Equal(new[] { "Hammer", "Hoe", "Cultivator" }, chest.Items);
+            Assert.Single(p.Pieces, x => x.Prefab == "piece_workbench");
+            Assert.True(p.HasSpawn);
+            // the spawn point is inside the hut: under its roof
+            Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof" && Math.Abs(x.X - p.SpawnX) < 6 && Math.Abs(x.Z - p.SpawnZ) < 6);
+            Assert.True(p.Pieces.Count(x => x.Prefab == "Pickable_Barley") >= 40, "the barley plot");
+        }
+
+        [U5Theory]
+        [InlineData(13, "dwelling")]
+        [InlineData(2, "towne")]
+        [InlineData(17, "castle")]
+        [InlineData(19, "village")]
+        [InlineData(20, "village")]
+        [InlineData(21, "village")]
+        public void PlansUseOnlyRealPrefabsWithinTheSquare(int location, string kind)
+        {
+            var p = Plan(location, kind);
+            // (the plugin's own: the baked ladders and stairs, the graves' earth)
+            Assert.All(p.Pieces.Where(x => !x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, prefabs.Value));
+            Assert.All(p.Pieces.Where(x => x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, new[] { SettlementPlanner.LadderUp, SettlementPlanner.LadderDown, SettlementPlanner.GravePlot }.Concat(SettlementPlanner.StairTurns.Select(SettlementPlanner.StairsPrefab))));
+            Assert.All(p.Pieces, x => Assert.InRange(x.X, -p.HalfSize - 2, p.HalfSize + 2));
+            Assert.All(p.Pieces, x => Assert.InRange(x.Z, -p.HalfSize - 2, p.HalfSize + 2));
+            Assert.Contains(p.Pieces, x => x.Prefab.Contains("door"));
+        }
+
+        [U5Fact]
+        public void BritainHasRoofsUpperFloorsAndItsTownWall()
+        {
+            var p = Plan(2, "towne");
+            Assert.True(p.Pieces.Count(x => x.Prefab == "darkwood_roof") > 100, "shingle roofs");
+            Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof"); // the cobblestone cottages' thatch
+            Assert.True(p.Pieces.Where(x => x.Prefab == "wood_floor" && x.Y > 2.5f).Sum(x => x.Scaled ? x.SX * x.SZ : 1) > 100, "upper floors (tiles)");
+            Assert.True(p.Pieces.Where(x => x.Prefab.StartsWith("stone_wall")).Sum(WallVolume) > 2000, "solid stone walls");
+            Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text != null && x.Text.Contains("PRIVATE"));
+            Assert.True(p.Garden.Any(g => g), "the flower bed around the plaza");
+            Assert.True(p.Pieces.Count(x => x.Climb) >= 2, "ladders between floors");
+        }
+
+        [U5Fact]
+        public void CastlesHaveGraustenRoofsAndParapets()
+        {
+            var hold = Plan(32, "castle");
+            Assert.True(hold.Pieces.Count(x => x.Prefab == "piece_grausten_roof_45") > 50);
+            // hips are triangles turned upside down
+            Assert.Contains(hold.Pieces, x => x.Prefab.StartsWith("piece_grausten_roof_45_corner") && x.SY < 0);
+            // Lord British's castle has parapets on its walls, but where its upper floor draws roof
+            // tiles (0x27/0x28) there is a roof
+            var p = Plan(17, "castle");
+            Assert.True(p.Pieces.Count(x => x.Prefab.StartsWith("piece_grausten_roof")) > 200);
+            Assert.True(p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && Math.Abs((x.Y % 4 + 4) % 4 - 1.5f) < 0.01f) > 20, "merlons");
+            Assert.Contains(p.Pieces, x => x.Prefab == "ashwood_door" && x.Lock != null);
+        }
+
+        [U5Fact]
+        public void CottageFramesAreAllOak()
+        {
+            // Britain's cobblestone cottages: their posts and top beams are core wood (oak), and the
+            // posts mostly 4 m ones
+            var p = Plan(2, "towne");
+            var oak = new[] { "wood_pole_log_4", "wood_pole_log", "wood_wall_log", "wood_wall_log_4x0.5" };
+            Assert.True(p.Pieces.Count(x => x.Prefab == "wood_pole_log_4") > 50, "4 m oak posts");
+            Assert.Contains(p.Pieces, x => x.Prefab == "wood_wall_log_4x0.5");
+            // no pine post or beam stands where an oak one does (a corner or a top shared with pine)
+            foreach (var o in p.Pieces.Where(x => oak.Contains(x.Prefab)))
+                Assert.DoesNotContain(p.Pieces, x => (x.Prefab == "wood_pole2" || x.Prefab == "wood_pole" || x.Prefab == "wood_beam")
+                                                     && Math.Abs(x.X - o.X) < 0.3f && Math.Abs(x.Z - o.Z) < 0.3f && Math.Abs(x.Y - o.Y) < 2.5f);
+        }
+
+        [U5Fact]
+        public void YewsSecretWallSurvivesTheSecondPass()
+        {
+            // the jail's secret wall (25,2) stays bricks of its group, its door hidden behind them,
+            // and the cell's door stays locked
+            var p = Plan(4, "towne");
+            Assert.True(p.Pieces.Count(x => x.Secret != 0) >= 8, $"{p.Pieces.Count(x => x.Secret != 0)} secret bricks");
+            Assert.Contains(p.Pieces, x => x.Hidden != 0);
+            Assert.Contains(p.Pieces, x => x.Lock == "key");
+        }
+
+        [U5Fact]
+        public void TheHarpsichordGuardsTheSandalwoodBox()
+        {
+            // Lord British's castle, third floor: the wall (17,13) the melody opens is bricks of its
+            // own (look "tune", no rune, no door behind), the closet behind it is floored where the
+            // box (18,12) lies, and a harpsichord stands on that floor
+            var p = Plan(17, "castle");
+            var (wx, wy, wz) = p.TilePos(2, 13 * SettlementPlan.Size + 17);
+            var tune = p.Pieces.Where(x => x.Look == "tune").ToList();
+            Assert.True(tune.Count >= 4, $"{tune.Count} tune bricks");
+            Assert.All(tune, b => Assert.True(Math.Abs(b.X - wx) <= 1.01f && Math.Abs(b.Z - wz) <= 1.01f && b.Y > wy && b.Y < wy + 4, b.ToString()));
+            Assert.DoesNotContain(p.Pieces, x => x.Secret != 0 && Math.Abs(x.X - wx) <= 1.01f && Math.Abs(x.Z - wz) <= 1.01f);
+            Assert.True(p.Walk[2][12 * SettlementPlan.Size + 18], "the box's tile is walked");
+            var harp = p.Pieces.Where(x => x.Look == "harpsichord" && Math.Abs(x.Y - wy) < 0.5f).ToList();
+            Assert.NotEmpty(harp);
+            Assert.All(harp, h => Assert.True(Math.Sqrt((h.X - wx) * (h.X - wx) + (h.Z - wz) * (h.Z - wz)) < 40, h.ToString()));
+        }
+
+        /// <summary>A floor piece (a tile's, or stretched over 2x2 or 2x1 tiles) lies over this tile.</summary>
+        static bool Covers(SettlementPlan p, Placement pc, int c)
+        {
+            float hx = (pc.Scaled ? pc.SX : 1) * p.Tile / 2, hz = (pc.Scaled ? pc.SZ : 1) * p.Tile / 2;
+            return Math.Abs(pc.X - p.LocalX(c % 32)) < hx && Math.Abs(pc.Z - p.LocalZ(c / 32)) < hz;
+        }
+
+        /// <summary>A stone wall piece's volume (m³; slabs and bricks may be squeezed or stretched).</summary>
+        static double WallVolume(Placement x)
+        {
+            double v = x.Prefab == "stone_wall_4x2" ? 8 : x.Prefab == "stone_wall_2x1" ? 2 : 1;
+            return x.Scaled ? v * x.SX * x.SY * x.SZ : v;
+        }
+
+        [U5Theory]
+        [InlineData(13, "dwelling", 1300)]
+        [InlineData(2, "towne", 6000)]
+        [InlineData(17, "castle", 11500)]
+        public void PieceBudget(int location, string kind, int maxPieces)
+        {
+            var p = Plan(location, kind);
+            Assert.InRange(p.Pieces.Count, 1, maxPieces);
+            // solid wall is laid in 4x2 slabs (a quarter of the pieces bricks would take); bricks only
+            // where a slab does not fit: run ends, openings' lintels, half-height walls
+            int slab = p.Pieces.Count(x => x.Prefab == "stone_wall_4x2");
+            int big = p.Pieces.Count(x => x.Prefab == "stone_wall_2x1"), small = p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && !x.Scaled);
+            if (big + small + slab < 100) return; // (a hut's few bricks)
+            Assert.True(slab > 0, "slabs");
+            double slabVolume = 8 * p.Pieces.Where(x => x.Prefab == "stone_wall_4x2").Sum(x => x.Scaled ? x.SX * x.SZ : 1);
+            Assert.True(slabVolume > 2 * big + small, $"walls mostly slabs ({slabVolume} m³ slabs, {2 * big + small} m³ bricks)");
+        }
+
+        [U5Theory]
+        [InlineData(2, "towne")]
+        [InlineData(17, "castle")]
+        public void BricksNeverOverlap(int location, string kind)
+        {
+            // every 1 m cell of every course is filled by at most one brick
+            var p = Plan(location, kind);
+            var cells = new System.Collections.Generic.HashSet<(int, int, int)>();
+            foreach (var b in p.Pieces.Where(x => (x.Prefab == "stone_wall_2x1" || x.Prefab == "stone_wall_1x1") && !x.Scaled))
+            {
+                bool wide = b.Prefab == "stone_wall_2x1";
+                int y = (int)Math.Floor(b.Y);
+                foreach (var d in wide ? new[] { -0.5f, 0.5f } : new[] { 0f })
+                {
+                    float x = b.X + (b.Yaw == 0 ? d : 0), z = b.Z + (b.Yaw == 0 ? 0 : d);
+                    Assert.True(cells.Add(((int)Math.Floor(x), y, (int)Math.Floor(z))), $"{b} overlaps another brick");
+                }
+            }
+        }
+
+        [U5Theory]
+        [InlineData(2)]
+        [InlineData(17)]
+        [InlineData(18)]
+        [InlineData(31)]
+        public void UpperFloorsAreOnlyWhatTheirLaddersReach(int location)
+        {
+            // upper maps repeat the ground below them; only the walk from the ladders and stairs is real
+            string floors = planner.Value.DescribeFloors(Env.Data.Location(location));
+            Assert.DoesNotContain("whole map", floors);
+            var upper = floors.Split("floor ").Skip(2).ToList();
+            Assert.NotEmpty(upper);
+            Assert.All(upper, f => Assert.Contains("o", f));
+            // the copied streets of Britain's ground floor are not on its upper floor
+            if (location == 2) Assert.True(upper[0].Count(ch => ch == 'o') < 400);
+        }
+
+        [U5Fact]
+        public void WallWalksBetweenParapetsAreOpenToTheSky()
+        {
+            // CASTLE.DAT: floor 2's wall-walks (0x45, black marble) run between parapets; nothing
+            // may be built over them (they once got a doorway lintel a storey up)
+            var loc = Env.Data.Location(17);
+            var raw = Env.Data.Maps.Floor(loc, 2);
+            var p = Plan(17, "castle");
+            int walks = 0;
+            for (int c = 0; c < 32 * 32; c++)
+            {
+                if (raw[c] != 0x45) continue;
+                walks++;
+                float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
+                Assert.DoesNotContain(p.Pieces, pc => pc.Y > 2 * p.Storey + 0.5f && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f
+                                                      && !pc.Prefab.StartsWith("piece_grausten"));
+            }
+            Assert.True(walks > 100, $"{walks} wall-walk tiles");
+        }
+
+        [U5Theory]
+        [InlineData(2, "towne", 3)]   // Britain: two posts each side of the street, one between two posts
+        [InlineData(4, "towne", 4)]   // Yew
+        [InlineData(30, "keep", 7)]   // the Lycaeum: indoor shops on three floors, hung on their walls
+        public void ShopSignsHangTheirGuildIcon(int location, string kind, int icons)
+        {
+            var p = Plan(location, kind);
+            var banners = p.Pieces.Where(x => x.Look != null && x.Look.StartsWith("icon:")).ToList();
+            Assert.Equal(icons, banners.Count);
+            foreach (var b in banners)
+            {
+                int tile = Convert.ToInt32(b.Look.Substring(5), 16);
+                Assert.InRange(tile, 0xf0, 0xf9);
+                Assert.NotEqual(0xf8, tile);
+                Assert.Equal("piece_banner01", b.Prefab);
+                // the cloth hangs ~2.9 m under its rod: clear of the floor it hangs over
+                float floor = (float)Math.Floor(b.Y / p.Storey + 0.01) * p.Storey;
+                Assert.InRange(b.Y - floor, 3.5f, 4f);
+                // nothing stands where it hangs (a post under a banner between two posts is left out)
+                Assert.DoesNotContain(p.Pieces, x => x.Prefab.StartsWith("wood_pole") && Math.Abs(x.X - b.X) < 0.5f && Math.Abs(x.Z - b.Z) < 0.2f);
+            }
+        }
+
+        [U5Fact]
+        public void BannersPrintTheGuildIconsFromTilesDotSixteen()
+        {
+            foreach (int tile in new[] { 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf9 })
+            {
+                var rgba = BannerArt.Render(Env.Data.Tiles, tile);
+                Assert.Equal(BannerArt.Width * BannerArt.Height * 4, rgba.Length);
+                // every pixel of the icon is on the banner, doubled
+                int left = (BannerArt.Width - 32) / 2, top = 22, same = 0;
+                for (int y = 0; y < 16; y++)
+                for (int x = 0; x < 16; x++)
+                {
+                    int rgb = Data.TileSet.EgaPalette[Env.Data.Tiles.Pixel(tile, x, y)];
+                    int o = ((top + 2 * y + 1) * BannerArt.Width + left + 2 * x + 1) * 4;
+                    if (rgba[o] == (byte)(rgb >> 16) && rgba[o + 1] == (byte)(rgb >> 8) && rgba[o + 2] == (byte)rgb) same++;
+                }
+                Assert.Equal(256, same);
+                // the icons are pictures, not blank tiles
+                Assert.True(Env.Data.Tiles.Pixels(tile).Distinct().Count() >= 3, $"tile {tile:x2}");
+            }
+        }
+
+        [U5Fact]
+        public void RiverWaterIndoorsIsATroughAndBritainsPlazaWaterIsAFlowerBed()
+        {
+            var tt = TownTiles.Parse(Mapping("town_tiles.json"));
+            int troughs = 0;
+            foreach (int location in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10 })
+            {
+                var loc = Env.Data.Location(location);
+                var raw = Env.Data.Maps.Floor(loc, Math.Max(0, loc.MinZ));
+                var p = Plan(location, "towne");
+                for (int c = 0; c < 32 * 32; c++)
+                {
+                    if (!tt[raw[c]].River || p.Water[c] || p.Garden[c]) continue;
+                    float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
+                    Assert.True(p.Pieces.Any(pc => pc.Prefab == "forge_ext5" && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f),
+                        $"{loc.Name} ({c % 32}, {c / 32}): a quenching bucket in the trough");
+                    troughs++;
+                }
+                if (location == 2)
+                {
+                    // Britain's smithy: three trough tiles inside, floored and roofed like the rest of it
+                    Assert.Equal(3, p.Pieces.Count(pc => pc.Prefab == "forge_ext5"));
+                    // the water round the plaza (shoals 0x03 and the corners 0xe4..0xe7) is a flower bed, not a pond
+                    Assert.False(p.HasWater);
+                    Assert.Equal(14, p.Garden.Count(g => g));
+                    Assert.True(p.Pieces.Count(pc => pc.Prefab.StartsWith("Pickable_")) >= 14 * 5);
+                }
+                // big water stays water (Skara Brae's river)
+                if (location == 7) Assert.True(p.Water.Count(w => w) > 100);
+            }
+            Assert.True(troughs >= 3, $"{troughs} troughs");
+            // North Britanny's stream and pond are real water, in ditches: its ground stands 5 m up
+            var nb = Plan(20, "village");
+            Assert.True(nb.Water.Count(w => w) > 30);
+            Assert.DoesNotContain(true, nb.Garden);
+            Assert.Equal(5f, tt.WaterGround[20]);
+            var site = new SettlementSite { Half = nb.HalfSize, Tile = nb.Tile, Base = 5, Paint = nb.GroundPaint, Water = nb.Water };
+            var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
+            shape.SetSites(new[] { site });
+            for (int c = 0; c < 32 * 32; c++)
+                Assert.Equal(nb.Water[c] ? -1.6f : 5f, shape.Height(nb.LocalX(c % 32), nb.LocalZ(c / 32)), 0.01f);
+        }
+
+        [U5Fact]
+        public void DoorsAreTallLeavesAndDoubleDoorsOpenFromTheMiddle()
+        {
+            var p = Plan(2, "towne");
+            Assert.DoesNotContain(p.Pieces, pc => pc.Prefab == "wood_door");
+            Assert.Contains(p.Pieces, pc => pc.Prefab == "ashwood_door");
+            // Britain's smithy: the double door (0xba 0xba) at (3, 25) and (4, 25) is two frameless
+            // leaves, each hinged (its local +x) on its outer edge
+            float z = p.LocalZ(25);
+            var leaves = p.Pieces.Where(pc => (pc.Prefab.Contains("door") || pc.Prefab.Contains("gate")) && Math.Abs(pc.Z - z) < 1.1f && pc.Y < 2
+                                              && pc.X > p.LocalX(2) && pc.X < p.LocalX(5)).OrderBy(pc => pc.X).ToList();
+            Assert.Equal(2, leaves.Count);
+            Assert.All(leaves, pc => Assert.Equal("wood_gate", pc.Prefab));
+            Assert.Equal(p.LocalX(3), leaves[0].X, 0.01f);
+            Assert.Equal(180f, leaves[0].Yaw, 0.1f);
+            Assert.Equal(p.LocalX(4), leaves[1].X, 0.01f);
+            Assert.Equal(0f, leaves[1].Yaw, 0.1f);
+        }
+
+        [U5Theory]
+        [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(24)] [InlineData(26)] [InlineData(32)]
+        public void ArmourersDisplayTheirWaresBehindTheCounter(int location)
+        {
+            var p = Plan(location, "towne");
+            var shown = p.Pieces.Where(pc => pc.Prefab == "itemstand" && pc.StandItem != null && !pc.StandItem.StartsWith("Trophy")).ToList();
+            Assert.True(shown.Count >= 5, $"{shown.Count} items on the wall");
+            // one wall: all at the same distance along it from the room
+            Assert.True(shown.Select(pc => pc.Yaw % 360).Distinct().Count() == 1);
+            if (location == 2)
+            {
+                // Iolo's Bows: a wall of different bows behind the counter (the north wall of row 17)
+                Assert.True(shown.Count(pc => pc.StandItem.StartsWith("Bow") || pc.StandItem.StartsWith("Crossbow")) >= 8);
+                Assert.True(shown.Select(pc => pc.StandItem).Distinct().Count() >= 8);
+                Assert.All(shown, pc => Assert.Equal(p.LocalZ(18) + 0.94f, pc.Z, 0.01f));
+                // staggered: the upper row hangs between the lower row's items
+                var low = shown.Where(pc => pc.Y < 2).Select(pc => pc.X).OrderBy(x => x).ToList();
+                var high = shown.Where(pc => pc.Y > 2).Select(pc => pc.X).OrderBy(x => x).ToList();
+                Assert.Equal(low.Count - 1, high.Count);
+                for (int i = 0; i < high.Count; i++) Assert.Equal((low[i] + low[i + 1]) / 2, high[i], 0.01f);
+            }
+        }
+
+        [U5Fact]
+        public void SmithiesHaveBellowsAndRaisedBraziers()
+        {
+            var p = Plan(2, "towne");
+            // the bellows (0xfc) blow into the brazier west of them
+            Assert.Contains(p.Pieces, pc => pc.Prefab == "forge_ext1" && pc.Yaw == 180);
+            Assert.DoesNotContain(p.Pieces, pc => pc.Prefab == "forge_ext6");
+            Assert.All(p.Pieces.Where(pc => pc.Prefab == "piece_brazierfloor01"), pc => Assert.True(pc.Y % p.Storey >= 0.9f));
+        }
+
+        [U5Theory]
+        [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(17)]
+        public void TablesRunTheirWholeLengthUnderTheirCandles(int location)
+        {
+            var tt = TownTiles.Parse(Mapping("town_tiles.json"));
+            var p = Plan(location, location == 17 ? "castle" : "towne");
+            var tables = p.Pieces.Where(pc => pc.Prefab.StartsWith("piece_table")).ToList();
+            bool Under(float x, float y, float z) => tables.Any(t =>
+            {
+                var b = geo.Value[t.Prefab];
+                float sx = t.Scaled ? t.SX : 1;
+                return Math.Abs(t.Y - y) < 0.1f && x >= t.X + b.MinX * sx - 0.05f && x <= t.X + b.MaxX * sx + 0.05f && z >= t.Z + b.MinZ - 0.05f && z <= t.Z + b.MaxZ + 0.05f;
+            });
+            // every table tile of the ground floor is under a table top (Britain's inn counter is 7 tiles long)
+            var raw = Env.Data.Maps.Floor(Env.Data.Location(location), Math.Max(0, Env.Data.Location(location).MinZ));
+            for (int c = 0; c < 32 * 32; c++)
+                if (tt[raw[c]].Kind == TileKind.Table)
+                    foreach (float dx in new[] { -0.9f, 0f, 0.9f })
+                        Assert.True(Under(p.LocalX(c % 32) + dx, 0, p.LocalZ(c / 32)), $"({c % 32}, {c / 32}) +{dx}");
+            // and no candle hangs in the air
+            foreach (var candle in p.Pieces.Where(pc => pc.Prefab == "Candle_resin"))
+                Assert.True(tables.Any(t => candle.Y > t.Y + 0.5f && candle.Y < t.Y + 1f && Math.Abs(candle.Z - t.Z) < 1
+                                            && candle.X >= t.X + geo.Value[t.Prefab].MinX * (t.Scaled ? t.SX : 1) && candle.X <= t.X + geo.Value[t.Prefab].MaxX * (t.Scaled ? t.SX : 1)),
+                            $"candle at ({candle.X}, {candle.Z})");
+        }
+
+        [U5Theory]
+        [InlineData(2, "towne")] [InlineData(3, "towne")] [InlineData(4, "towne")] [InlineData(5, "towne")] [InlineData(13, "dwelling")] [InlineData(17, "castle")]
+        public void BedHeadsAgainstTheNearestWallFootlockersFacingAway(int location, string kind)
+        {
+            var tt = TownTiles.Parse(Mapping("town_tiles.json"));
+            var loc = Env.Data.Location(location);
+            var raw = Env.Data.Maps.Floor(loc, Math.Max(0, loc.MinZ));
+            var p = Plan(location, kind);
+            int Tx(float x) => (int)Math.Round(x / p.Tile + 15.5);
+            int Ty(float z) => (int)Math.Round(15.5 - z / p.Tile);
+            bool Wall(int x, int y) => x < 0 || y < 0 || x >= 32 || y >= 32 || tt[raw[y * 32 + x]].IsBarrier;
+            int ToWall(int x, int y, int dx, int dy) { int k = 0; while (!Wall(x + dx * (k + 1), y + dy * (k + 1))) k++; return k; }
+            int beds = 0, lockers = 0;
+            foreach (var bed in p.Pieces.Where(pc => (pc.Prefab == "bed" || pc.Prefab == "piece_bed02") && Math.Abs(pc.Y) < 1))
+            {
+                // the headboard is the local −z end
+                double r = bed.Yaw * Math.PI / 180;
+                int hdx = (int)Math.Round(-Math.Sin(r)), hdy = (int)Math.Round(Math.Cos(r)); // towards the head, tiles (y south)
+                // head and foot tiles: half a tile either side of the middle
+                int hx = Tx(bed.X + hdx), hy = Ty(bed.Z - hdy), fx = Tx(bed.X - hdx), fy = Ty(bed.Z + hdy);
+                Assert.True(ToWall(hx, hy, hdx, hdy) <= ToWall(fx, fy, -hdx, -hdy), $"{loc.Name} bed at ({hx},{hy})-({fx},{fy}): head further from a wall than its foot");
+                beds++;
+                // a chest beside the foot faces away from the bed
+                foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+                {
+                    int cx = fx + dx, cy = fy + dy;
+                    if (cx == hx && cy == hy) continue;
+                    var chest = p.Pieces.FirstOrDefault(pc => pc.Prefab == "piece_chest_wood" && Math.Abs(pc.Y) < 1 && Tx(pc.X) == cx && Ty(pc.Z) == cy && pc.Items == null);
+                    if (chest.Prefab == null) continue;
+                    double cr = chest.Yaw * Math.PI / 180;
+                    Assert.Equal(dx, (int)Math.Round(Math.Sin(cr)));
+                    Assert.Equal(-dy, (int)Math.Round(Math.Cos(cr)));
+                    lockers++;
+                }
+            }
+            Assert.True(beds > 0);
+            if (location == 2) Assert.True(lockers > 0, "Britain has footlockers");
+        }
+
+        [U5Fact]
+        public void BritainsNeighboursAreMovedApartToHaveRoomForTheirSlopes()
+        {
+            // Britain, Lord British's castle and West, North and East Britanny, in the order they are built
+            var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
+            var squares = new[] { 2, 17, 19, 20, 21 }.Select(n =>
+            {
+                var l = Env.Data.Location(n);
+                shape.TileCentre(l.X, l.Y, out float x, out float z);
+                return (x, z, half: 32f);
+            }).ToList();
+            SiteLayout.Separate(squares, 16, out var centres);
+            for (int i = 0; i < centres.Length; i++)
+                for (int j = 0; j < i; j++)
+                    Assert.True(Math.Max(Math.Abs(centres[i].x - centres[j].x), Math.Abs(centres[i].z - centres[j].z)) >= 64 + 16 - 0.01f, $"{i} {j}");
+            // Britain and the castle stay; the villages move no more than they must (under a tile and a half)
+            Assert.Equal((squares[0].x, squares[0].z), centres[0]);
+            Assert.Equal((squares[1].x, squares[1].z), centres[1]);
+            for (int i = 2; i < centres.Length; i++)
+                Assert.True(Math.Abs(centres[i].x - squares[i].x) + Math.Abs(centres[i].z - squares[i].z) <= 48, $"village {i} moved too far");
+        }
+
+        [U5Fact]
+        public void WindowArchesHaveATwinTurnedRound()
+        {
+            var p = Plan(21, "village"); // East Britanny's windows (0x4b)
+            var arches = p.Pieces.Where(pc => pc.Prefab == "stone_arch").ToList();
+            Assert.NotEmpty(arches);
+            foreach (var a in arches)
+                Assert.Contains(arches, b => Math.Abs(b.X - a.X) < 0.01f && Math.Abs(b.Y - a.Y) < 0.01f && Math.Abs(b.Z - a.Z) < 0.01f
+                                             && Math.Abs(((b.Yaw - a.Yaw) % 360 + 360) % 360 - 180) < 0.1f);
+        }
+
+        [U5Theory]
+        [InlineData(19)] [InlineData(20)] [InlineData(21)] [InlineData(2)]
+        public void ShopkeepersWorkUnderARoofEvenBehindWideShopFronts(int location)
+        {
+            // the pub (West Britanny), the stables (North), the healer and the shipwright (East)
+            // are open two or three tiles wide to the street
+            var loc = Env.Data.Location(location);
+            var p = Plan(location, location == 2 ? "towne" : "village");
+            foreach (var npc in Env.Data.NpcsOf(loc).Where(n => n.Exists && n.IsShopkeeper && n.Schedule.Z[1] == 0))
+            {
+                float x = p.LocalX(npc.Schedule.X[1]), z = p.LocalZ(npc.Schedule.Y[1]);
+                Assert.True(p.Pieces.Any(pc => pc.Y >= p.Storey - 0.5f && Math.Abs(pc.X - x) < 1.1f && Math.Abs(pc.Z - z) < 1.1f
+                                               && (pc.Prefab.Contains("roof") || pc.Prefab.Contains("floor"))),
+                            $"{loc.Name} {npc.Trade} at ({npc.Schedule.X[1]}, {npc.Schedule.Y[1]}) has no roof");
+            }
+        }
+
+        [U5Fact]
+        public void BridgePlanksBetweenWaterAreDrawbridgesOverTheRiver()
+        {
+            // North Britanny, row 10: 61 49 48 49 61 - three bridge tiles with the stream either side
+            var p = Plan(20, "village");
+            var decks = p.Pieces.Where(pc => pc.Look != null && pc.Look.StartsWith("drawbridge:")).ToList();
+            Assert.Equal(3, decks.Count);
+            foreach (int x in new[] { 14, 15, 16 })
+            {
+                int c = 10 * 32 + x;
+                Assert.True(p.Water[c], "the river runs on under the deck");
+                var deck = decks.Single(d => Math.Abs(d.X - p.LocalX(x)) < 0.2f);
+                Assert.Equal("wood_floor", deck.Prefab);
+                // 4 m long across the 2 m stream: 1.5 m onto the north (hinge) bank, 0.5 m onto the south
+                Assert.Equal(2f, deck.SZ, 0.01f);
+                Assert.Equal(p.LocalZ(10) + 0.5f, deck.Z, 0.05f);
+                // hinged on its north edge (town_tiles.json drawbridge_hinge)
+                Assert.Equal("drawbridge:0,2", deck.Look);
+                // open to the sky
+                Assert.DoesNotContain(p.Pieces, pc => pc.Y > 1 && Math.Abs(pc.X - deck.X) < 0.9f && Math.Abs(pc.Z - deck.Z) < 0.9f);
+            }
+            // bridge planks without water at both ends stay a plank floor (Blackthorn's palace gate rows have water; Britain has none)
+            Assert.DoesNotContain(Plan(2, "towne").Pieces, pc => pc.Look != null && pc.Look.StartsWith("drawbridge:"));
+        }
+
+        [U5Fact]
+        public void LordBritishsCastleHasItsBasement()
+        {
+            var p = Plan(17, "castle");
+            Assert.True(p.HasBasement);
+            int dug = p.Basement.Count(b => b);
+            Assert.True(dug > 250, $"{dug} basement tiles");
+            // the doors between its corridors and rooms are dug too (not plugs of earth)
+            foreach (var (x, y) in new[] { (6, 14), (22, 14), (15, 24), (8, 12), (21, 17) })
+                Assert.True(p.Basement[y * 32 + x], $"door ({x}, {y}) not dug");
+            // each dug tile, and each tile beside one (whose ground dips to the dug edge), is
+            // roofed at street level with stone
+            bool NearDug(int c) => Enumerable.Range(-1, 3).Any(dy => Enumerable.Range(-1, 3).Any(dx =>
+            {
+                int x = c % 32 + dx, y = c / 32 + dy;
+                return x >= 0 && y >= 0 && x < 32 && y < 32 && p.Basement[y * 32 + x];
+            }));
+            for (int c = 0; c < 32 * 32; c++)
+                if (NearDug(c) && !(p.Stands.ContainsKey((-1, c)) && p.Stands.ContainsKey((0, c)))) // (not over the stairwell from the basement)
+                    Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Covers(p, pc, c));
+            // the corner towers' ladders lead down and back up
+            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > -1 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a ladder's pivot is its foot)
+            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y < -2 && Math.Abs(pc.ClimbY - 0.2f) < 0.01f);
+            // its walls and the armourer's display wall stand a storey down
+            Assert.True(p.Pieces.Where(pc => pc.Prefab.StartsWith("stone_wall") && pc.Y < 0).Sum(WallVolume) > 500);
+            Assert.True(p.Pieces.Count(pc => pc.Prefab == "itemstand" && pc.Y < 0 && pc.StandItem != null && !pc.StandItem.StartsWith("Trophy")) >= 6);
+            // the ground is dug a storey down, right up to (and on) the edges of the dug tiles
+            var site = new SettlementSite { Half = p.HalfSize, Tile = p.Tile, Base = 6, Paint = p.GroundPaint, Water = p.Water, Basement = p.Basement, Depth = p.BasementDepth };
+            var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 1);
+            shape.SetSites(new[] { site });
+            for (int c = 0; c < 32 * 32; c++)
+            {
+                if (!p.Basement[c]) continue;
+                float x = p.LocalX(c % 32), z = p.LocalZ(c / 32);
+                foreach (var (dx, dz) in new[] { (0f, 0f), (1f, 1f), (-1f, -1f), (1f, -1f), (-1f, 1f) })
+                    Assert.Equal(1f, shape.Height(x + dx, z + dz), 0.01f);
+            }
+        }
+
+        [Fact]
+        public void LaddersAreRailsAndRungsYouWalkThrough()
+        {
+            var p = Plan(17, "castle");
+            var climb = p.Pieces.Where(pc => pc.Climb).ToList();
+            Assert.All(climb, pc => Assert.Equal("passable", pc.Look));
+            // each ladder is one baked piece (its pivot at its foot): going up it fills the top half
+            // of the storey into the ceiling, going down the bottom half into the floor
+            var ladders = climb.Where(pc => pc.Prefab == SettlementPlanner.LadderUp || pc.Prefab == SettlementPlanner.LadderDown).ToList();
+            Assert.Contains(ladders, pc => pc.Prefab == SettlementPlanner.LadderUp && pc.ClimbVerb == "Climb up");
+            Assert.Contains(ladders, pc => pc.Prefab == SettlementPlanner.LadderDown && pc.ClimbVerb == "Climb down");
+            float Floor(Placement pc) => pc.Y < -0.5f ? p.LevelY(-1) : (float)Math.Floor((pc.Y + 0.5f) / p.Storey) * p.Storey;
+            Assert.All(ladders, pc =>
+            {
+                bool up = pc.Prefab == SettlementPlanner.LadderUp;
+                var rails = SettlementPlanner.LadderParts(up, p.Storey).Where(x => x.prefab == "wood_pole2").ToList();
+                Assert.Equal(2, rails.Count);
+                Assert.All(rails, r => Assert.True(r.sx < 0.5f && r.sz < 0.5f, "thin rails"));
+                float bottom = pc.Y - Floor(pc), top = bottom + rails[0].sy * 2 * (pc.Scaled ? pc.SY : 1);
+                // its end reaches into the slab it meets, never through the thinnest one (wood_floor, 0.13 m below the
+                // storey line); a basement's ceiling is the ground floor's 1 m stone slab, its underside 1 m down
+                if (up && pc.Y < -0.5f) Assert.InRange(pc.Y + rails[0].sy * 2 * (pc.Scaled ? pc.SY : 1), p.LevelY(0) - 1 + 0.01f, p.LevelY(0) - 0.01f);
+                else if (up) { Assert.InRange(bottom, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); Assert.InRange(top, p.Storey - 0.12f, p.Storey - 0.01f); }
+                else { Assert.InRange(bottom, -0.12f, -0.01f); Assert.InRange(top, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); }
+                Assert.True(SettlementPlanner.LadderParts(up, p.Storey).Count(x => x.prefab == "wood_beam_1") >= 5, "rungs");
+            });
+            // nothing of a ladder is left as loose pieces
+            Assert.DoesNotContain(climb, pc => pc.Prefab == "wood_pole2" || pc.Prefab == "wood_beam_1");
+        }
+
+        [U5Fact]
+        public void StairsAreSpiralFlightsBetweenStoreys()
+        {
+            // Moonglow's central tower (15,19): entered from the south on the ground, left north upstairs: 540°
+            var moonglow = Plan(1, "towne");
+            var (x, z) = (moonglow.LocalX(15), moonglow.LocalZ(19));
+            var flight = moonglow.Pieces.Single(pc => pc.Prefab.StartsWith("u5_stairs_") && Math.Abs(pc.X - x) < 0.01f && Math.Abs(pc.Z - z) < 0.01f);
+            Assert.Equal(SettlementPlanner.StairsPrefab(540), flight.Prefab);
+            Assert.Equal(180, flight.Yaw);
+            Assert.Equal(0, flight.Y);
+            Assert.False(flight.Scaled);
+            Assert.False(flight.Climb);
+            // a stairwell above it, no ladder anywhere on the stairs
+            int c = 19 * 32 + 15;
+            Assert.DoesNotContain(moonglow.Pieces, pc => pc.Prefab == "wood_floor" && pc.Y > 3 && Math.Abs(pc.X - x) < 0.9f && Math.Abs(pc.Z - z) < 0.9f);
+            Assert.DoesNotContain(moonglow.Pieces, pc => pc.Prefab.StartsWith("u5_ladder") && Math.Abs(pc.X - x) < 1.5f && Math.Abs(pc.Z - z) < 1.5f);
+            // townsfolk: linked both ways, standing on the bottom step south and the top step north
+            Assert.Contains((0, c, 1), moonglow.Links);
+            Assert.Contains((1, c, 0), moonglow.Links);
+            Assert.True(moonglow.TilePos(0, c).z < z - 0.5f && moonglow.TilePos(0, c).y == 0);
+            Assert.True(moonglow.TilePos(1, c).z > z + 0.5f && moonglow.TilePos(1, c).y == moonglow.LevelY(1));
+            Assert.Equal(c, moonglow.CellAt(moonglow.TilePos(1, c).x, moonglow.TilePos(1, c).z));
+
+            // Waveguide's lighthouse: two flights stacked, the second entered where the first is left (north) and left north: a full turn
+            var waveguide = Plan(12, "lighthouse");
+            var flights = waveguide.Pieces.Where(pc => pc.Prefab.StartsWith("u5_stairs_")).OrderBy(pc => pc.Y).ToList();
+            Assert.Equal(2, flights.Count);
+            Assert.Equal((SettlementPlanner.StairsPrefab(540), 180f), (flights[0].Prefab, flights[0].Yaw));
+            Assert.Equal((SettlementPlanner.StairsPrefab(360), 0f), (flights[1].Prefab, flights[1].Yaw));
+
+            // Lord British's cellar stair: 5 m up to the street, the 4 m stair stretched
+            var castle = Plan(17, "castle");
+            var cellar = castle.Pieces.Single(pc => pc.Prefab.StartsWith("u5_stairs_") && pc.Y < -1);
+            Assert.Equal(castle.LevelY(-1), cellar.Y);
+            Assert.Equal((double)(castle.BasementDepth / SettlementPlanner.StairRise), cellar.SY, 3);
+            Assert.Equal(270, cellar.Yaw);
+            Assert.Equal(SettlementPlanner.StairsPrefab(540), cellar.Prefab);
+        }
+
+        [Fact]
+        public void TheSpiralStairClimbsAStoreyRoundItsPost()
+        {
+            foreach (int turn in SettlementPlanner.StairTurns)
+            {
+                var parts = SettlementPlanner.StairParts(turn).ToList();
+                Assert.Equal(1 + turn * SettlementPlanner.StairStepsPerTurn / 360, parts.Count);
+                var steps = parts.Skip(1).ToList();
+                // every step inside the 2 m tile, the last one's top at the storey above
+                Assert.All(steps, s => Assert.InRange(Math.Sqrt(s.x * s.x + s.z * s.z), 0.4, 0.7));
+                Assert.Equal((double)turn, steps.Last().yaw + 0.5 * turn / steps.Count, 3);
+                var (v, t) = SettlementPlanner.StairRamp(turn);
+                Assert.Equal(0, t.Length % 3);
+                float top = 0, bottom = 99;
+                for (int i = 1; i < v.Length; i += 3) { top = Math.Max(top, v[i]); bottom = Math.Min(bottom, v[i]); }
+                Assert.Equal((double)SettlementPlanner.StairRise, top, 3);
+                Assert.InRange(bottom, 0, 0.2f);
+                // a full turn above any point of the ramp leaves headroom (more than 2 m) but for the 360° flights' 4 m
+                Assert.True(SettlementPlanner.StairRise * 360 / turn > 2.2f);
+            }
+            Assert.Equal(540, SettlementPlanner.StairTurn(180, 0));
+            Assert.Equal(360, SettlementPlanner.StairTurn(0, 0));
+            Assert.Equal(450, SettlementPlanner.StairTurn(270, 0));
+            Assert.Equal(630, SettlementPlanner.StairTurn(90, 0));
+        }
+
+        [U5Fact]
+        public void GravesAreReadAndTheirEarthDug()
+        {
+            // Yew's graveyard: each marker carries its eulogy (SIGNS.DAT), no sign hangs over it,
+            // and the open earth south of a grave can be dug
+            var p = Plan(4, "towne");
+            var markers = p.Pieces.Where(x => x.Look == "grave").ToList();
+            Assert.Contains(markers, x => x.Text == "ALAS\nPOOR FRED\nHE LOST\nHIS HEAD");
+            Assert.Contains(markers, x => x.Text.Contains("BLACKTHORNS"));
+            Assert.DoesNotContain(p.Pieces, x => x.Prefab == "sign" && x.Text != null && x.Text.Contains("FRED"));
+            var plots = p.Pieces.Where(x => x.Prefab == SettlementPlanner.GravePlot).ToList();
+            Assert.InRange(plots.Count, 4, markers.Count);
+            Assert.All(plots, plot => Assert.Contains(markers, m => Math.Abs(m.X - plot.X) < 1.2f && Math.Abs(m.Z - (plot.Z + p.Tile)) < 1.2f));
+        }
+
+        [U5Fact]
+        public void SmallWaterFeaturesAreFlowerBeds()
+        {
+            // the other towns' small pools are planted as Britain's plaza is; North Britanny's pond and
+            // Trinsic's (40 tiles) stay water
+            foreach (var (loc, kind) in new[] { (18, "castle"), (24, "towne"), (32, "castle") })
+            {
+                var p = Plan(loc, kind);
+                Assert.True(p.Garden.Any(g => g), $"flower beds in {loc}");
+                Assert.All(Enumerable.Range(0, p.Garden.Length).Where(c => p.Garden[c]), c => Assert.False(p.Water[c]));
+            }
+            Assert.DoesNotContain(Plan(6, "towne").Garden, g => g);
+            Assert.True(Plan(6, "towne").HasWater);
+            Assert.DoesNotContain(Plan(20, "village").Garden, g => g);
+        }
+
+        [Fact]
+        public void SignTextDropsTheFrame()
+        {
+            Assert.Equal("PRIVATE\nCHAMBERS\nDO NOT ENTER",
+                SettlementPlanner.SignText("abbbbbbbbbbbbbc\ng   PRIVATE   g\ng  CHAMBERS   g\ngDO@NOT@ENTER g\ndeeeeeeeeeeeeef"));
+            // the runic font's two-letter runes
+            Assert.Equal("ALAS\nPOOR FRED\nHE LOST\nHIS HEAD", SettlementPlanner.SignText("8lllllllllllll9\ng    ALAS     g\ng  POOR@FRED  g\ng   HE@LO_    g\ng   HIS@H^D   g\njlllllllllllllk"));
+            Assert.Equal("THIS HAS BEEN A\nLONGER", SettlementPlanner.SignText("g[IS@HAS@B\\N@A g\ng LO]ER g"));
+        }
+
+        [U5Fact]
+        public void SitesFlattenAndPaintTheirSquare()
+        {
+            var shape = new BritanniaShape(Env.Data.Britannia, TerrainTable.Parse(Mapping("terrain.json")), seed: 3);
+            var p = Plan(2, "towne");
+            var loc = Env.Data.Location(2);
+            shape.TileCentre(loc.X, loc.Y, out float cx, out float cz);
+            var site = new SettlementSite { Location = 2, CentreX = cx, CentreZ = cz, Half = p.HalfSize, Tile = p.Tile, Base = 1.5f, Paint = p.GroundPaint, Water = p.Water };
+            shape.SetSites(new[] { site });
+            int paved = 0;
+            for (int i = 0; i < 32 * 32; i++)
+            {
+                float wx = cx - site.Half + (i % 32 + 0.5f) * 2, wz = cz + site.Half - (i / 32 + 0.5f) * 2;
+                float h = shape.Height(wx, wz);
+                if (p.Water[i]) Assert.True(h < 0, "water cells below sea level");
+                else Assert.Equal(1.5f, h);
+                Assert.Equal(p.GroundPaint[i], shape.PaintAt(wx, wz));
+                if (p.GroundPaint[i] == Paint.Paved) paved++;
+            }
+            Assert.True(paved > 100);
+        }
+    }
+
+    public sealed class U5TheoryAttribute : TheoryAttribute
+    {
+        public U5TheoryAttribute()
+        {
+            if (!Env.HaveU5) Skip = $"Ultima V files not found in '{Env.U5Dir}' (set U5_DIR)";
+        }
+    }
+}

@@ -1,4 +1,4 @@
-//! Usage: cargo run --release -- "<Ultima V dir>" > ../../tests/U5InValheim.Tests/golden/rustref.tsv
+//! Usage: cargo run --release -- "<Ultima V dir>" > ../../tests/Bretaheim.Tests/golden/rustref.tsv
 //! Output lines: kind <TAB> name <TAB> length <TAB> fnv1a64 (hex). Only hashes leave this tool.
 #[path = "../../../../Ultima5Revolutions/rust/src/lzw.rs"]
 mod lzw;

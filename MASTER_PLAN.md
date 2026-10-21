@@ -1,4 +1,4 @@
-# U5InValheim — Master Plan
+# Bretaheim — Master Plan
 
 Rebuild *Ultima V: Warriors of Destiny* inside Valheim as a BepInEx/Jötunn mod: Britannia as the
 world, its towns, castles, keeps and dungeons as places you can walk into, its people on their daily
@@ -13,10 +13,10 @@ phases, and the decisions that must not drift. Everything here builds on six bod
 | `~/Projects/Ultima5Revolutions` (this week's decompilation of the PC game to Rust) | The *exact* game logic and every file format: `analysis/ARCHITECTURE.md`, `analysis/*.md` per module (world, towns, NPC schedules, TLK dialogue bytecode, combat, spells, shops, dungeons), `analysis/symbols.json` + `globals_seed.jsonl` (every DATA.OVL table with offsets), `rust/src` (reference implementation of every routine). |
 | `/media/jason/FABA03B0BA036889/Users/jason/Desktop/Projects/SCUM-Mods/Mods/Britannia/tools/` | `generate_terrain.py`: BRIT.DAT + DATA.OVL → heightmap, per-class weightmaps, POI list, preview; the tile-class → elevation/layer tables are reused as-is. (SCUM itself is no longer a target; `heightfield_patch.py` and the SCUM world size are irrelevant here.) |
 | `/media/jason/FABA03B0BA036889/Users/jason/Desktop/Projects/BritanniaUE/` | The UE build of Britain: `scripts/ue_town_layout.py`, `ue_britain_v5.py`, `ue_britain_roofs.py`, `ue_ground*.py`, `ue_path_taxi*.py`, `ue_pois.py`, `ue_scatter.py`, `ue_orchard_*.py`, `ue_inn*.py`: tile → building/wall/roof/path/vegetation placement rules that worked, plus `britannia_build/` (heightmap.png, layers, pois.json, meta.json) and `scum_assets/` (asset inventory). |
-| `~/Projects/U5InValheim/Ultima5 to Valheim asset mappings.txt` | The preferred U5 → Valheim *asset* mapping: humans, monsters, static assets, biomes, armour, shields, weapons, rings/amulets (Valheim trinkets), reagents, mixed spells, potions, scrolls, quest items, transport, character and party status effects. Treated as the default; deviations must be recorded in `docs/MAPPING_DECISIONS.md`. |
-| `~/Projects/U5InValheim/Restrictions and Etc.txt` | Food (barley rations, daily eating, karma for stealing crops, karma as a "skill"), the Valheim tools allowed only around Iolo's hut, the banned Valheim actions, the new-world intro and character generation in Iolo's hut. Summarised in §5.12–5.13; the file is the authority. |
-| `~/Projects/U5InValheim/Constructing world assets.txt` | The scale problem and its resolution (Solution A: 32 m×32 m×3 m overworld tiles, 2 m×2 m×3 m indoor tiles), the elevation guidance, and the authoritative tile-by-tile construction tables for overworld tiles (biomes, structures, paths, rivers, signposts, guardians) and indoor tiles (height zones, roofs, walls, doors, furniture, fixtures). Summarised in §5.1–5.2; the file is the authority. |
-| `~/Projects/U5InValheim/Action mappings.txt` | How each U5 *command* (Attack … Z-stats) is realised in Valheim: which existing mechanic is reused, which key/interaction triggers it, and the custom rules (camping, mixing, climbing, spyglass sky, yelling words of power). Summarised in §5.11; the file is the authority. |
+| `~/Projects/Bretaheim/Ultima5 to Valheim asset mappings.txt` | The preferred U5 → Valheim *asset* mapping: humans, monsters, static assets, biomes, armour, shields, weapons, rings/amulets (Valheim trinkets), reagents, mixed spells, potions, scrolls, quest items, transport, character and party status effects. Treated as the default; deviations must be recorded in `docs/MAPPING_DECISIONS.md`. |
+| `~/Projects/Bretaheim/Restrictions and Etc.txt` | Food (barley rations, daily eating, karma for stealing crops, karma as a "skill"), the Valheim tools allowed only around Iolo's hut, the banned Valheim actions, the new-world intro and character generation in Iolo's hut. Summarised in §5.12–5.13; the file is the authority. |
+| `~/Projects/Bretaheim/Constructing world assets.txt` | The scale problem and its resolution (Solution A: 32 m×32 m×3 m overworld tiles, 2 m×2 m×3 m indoor tiles), the elevation guidance, and the authoritative tile-by-tile construction tables for overworld tiles (biomes, structures, paths, rivers, signposts, guardians) and indoor tiles (height zones, roofs, walls, doors, furniture, fixtures). Summarised in §5.1–5.2; the file is the authority. |
+| `~/Projects/Bretaheim/Action mappings.txt` | How each U5 *command* (Attack … Z-stats) is realised in Valheim: which existing mechanic is reused, which key/interaction triggers it, and the custom rules (camping, mixing, climbing, spyglass sky, yelling words of power). Summarised in §5.11; the file is the authority. |
 | `~/Projects/UltimatePyve/docs/` | Older notes: `SPAWN_RULES.md`, `ultima5_npc_porting_notes.md`, NPC/armour spreadsheets. |
 | `~/Projects/Jotunn`, `~/Projects/ValheimKillFeed`, `~/Projects/ClaudeHeim` | Our Valheim modding toolchain and precedents (BepInEx 5 + Harmony, Jötunn lib source, csproj reference layout, Thunderstore publishing rules in `~/.claude/CLAUDE.md`). |
 
@@ -92,8 +92,8 @@ continent (§5.1); the original introduction is in scope as the new-world intro 
 ## 4. Architecture
 
 ```
-U5InValheim/
-  src/U5InValheim/            BepInEx plugin (C#, .NET 4.7.2 / Valheim assemblies)
+Bretaheim/
+  src/Bretaheim/            BepInEx plugin (C#, .NET 4.7.2 / Valheim assemblies)
     Plugin.cs                 entry: config (U5 path, scale), Jötunn registrations
     Data/                     readers: Lzw, DataOvl, MapFiles, NpcFile, TlkFile, DungeonDat, Cbt,
                               SaveGame (INIT.GAM defaults), tables (offsets from symbols.json)

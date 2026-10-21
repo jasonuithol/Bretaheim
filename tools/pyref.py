@@ -2,7 +2,7 @@
 """Golden values from the SCUM terrain generator's reader (generate_terrain.read_u5), which the C#
 WorldMap/Location readers must reproduce. Prints only hashes and coordinates.
 
-Usage: python3 tools/pyref.py [U5 dir] [path/to/generate_terrain.py] > tests/U5InValheim.Tests/golden/pyref.tsv
+Usage: python3 tools/pyref.py [U5 dir] [path/to/generate_terrain.py] > tests/Bretaheim.Tests/golden/pyref.tsv
 """
 import importlib.util, sys
 from pathlib import Path

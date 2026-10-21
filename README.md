@@ -1,4 +1,4 @@
-# U5InValheim
+# Bretaheim
 
 *Ultima V: Warriors of Destiny* rebuilt inside Valheim as a BepInEx/Jötunn mod. The mod reads the
 player's own copy of Ultima V at runtime; no Ultima data is distributed.
@@ -7,7 +7,7 @@ player's own copy of Ultima V at runtime; no Ultima data is distributed.
 - Status: **Phase 0 (foundation) done** — data readers, `u5 dump` console command, mapping tables, tests.
 
 ```sh
-dotnet build U5InValheim.sln
-dotnet test tests/U5InValheim.Tests              # U5_DIR=/path/to/Ultima5 for the data tests
+dotnet build Bretaheim.sln
+dotnet test tests/Bretaheim.Tests              # U5_DIR=/path/to/Ultima5 for the data tests
 dotnet run --project tools/U5Dump -- talk Britain 4
 ```
