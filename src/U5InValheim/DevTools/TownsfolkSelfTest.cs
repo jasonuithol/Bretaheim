@@ -642,6 +642,18 @@ namespace U5InValheim.DevTools
             Inns.Rent(body, inn);
             var open = beds.Where(Rests).ToList();
             Plugin.Log.LogInfo($"townsfolk self-test sleep: after paying {open.Count} beds open: {string.Join(", ", open.Select(b => $"{b.transform.position - britain.Origin}"))}; record {body.m_customData["u5_inn"]}, now {ZNet.instance.GetTimeSeconds():0}");
+            // as the player does it: E on each of the inn's beds (the town bed patch, then lying down)
+            Player.m_localPlayer = body;
+            try
+            {
+                foreach (var b in beds.OrderBy(b => Vector3.Distance(b.transform.position, bedAt ?? britain.Origin)).Take(5))
+                {
+                    if (body.IsAttached()) body.AttachStop();
+                    bool used = b.Interact(body, false, false);
+                    Plugin.Log.LogInfo($"townsfolk self-test sleep: E on the bed at {b.transform.position - britain.Origin} ({b.name}): result {used}, in bed {body.InBed()}, attached {body.IsAttached()}");
+                }
+            }
+            finally { Player.m_localPlayer = null; }
             // a camp: out in the wild, then again (moved), then in the town (refused)
             // (dry land out of town: the first of a ring of points round Britain 2 m above the sea; Height is from sea level)
             var shape = Britannia.Active;

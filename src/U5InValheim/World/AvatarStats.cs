@@ -79,10 +79,14 @@ namespace U5InValheim.WorldGen
             if (!TownBed(__instance)) return true;
             __result = false;
             if (repeat) return false;
-            if (human is Player p && p == Player.m_localPlayer && Inns.MayRest(p, __instance))
+            if (human is Player p && p == Player.m_localPlayer)
             {
-                Sleep.LieDown(p, __instance.m_spawnPoint != null ? __instance.m_spawnPoint : __instance.transform, __instance.gameObject);
-                return false;
+                if (Inns.MayRest(p, __instance, out string why))
+                {
+                    Sleep.LieDown(p, __instance.m_spawnPoint != null ? __instance.m_spawnPoint : __instance.transform, __instance.gameObject);
+                    return false;
+                }
+                if (why != null) Plugin.Log.LogInfo($"Inn bed refused: {why}");
             }
             human.Message(MessageHud.MessageType.Center, "Not thy bed!");
             return false;

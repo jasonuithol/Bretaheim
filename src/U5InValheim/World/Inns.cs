@@ -24,29 +24,39 @@ namespace U5InValheim.WorldGen
             Plugin.Log.LogInfo($"{p.GetPlayerName()} takes a room at {s.Name} ({s.Location.Name})");
         }
 
-        /// <summary>The time (world seconds) the night paid for ends: 8 o'clock next morning (this morning before 8).</summary>
+        /// <summary>
+        /// The time (world seconds) the night paid for ends: the first 8 o'clock at least six hours
+        /// off, so a room taken at any hour covers the coming night (taken before dawn: tonight too).
+        /// </summary>
         static double NextMorning()
         {
             double now = ZNet.instance.GetTimeSeconds(), day = EnvMan.instance.m_dayLengthSec;
             double eight = 0.15 + (8 / 24.0 - 0.25) / 0.5 * 0.7; // (as Crime: Valheim's clock runs faster at night)
-            double start = System.Math.Floor(now / day) * day;
-            return TownNpc.Hour() < 8 ? start + eight * day : start + day + eight * day;
+            double end = System.Math.Floor(now / day) * day + eight * day;
+            while (end < now + day * 6 / 24.0) end += day;
+            return end;
         }
 
         /// <summary>This player may sleep in this town bed: a room paid for tonight at this settlement's inn, the bed one of its beds.</summary>
-        public static bool MayRest(Player p, Bed bed)
+        public static bool MayRest(Player p, Bed bed) => MayRest(p, bed, out _);
+
+        /// <summary>As MayRest, with why not (for the log), or null when there is no room paid for.</summary>
+        public static bool MayRest(Player p, Bed bed, out string why)
         {
+            why = null;
             if (p == null || bed == null || !p.m_customData.TryGetValue(InnKey, out var v)) return false;
             var parts = v.Split('|');
-            if (parts.Length != 2 || !int.TryParse(parts[0], out int loc) || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double until)) return false;
-            if (ZNet.instance.GetTimeSeconds() > until) { p.m_customData.Remove(InnKey); return false; }
+            if (parts.Length != 2 || !int.TryParse(parts[0], out int loc) || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double until)) { why = $"record \"{v}\" unreadable"; return false; }
+            double now = ZNet.instance.GetTimeSeconds();
+            if (now > until) { why = $"the night paid for ended (at {until:0}, now {now:0})"; p.m_customData.Remove(InnKey); return false; }
             var town = Settlements.Get(loc);
-            if (town == null) return false;
+            if (town == null) { why = $"settlement {loc} not built"; return false; }
             // one of the inn's beds: in its rooms, on their storey
             var l = bed.transform.position - town.Origin;
             int cell = town.Plan.CellAt(l.x, l.z);
             foreach (var kv in town.Plan.InnRooms)
                 if (cell >= 0 && kv.Value[cell] && Mathf.Abs(l.y - town.Plan.LevelY(kv.Key)) < 2f) return true;
+            why = $"the bed at {l} (tile {cell % SettlementPlan.Size},{cell / SettlementPlan.Size}) is not one of {town.Location.Name}'s inn's (rooms on storeys {string.Join(",", town.Plan.InnRooms.Keys)})";
             return false;
         }
 
