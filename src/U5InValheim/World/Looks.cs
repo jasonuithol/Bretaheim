@@ -118,11 +118,12 @@ namespace U5InValheim.WorldGen
         }
 
         static readonly Dictionary<Material, Material> glowing = new Dictionary<Material, Material>();
-        static readonly Color MagicBlue = new Color(0.35f, 0.6f, 1f);
+        /// <summary>The magic lock's glow: cyan (a blue read as Valheim's building-plan blue).</summary>
+        static readonly Color MagicBlue = new Color(0.15f, 0.95f, 1f);
 
         /// <summary>
         /// A magically locked door (MASTER_PLAN §5.2: "magically locked doors glow blue"): its own
-        /// materials lit a soft mystic blue, and a blue light before it that slowly breathes.
+        /// materials lit a soft cyan, and a cyan light before it that slowly breathes.
         /// </summary>
         static void MagicLock(GameObject go)
         {
@@ -140,9 +141,10 @@ namespace U5InValheim.WorldGen
                         if (copy.HasProperty("_EmissionColor"))
                         {
                             copy.EnableKeyword("_EMISSION");
-                            copy.SetColor("_EmissionColor", MagicBlue * 0.35f);
+                            copy.SetColor("_EmissionColor", MagicBlue * 0.25f);
                         }
-                        if (copy.HasProperty("_Color")) copy.SetColor("_Color", copy.GetColor("_Color") * new Color(0.75f, 0.85f, 1.1f));
+                        // (the wood keeps its own colour, barely touched)
+                        if (copy.HasProperty("_Color")) copy.SetColor("_Color", copy.GetColor("_Color") * new Color(0.92f, 1f, 1f));
                         glowing[m] = copy;
                     }
                     mats[i] = copy;

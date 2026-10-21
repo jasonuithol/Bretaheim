@@ -68,7 +68,7 @@ Britain, Lord British's castle and Iolo's hut):
   Brae's telescopes stand on tripods; piles of rocks and mountains in the maps are boulders. Its jail: the prisoners in the cells are in rags (no guards in the cells), the
   cell doors are locked, a secret door hides behind the cell, and trapdoors drop into the basement.
 - Locked doors stay shut for players ("Locked! No keys!"; magically locked ones glow a breathing
-  blue: "Magically sealed.");
+  cyan: "Magically sealed.");
   townsfolk have the keys.
 - Secret doors: a wall with rune-marked (blue-grey) bricks; hit it and the bricks vanish, showing
   the door behind ("a hidden door!").
