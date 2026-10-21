@@ -135,6 +135,8 @@ namespace U5InValheim.WorldGen
         static bool SetMapMode_Prefix(Minimap.MapMode mode)
         {
             if (Britannia.Active == null || mode != Minimap.MapMode.Large || viewingGem) return true;
+            // (M by a burning fire mixes spells instead: Spells)
+            if (Me != null && ZInput.GetButtonDown("Map") && Spells.NearFire(Me.transform.position)) return false;
             Me?.Message(MessageHud.MessageType.Center, "Thou canst view a map only through a gem (right-click one).");
             return false;
         }

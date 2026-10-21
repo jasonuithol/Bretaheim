@@ -32,6 +32,11 @@
   may vanish as a fight begins; the Crown of Lord British shields all near thee from magic, his Amulet
   gives them +50 armour. The Black Badge and the password get thee past Blackthorn's guards.
 - Locked doors can be jimmied with a key (it may break); skull keys open magically sealed doors.
+- Magic: mana (thy intelligence, filled by six hours' sleep) on the magic bar; M by a burning fire mixes
+  spells from the original's recipes (a wrong mixture blows up); a mixed spell is readied like arrows
+  (right-click) and cast with Z, with the original's circles, mana, level and places; the 48 spells
+  as real-time effects (bolts, fields, winds, the earthquake, sleep, fear, charm, summons, light,
+  protection, blink …). Scrolls are read and potions drunk with a right-click.
 
 Settlements (built from TOWNE/DWELLING/CASTLE/KEEP.DAT, setting `BuildSettlements`; tried in-game on
 Britain, Lord British's castle and Iolo's hut):

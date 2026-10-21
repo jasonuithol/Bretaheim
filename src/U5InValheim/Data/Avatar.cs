@@ -29,11 +29,14 @@ namespace U5InValheim.Data
             // (saved before the questions existed: made)
             bool made = data != null && (data.TryGetValue(Prefix + "made", out var m) ? m == "1" : data.ContainsKey(Prefix + "str"));
             int start = made ? StartingStat : 0;
-            return new Avatar
+            var a = new Avatar
             {
                 Strength = Get("str", start), Dexterity = Get("dex", start), Intelligence = Get("int", start),
-                Mana = Get("mp", 0), Level = Get("level", 1), Experience = Get("exp", 0), Made = made,
+                Level = Get("level", 1), Experience = Get("exp", 0), Made = made,
             };
+            // a new Avatar starts with full mana (their intelligence)
+            a.Mana = Get("mp", a.Intelligence);
+            return a;
         }
 
         public void Save(IDictionary<string, string> data)

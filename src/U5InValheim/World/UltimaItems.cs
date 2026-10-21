@@ -98,17 +98,21 @@ namespace U5InValheim.WorldGen
                     s.m_description = "A reagent, for mixing spells.";
                     break;
                 case ItemKind.Spell:
+                    // readied like a stack of arrows (Valheim's ammunition slot), cast with the cast key (Spells)
                     Carried(s, 99);
-                    s.m_description = $"A mixed spell of the {Ordinal(def.Spell / 6 + 1)} circle.";
+                    s.m_itemType = ItemDrop.ItemData.ItemType.Ammo;
+                    s.m_ammoType = Spells.AmmoType;
+                    s.m_damages = new HitData.DamageTypes();
+                    s.m_attack.m_attackProjectile = null;
+                    s.m_description = $"A mixed spell of the {Ordinal(def.Spell / 6 + 1)} circle ({def.Spell / 6 + 1} mana). Right-click to ready it, then cast it ({Spells.CastKey?.Value}).";
                     break;
                 case ItemKind.Scroll:
                     Carried(s, 99);
-                    s.m_description = $"A scroll of the spell {ovl.SpellWords(def.Spell)}.";
+                    s.m_description = $"A scroll of the spell {ovl.SpellWords(def.Spell)}. Right-click to read it (no mana or reagents).";
                     break;
                 case ItemKind.Potion:
-                    // (drinking them comes with their effects)
                     Carried(s, 99);
-                    s.m_description = "A potion.";
+                    s.m_description = "A potion. Right-click to drink it.";
                     break;
                 case ItemKind.Moonstone:
                     Carried(s, 1);
