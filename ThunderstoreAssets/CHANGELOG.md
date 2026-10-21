@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- The towns' one-off furnishings work as the original's Look does: look through a telescope at
+  the night sky (not at the sun!), drop a coin down a wishing well and make a wish (a horse, in
+  Paws or Empath Abbey), read the time off a grandfather clock, gaze into a crystal sphere, read a
+  grave's eulogy and dig the earth before it, see thyself in a mirror (and break it), and klimb
+  over fences. Signs spell out the runic letters (TH, NG, EA, ST, EE). The pools of Blackthorn's
+  palace, Buccaneer's Den and Serpent's Hold are flower beds.
 - Britannia keeps the original's calendar (one Valheim day is one Ultima day, starting 4-5-139) and
   its moons: by night a moongate rises at every buried moonstone and carries you to the site the
   moons' phases choose. Moonstones can be dug up (the gate is gone) and buried again (use one).

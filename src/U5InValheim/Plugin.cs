@@ -96,6 +96,7 @@ namespace U5InValheim
                 Ettin.Register();
                 Camp.Register();
                 Ladders.Register();
+                Furnishings.Register();
                 Dungeons.Register();
                 UltimaItems.Register();
                 SpellStatus.Register();
@@ -133,6 +134,7 @@ namespace U5InValheim
                 IolosHut.Install(harmony);
                 Spells.Install(harmony);
                 Shrines.Install(harmony);
+                Furnishings.Install(harmony);
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();

@@ -41,9 +41,9 @@ namespace U5InValheim.Tests
         public void PlansUseOnlyRealPrefabsWithinTheSquare(int location, string kind)
         {
             var p = Plan(location, kind);
-            // (the plugin's own: the baked ladders)
+            // (the plugin's own: the baked ladders, the graves' earth)
             Assert.All(p.Pieces.Where(x => !x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, prefabs.Value));
-            Assert.All(p.Pieces.Where(x => x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, new[] { SettlementPlanner.LadderUp, SettlementPlanner.LadderDown }));
+            Assert.All(p.Pieces.Where(x => x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, new[] { SettlementPlanner.LadderUp, SettlementPlanner.LadderDown, SettlementPlanner.GravePlot }));
             Assert.All(p.Pieces, x => Assert.InRange(x.X, -p.HalfSize - 2, p.HalfSize + 2));
             Assert.All(p.Pieces, x => Assert.InRange(x.Z, -p.HalfSize - 2, p.HalfSize + 2));
             Assert.Contains(p.Pieces, x => x.Prefab.Contains("door"));
@@ -57,7 +57,7 @@ namespace U5InValheim.Tests
             Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof"); // the cobblestone cottages' thatch
             Assert.True(p.Pieces.Where(x => x.Prefab == "wood_floor" && x.Y > 2.5f).Sum(x => x.Scaled ? x.SX * x.SZ : 1) > 100, "upper floors (tiles)");
             Assert.True(p.Pieces.Where(x => x.Prefab.StartsWith("stone_wall")).Sum(WallVolume) > 2000, "solid stone walls");
-            Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text.Contains("PRIVATE"));
+            Assert.Contains(p.Pieces, x => x.Prefab == "sign" && x.Text != null && x.Text.Contains("PRIVATE"));
             Assert.True(p.Garden.Any(g => g), "the flower bed around the plaza");
             Assert.True(p.Pieces.Count(x => x.Climb) >= 2, "ladders between floors");
         }
@@ -559,11 +559,45 @@ namespace U5InValheim.Tests
             Assert.DoesNotContain(climb, pc => pc.Prefab == "wood_pole2" || pc.Prefab == "wood_beam_1");
         }
 
+        [U5Fact]
+        public void GravesAreReadAndTheirEarthDug()
+        {
+            // Yew's graveyard: each marker carries its eulogy (SIGNS.DAT), no sign hangs over it,
+            // and the open earth south of a grave can be dug
+            var p = Plan(4, "towne");
+            var markers = p.Pieces.Where(x => x.Look == "grave").ToList();
+            Assert.Contains(markers, x => x.Text == "ALAS\nPOOR FRED\nHE LOST\nHIS HEAD");
+            Assert.Contains(markers, x => x.Text.Contains("BLACKTHORNS"));
+            Assert.DoesNotContain(p.Pieces, x => x.Prefab == "sign" && x.Text != null && x.Text.Contains("FRED"));
+            var plots = p.Pieces.Where(x => x.Prefab == SettlementPlanner.GravePlot).ToList();
+            Assert.InRange(plots.Count, 4, markers.Count);
+            Assert.All(plots, plot => Assert.Contains(markers, m => Math.Abs(m.X - plot.X) < 1.2f && Math.Abs(m.Z - (plot.Z + p.Tile)) < 1.2f));
+        }
+
+        [U5Fact]
+        public void SmallWaterFeaturesAreFlowerBeds()
+        {
+            // the other towns' small pools are planted as Britain's plaza is; North Britanny's pond and
+            // Trinsic's (40 tiles) stay water
+            foreach (var (loc, kind) in new[] { (18, "castle"), (24, "towne"), (32, "castle") })
+            {
+                var p = Plan(loc, kind);
+                Assert.True(p.Garden.Any(g => g), $"flower beds in {loc}");
+                Assert.All(Enumerable.Range(0, p.Garden.Length).Where(c => p.Garden[c]), c => Assert.False(p.Water[c]));
+            }
+            Assert.False(Plan(6, "towne").Garden.Any(g => g));
+            Assert.True(Plan(6, "towne").HasWater);
+            Assert.False(Plan(20, "village").Garden.Any(g => g));
+        }
+
         [Fact]
         public void SignTextDropsTheFrame()
         {
             Assert.Equal("PRIVATE\nCHAMBERS\nDO NOT ENTER",
                 SettlementPlanner.SignText("abbbbbbbbbbbbbc\ng   PRIVATE   g\ng  CHAMBERS   g\ngDO@NOT@ENTER g\ndeeeeeeeeeeeeef"));
+            // the runic font's two-letter runes
+            Assert.Equal("ALAS\nPOOR FRED\nHE LOST\nHIS HEAD", SettlementPlanner.SignText("8lllllllllllll9\ng    ALAS     g\ng  POOR@FRED  g\ng   HE@LO_    g\ng   HIS@H^D   g\njlllllllllllllk"));
+            Assert.Equal("THIS HAS BEEN A\nLONGER", SettlementPlanner.SignText("g[IS@HAS@B\\N@A g\ng LO]ER g"));
         }
 
         [U5Fact]

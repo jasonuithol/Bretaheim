@@ -38,6 +38,7 @@ namespace U5InValheim.WorldGen
                 case "tune": go.AddComponent<TuneWall>(); break;
                 case "ghost": foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false; break;
                 default:
+                    if (Furnishings.Apply(go, look)) break;
                     if (look.StartsWith("icon:")) Icon(go, Convert.ToInt32(look.Substring(5), 16));
                     else if (look.StartsWith("drawbridge:")) Drawbridge.Add(go, look.Substring(11));
                     break;
@@ -556,13 +557,14 @@ namespace U5InValheim.WorldGen
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
             if (hold || !(user is Player player) || player != Player.m_localPlayer) return false;
+            // look_fountain: "a gurgling fountain!" … "Refreshing..." (no effect in the original; here it refreshes the stamina)
             player.AddStamina(player.GetMaxStamina());
-            player.Message(MessageHud.MessageType.Center, "The water is cool and clear.");
+            player.Message(MessageHud.MessageType.Center, Furnishings.Say(Data.FurnishingRules.SRefreshing));
             return true;
         }
 
         public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
-        public string GetHoverText() => Localization.instance.Localize("Fountain\n[<color=yellow><b>$KEY_Use</b></color>] Drink");
+        public string GetHoverText() => Localization.instance.Localize(Furnishings.Say(Data.FurnishingRules.SFountain) + "\n[<color=yellow><b>$KEY_Use</b></color>] Drink");
         public string GetHoverName() => "Fountain";
         public float GetHoverOffset() => 1f;
     }

@@ -150,6 +150,8 @@ namespace U5InValheim.WorldGen
                 var pos = settlement.Origin + new Vector3(p.X, p.Y, p.Z);
                 var go = Instantiate(template, pos, Quaternion.Euler(0, p.Yaw, 0), transform);
                 if (p.Scaled) go.transform.localScale = new Vector3(p.SX, p.SY, p.SZ);
+                // (fences are climbed over: Klimb)
+                if (p.Prefab == "wood_fence") go.AddComponent<FenceKlimb>();
                 go.SetActive(true);
             }
             if (missing > 0) Plugin.Log.LogWarning($"Structure {loc}/{zone}: {missing} pieces with unknown prefabs");

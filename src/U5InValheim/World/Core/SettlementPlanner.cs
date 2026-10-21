@@ -1747,6 +1747,7 @@ namespace U5InValheim.WorldGen.Core
                         break;
                     case TileKind.Prop:
                         if (r.SignPost == "post" && UnderBanner(lv, c)) break;
+                        if (r.Grave) { Grave(ctx, lv, c, x, y, z, r); break; }
                         if (r.Parts != null) ctx.Parts(r.Parts, x, y, z, r.Yaw);
                         else if (r.Choices != null) ctx.Stand(r.Choices[Hash(tx, ty, 8) % r.Choices.Length], x, y, z, Hash(tx, ty, 9) % 4 * 90);
                         else if (r.Prefab != null && r.WallSide is float side)
@@ -2353,6 +2354,8 @@ static int Hash(int x, int y, int salt)
                     if (lv == null) continue;
                     int c = sign.Y * N + sign.X;
                     if (c < 0 || c >= N * N) continue;
+                    // (a grave's eulogy is read off the grave itself)
+                    if (lv.Rule[c].Grave) continue;
                     string text = SignText(sign.Text);
                     if (text.Length == 0) continue;
                     float x = CellX(p, c), z = CellZ(p, c), yaw = 180;
@@ -2368,16 +2371,62 @@ static int Hash(int x, int y, int salt)
                 }
         }
 
-        /// <summary>SIGNS.DAT text without the frame glyphs (lower-case letters) and with '@' as space.</summary>
+        /// <summary>A sign's text in SIGNS.DAT at (z, cell) of the settlement being planned, cleaned, or null.</summary>
+        string SignAt(int z, int c)
+        {
+            foreach (var group in data.Signs)
+                foreach (var sign in group)
+                    if (sign.Location == planning && sign.Z == z && sign.Y * N + sign.X == c)
+                    {
+                        string text = SignText(sign.Text);
+                        return text.Length > 0 ? text : null;
+                    }
+            return null;
+        }
+
+        /// <summary>The u5_grave_plot prefab: the earth before a grave, dug once (World/Furnishings).</summary>
+        public const string GravePlot = "u5_grave_plot";
+
+        /// <summary>
+        /// A grave (0x89 cross, 0x8a headstone): its parts carry its eulogy from SIGNS.DAT (read off
+        /// the marker, look "grave", instead of a sign hung over it); the earth before it (the
+        /// tile to its south, by convention) is a plot that can be dug, where that is open ground.
+        /// </summary>
+        void Grave(Ctx ctx, Level lv, int c, float x, float y, float z, TileRule r)
+        {
+            var p = ctx.Plan;
+            int first = p.Pieces.Count;
+            if (r.Parts != null) ctx.Parts(r.Parts, x, y, z, r.Yaw);
+            else if (r.Prefab != null) ctx.Stand(r.Prefab, x, y, z, r.Yaw);
+            string eulogy = SignAt(lv.Z, c) ?? "";
+            for (int i = first; i < p.Pieces.Count; i++)
+            {
+                var pl = p.Pieces[i];
+                pl.Look = "grave";
+                pl.Text = eulogy;
+                p.Pieces[i] = pl;
+            }
+            int south = c + N;
+            if (lv.Z != 0 || south >= N * N || lv.Barrier[south] || lv.Interior[south]) return;
+            if (lv.Rule[south].Kind != TileKind.Ground) return;
+            ctx.Add(GravePlot, CellX(p, south), y, CellZ(p, south), 0);
+        }
+
+        /// <summary>
+        /// SIGNS.DAT text without the frame glyphs (lower-case letters) and with '@' as space; the
+        /// runic font's two-letter runes spelt out ('[' TH, ']' NG, '^' EA, '_' ST, '\' EE: "HE LO_ HIS H^D").
+        /// </summary>
         public static string SignText(string raw)
         {
+            raw = raw.Replace("[", "TH").Replace("]", "NG").Replace("^", "EA").Replace("_", "ST").Replace("\\", "EE");
             var lines = raw.Contains('\n') ? raw.Split('\n') : Chunk(raw, 16);
             var sb = new StringBuilder();
             foreach (var line in lines)
             {
                 var clean = new string(line.Select(ch => ch == '@' ? ' ' : char.IsLower(ch) || ch == '&' ? ' ' : ch).ToArray()).Trim();
                 clean = string.Join(" ", clean.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
-                if (!clean.Any(char.IsLetterOrDigit)) continue;
+                // (the frame's top and bottom rows: lower case, and 8 9 : ; at their corners)
+                if (!clean.Any(char.IsUpper)) continue;
                 if (sb.Length > 0) sb.Append('\n');
                 sb.Append(clean);
             }

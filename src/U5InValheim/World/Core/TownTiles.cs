@@ -73,6 +73,8 @@ namespace U5InValheim.WorldGen.Core
         public bool River;
         /// <summary>Bridge planks (0x48/0x49): a drawbridge where a line of them has water at both ends.</summary>
         public bool Drawbridge;
+        /// <summary>A grave (0x89/0x8a): its eulogy (SIGNS.DAT) is read off the marker itself, and the earth before it (south) can be dug.</summary>
+        public bool Grave;
 
         public bool IsBarrier => Kind == TileKind.Wall || Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch || Kind == TileKind.Battlement;
         public bool IsOpening => Kind == TileKind.Window || Kind == TileKind.Door || Kind == TileKind.Arch;
@@ -186,6 +188,7 @@ namespace U5InValheim.WorldGen.Core
                     SignPost = Json.Str(o, "signpost"),
                     River = Json.Bool(o, "river"),
                     Drawbridge = Json.Bool(o, "drawbridge"),
+                    Grave = Json.Bool(o, "grave"),
                 };
                 if (Json.Str(o, "wall") is string side) r.WallSide = FacingYaw(side);
                 if (Json.Get(o, "choices") is List<object> choices) r.Choices = choices.ConvertAll(c => (string)c).ToArray();
