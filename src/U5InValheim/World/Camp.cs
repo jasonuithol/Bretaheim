@@ -30,17 +30,18 @@ namespace U5InValheim.WorldGen
             if (prefab == null || pole == null) { Plugin.Log.LogError("Camp: no wood_roof_45/wood_pole2 to make a lean-to of"); return; }
             var piece = prefab.GetComponent<Piece>();
             if (piece != null) piece.m_name = "Lean-to";
-            // (the roof's middle is its pivot, 1.05 m up; its high edge to the front, +z)
+            // (the roof's middle is its pivot, 1.05 m up; its high edge is at its back, −z: seen in
+            // game, so the posts stand there, and the lean-to is turned to open that way, to the fire)
             foreach (float side in new[] { -0.9f, 0.9f })
             {
                 var post = Visual(pole);
                 post.transform.SetParent(prefab.transform, false);
-                post.transform.localPosition = new Vector3(side, 0f, 0.85f);
+                post.transform.localPosition = new Vector3(side, 0f, -0.85f);
             }
             var spot = new GameObject("attach");
             spot.transform.SetParent(prefab.transform, false);
-            spot.transform.localPosition = new Vector3(0f, -0.8f, -0.1f);
-            spot.transform.localRotation = Quaternion.identity;
+            spot.transform.localPosition = new Vector3(0f, -0.8f, 0.1f);
+            spot.transform.localRotation = Quaternion.Euler(0, 180, 0);
             prefab.AddComponent<LeanTo>();
             PrefabManager.Instance.AddPrefab(new CustomPrefab(prefab, false));
         }
@@ -85,8 +86,8 @@ namespace U5InValheim.WorldGen
             Strike(me);
             leanAt.y = leanY;
             fireAt.y = fireY;
-            // the lean-to opens toward the fire
-            var face = Quaternion.LookRotation(fwd);
+            // the lean-to opens toward the fire (its open side is its −z)
+            var face = Quaternion.LookRotation(-fwd);
             var leanTo = Place(LeanToName, leanAt + Vector3.up * 1.05f, face, me);
             var fire = Place(FirePrefab, fireAt, Quaternion.identity, me);
             if (leanTo == null || fire == null) return;
