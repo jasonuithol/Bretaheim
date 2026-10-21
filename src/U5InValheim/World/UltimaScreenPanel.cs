@@ -90,6 +90,17 @@ namespace U5InValheim.WorldGen
             onLetter = null;
         }
 
+        /// <summary>What a key or button does, by name: "next", "skip" or an answer's letter (the console's u5 press, for tests).</summary>
+        public static bool Press(string what)
+        {
+            if (!IsOpen || string.IsNullOrEmpty(what)) return false;
+            if (what == "next" && onNext != null) Next();
+            else if (what == "skip" && onSkip != null) Skip();
+            else if (what.Length == 1 && letters.IndexOf(char.ToUpperInvariant(what[0])) >= 0) Letter(char.ToUpperInvariant(what[0]));
+            else return false;
+            return true;
+        }
+
         static void Next() { var a = onNext; a?.Invoke(); }
         static void Skip() { var a = onSkip; a?.Invoke(); }
         static void Letter(char c) { var a = onLetter; a?.Invoke(c); }
@@ -105,10 +116,14 @@ namespace U5InValheim.WorldGen
             var rt = panel.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = rt.offsetMax = Vector2.zero;
             panel.AddComponent<Image>().color = Color.black;
+            // (the fitter fills its parent, whatever its own anchors say: the frame keeps the strip
+            // under the picture free for the hints and buttons)
+            var frame = new GameObject("frame", typeof(RectTransform));
+            frame.transform.SetParent(panel.transform, false);
+            var frt = frame.GetComponent<RectTransform>();
+            frt.anchorMin = new Vector2(0.03f, 0f); frt.anchorMax = new Vector2(0.97f, 1f); frt.offsetMin = new Vector2(0, 110); frt.offsetMax = new Vector2(0, -10);
             var pic = new GameObject("picture", typeof(RectTransform));
-            pic.transform.SetParent(panel.transform, false);
-            var prt = pic.GetComponent<RectTransform>();
-            prt.anchorMin = new Vector2(0.03f, 0.1f); prt.anchorMax = new Vector2(0.97f, 0.98f); prt.offsetMin = prt.offsetMax = Vector2.zero;
+            pic.transform.SetParent(frame.transform, false);
             texture = new Texture2D(Screen.W, Screen.H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             image = pic.AddComponent<RawImage>();
             image.texture = texture;

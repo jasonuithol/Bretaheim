@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter> presses on the Ultima screens; u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -42,6 +42,13 @@ namespace U5InValheim
                 if (!Terminal.m_cheat) Print("u5 encounter needs devcommands");
                 else if (me == null || WorldGen.Britannia.Active == null) Print("u5 encounter: only in Britannia");
                 else Print(WorldGen.UltimaSpawner.Encounter(me.transform.position, me.GetPlayerName(), new System.Random()) ?? "nothing comes here (no monster for this land, a town, or 8 already near)");
+                return;
+            }
+            if (args.Length > 1 && args[0] == "press")
+            {
+                // (the screens' keys and buttons, for automated tests)
+                foreach (var what in args.Skip(1))
+                    if (!WorldGen.UltimaScreenPanel.Press(what.ToLowerInvariant())) { Print($"u5 press: {what} is not offered"); break; }
                 return;
             }
             if (args.Length > 0 && args[0] == "play")
