@@ -28,7 +28,7 @@ namespace U5InValheim.WorldGen
         void EndTalk();
     }
 
-    public static class TalkPanel
+    public static partial class TalkPanel
     {
         const int LogLines = 16;
         const float WalkAway = 10f;
@@ -109,6 +109,7 @@ namespace U5InValheim.WorldGen
         /// <summary>A shop visit (SHOPPES*.OVL): the keeper's greeting, then Buy (Valheim's trade window with the shop's stock), the healer's services, Bye (their farewell).</summary>
         public static void OpenShop(TownNpc who, ShopInfo shop)
         {
+            if (RefuseRider(who, shop)) return;
             if (!Start(who, shop.Name)) return;
             session = null;
             var shops = Plugin.U5.Shops;
@@ -116,7 +117,8 @@ namespace U5InValheim.WorldGen
             Show(shops.Greeting(shop, TownNpc.Hour(), random));
             visit = shop;
             ShopButtons();
-            if (who.ShopTrader() == null && shop.Trade != ShopTrade.Healer && shop.Trade != ShopTrade.Inn) Show("(This shop opens in a later version.)");
+            if (who.ShopTrader() == null && shop.Trade != ShopTrade.Healer && shop.Trade != ShopTrade.Inn && !TransportShop(shop)) Show("(This shop opens in a later version.)");
+            ShopOpened(shop);
             Refresh();
         }
 
@@ -136,6 +138,7 @@ namespace U5InValheim.WorldGen
             }
             if (shop.Trade == ShopTrade.Armoury) choices.Add(("Sell", Sell));
             if (shop.Trade == ShopTrade.Inn) choices.Add(($"Rest ({shops.InnPrice(shop, Intelligence)} gp)", Rest));
+            TransportChoices(who, shop, choices);
             choices.Add(("Bye", () => Close()));
             SetButtons(choices.ToArray());
         }

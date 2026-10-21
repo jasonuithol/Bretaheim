@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance; u5 vessel frigate|skiff|pirates|horse (devcommands) brings one",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -36,6 +36,31 @@ namespace U5InValheim
                 foreach (var line in text.TrimEnd('\n').Split('\n')) terminal.AddString(line);
             }
 
+            if (args.Length > 1 && args[0] == "vessel")
+            {
+                // u5 vessel frigate|skiff|pirates|horse (devcommands): one beside you, yours (the pirates' at sea ahead)
+                var me = Player.m_localPlayer;
+                if (!Terminal.m_cheat) { Print("u5 vessel needs devcommands"); return; }
+                if (me == null || WorldGen.Britannia.Active == null) { Print("u5 vessel: only in Britannia"); return; }
+                var ahead = me.transform.position + me.transform.forward * 25f;
+                switch (args[1])
+                {
+                    case "frigate":
+                    case "skiff":
+                        bool frigate = args[1] == "frigate";
+                        var go = WorldGen.Vessels.Spawn(frigate, ahead, me.transform.eulerAngles.y, me.GetPlayerID(), me.GetPlayerName(), frigate ? Shops.SkiffsAboard(Shops.BoughtFrigate) : 0);
+                        Print(go != null ? $"a {args[1]} at {ahead}" : "no such vessel");
+                        break;
+                    case "pirates":
+                        Print(WorldGen.Pirates.Spawn(me.transform.position + me.transform.forward * 70f, new System.Random()) ?? "no deep water 70 m ahead");
+                        break;
+                    case "horse":
+                        Print(WorldGen.Horses.Buy(me, out string where) ? $"a horse {where}" : "no room for a horse here");
+                        break;
+                    default: Print("u5 vessel frigate|skiff|pirates|horse"); break;
+                }
+                return;
+            }
             if (args.Length > 0 && args[0] == "encounter")
             {
                 var me = Player.m_localPlayer;

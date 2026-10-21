@@ -136,10 +136,10 @@ namespace U5InValheim.WorldGen
         }
 
         /// <summary>A creature of an Ultima type in its Valheim body, with the type's hit points (a wild one despawns far from players).</summary>
-        public static Character Spawn(int type, Vector3 at, bool wild)
+        public static Character Spawn(int type, Vector3 at, bool wild, string bodyPrefab = null)
         {
             var body = Body(type);
-            var prefab = body != null ? ZNetScene.instance.GetPrefab(body.Value.prefab) : null;
+            var prefab = bodyPrefab != null ? ZNetScene.instance.GetPrefab(bodyPrefab) : body != null ? ZNetScene.instance.GetPrefab(body.Value.prefab) : null;
             if (prefab == null) return null;
             var go = Object.Instantiate(prefab, at, Quaternion.Euler(0, random.Next(360), 0));
             var zdo = go.GetComponent<ZNetView>()?.GetZDO();
@@ -270,6 +270,14 @@ namespace U5InValheim.WorldGen
                 if (InTown(shape, p.x, p.z) || !ZoneSystem.instance.IsZoneLoaded(p)) continue;
                 byte tile = shape.TileAt(p.x, p.z);
                 int monster = Encounters.Choose(Plugin.U5.Ovl, tile, random);
+                // a pirate ship (never on the 0x60..0x6f water tiles: spawn_random_monster)
+                if (monster == Encounters.PirateShip)
+                {
+                    var pirates = (tile & 0xf0) == 0x60 ? null : Pirates.Spawn(p, random);
+                    if (pirates == null) continue;
+                    Plugin.Log.LogInfo($"Encounter: {pirates} on tile {tile:x2}, {dist:0} m from {who}");
+                    return pirates;
+                }
                 int type = monster == 0 ? -1 : Encounters.TypeOf(monster);
                 var body = type < 0 ? null : UltimaCreatures.Body(type);
                 var prefab = body != null ? ZNetScene.instance.GetPrefab(body.Value.prefab) : null;

@@ -29,7 +29,7 @@ namespace U5InValheim.Data
     /// them, when they open, their greetings and farewells (SHOPPE.DAT through print_shop_text)
     /// and their stock and prices (DATA.OVL tables).
     /// </summary>
-    public class Shops
+    public partial class Shops
     {
         public const int Torch = 0x200, Gem = 0x201, Food = 0x202, ReagentBase = 0x100;
 
@@ -125,7 +125,8 @@ namespace U5InValheim.Data
                     break;
                 case ShopTrade.Tavern:
                     int ration = Ovl.U16(RationPrices + s.Slot * 2);
-                    if (ration > 0) r.Add(new Ware { Item = Food, Name = "Rations", Price = ration, Quantity = 25 });
+                    // (menu styles 1 and 2 sell no rations: their rations key is blank)
+                    if (ration > 0 && Offers(s, TavernOffer.Rations)) r.Add(new Ware { Item = Food, Name = "Rations", Price = ration, Quantity = 25 });
                     break;
             }
             return r;
