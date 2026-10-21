@@ -327,6 +327,8 @@ namespace U5InValheim.WorldGen
         public TlkScript Script => npc != null ? Plugin.U5.ScriptOf(home.Location, npc) : null;
         bool talking;
         bool Asleep => nview.GetZDO()?.GetInt(TownsfolkSpawner.PoseKey) == (int)Pose.Lie;
+        /// <summary>Lying in their bed.</summary>
+        public bool IsAsleep => Asleep;
 
         // ── body: gear and health (on the owner) ────────────────────────────────────────────
 
