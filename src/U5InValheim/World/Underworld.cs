@@ -357,18 +357,31 @@ namespace U5InValheim.WorldGen
             var ship = Ship.GetLocalShip();
             bool owner = ship != null && WorldWrap.IsOwner(ship);
 
-            // a whirlpool meets my ship
+            // a whirlpool: my ship drawn in, and fallen into its funnel (the surface sinks there: Whirlpool)
             if (owner)
                 foreach (var w in Whirlpool.All)
                 {
                     if (w == null || !w.Valid) continue;
                     var d = w.transform.position - ship.transform.position;
                     d.y = 0;
-                    if (d.magnitude > Whirlpool.Reach) continue;
+                    float r = d.magnitude;
+                    if (r > Whirlpool.Pull) continue;
+                    var body = ship.GetComponent<Rigidbody>();
+                    if (r > Whirlpool.Funnel || ship.transform.position.y > Britannia.SeaLevel - Whirlpool.FallenIn)
+                    {
+                        // drawn in, turning with it: harder the nearer
+                        if (body != null && r > 0.5f)
+                        {
+                            var inward = d / r;
+                            var round = new Vector3(-inward.z, 0, inward.x);
+                            body.AddForce((inward * 3f + round * 1.5f) * (1.2f - r / Whirlpool.Pull) * Time.deltaTime, ForceMode.VelocityChange);
+                        }
+                        continue;
+                    }
                     Underworld.Message(me, Ovl.CStr(UnderworldLinks.SWhirlpool).Trim());
                     var centre = w.transform.position;
                     w.Vanish();
-                    Plugin.Log.LogInfo($"{me.GetPlayerName()}'s ship meets a whirlpool at {centre}");
+                    Plugin.Log.LogInfo($"{me.GetPlayerName()}'s ship falls into a whirlpool at {centre}");
                     Underworld.Carry(me, ship, centre, Underworld.Ground(UnderworldLinks.WhirlpoolX, UnderworldLinks.WhirlpoolY, true), Underworld.Way.Whirlpool);
                     return;
                 }

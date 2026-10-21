@@ -98,9 +98,10 @@ namespace U5InValheim.WorldGen
             if (Britannia.Active == null) return true;
             var shape = Britannia.ShapeAt(wx, wy);
             mask = PaintColour(shape.PaintAt(wx, wy));
-            // the Underworld's lava: Valheim's lava is Ashlands ground whose paint alpha is high
-            // (its Ashlands ground is all round its lava tiles; elsewhere the alpha stays as on the surface)
-            if (shape == Britannia.Under && shape.Biome(wx, wy) == Core.VBiome.AshLands) mask.a = shape.Lava(wx, wy);
+            // Valheim's lava is Ashlands ground whose paint alpha is high, and every paint colour
+            // has alpha 1: Britannia's deserts (Ashlands) would be molten. In Ashlands the alpha is
+            // the map's own lava (the Underworld's lava tiles; nothing on the surface's sand)
+            if (shape.Biome(wx, wy) == Core.VBiome.AshLands) mask.a = shape.Lava(wx, wy);
             __result = Britannia.SeaLevel + shape.Height(wx, wy);
             return false;
         }

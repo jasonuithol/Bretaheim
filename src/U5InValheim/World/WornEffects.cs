@@ -238,6 +238,25 @@ namespace U5InValheim.WorldGen
             if (Grappling && __instance == Player.m_localPlayer) __result = 80f;
         }
 
+        const string AmuletLightName = "u5_amulet_light";
+
+        /// <summary>A soft silver light at the wearer's shoulders while the Amulet of Lord British is worn.</summary>
+        static void AmuletLight(Player p, bool on)
+        {
+            var t = p.transform.Find(AmuletLightName);
+            if (on == (t != null)) return;
+            if (!on) { Object.Destroy(t.gameObject); return; }
+            var go = new GameObject(AmuletLightName);
+            go.transform.SetParent(p.transform, false);
+            go.transform.localPosition = new Vector3(0f, 1.6f, 0.3f);
+            var light = go.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(0.86f, 0.9f, 1f);
+            light.range = 16f;
+            light.intensity = 1.6f;
+            light.shadows = LightShadows.None;
+        }
+
         // ── each moment ─────────────────────────────────────────────────────────────────────
 
         public class Tick : MonoBehaviour
@@ -261,6 +280,8 @@ namespace U5InValheim.WorldGen
 
                 // the invisible are no monster's target, whoever's machine runs the monster
                 foreach (var p in Player.GetAllPlayers()) if (p != null) p.m_aiSkipTarget = (Bits(p) & Invisible) != 0;
+                // the Amulet of Lord British shines about whoever wears it (seen by everyone)
+                foreach (var p in Player.GetAllPlayers()) if (p != null) AmuletLight(p, (Bits(p) & Amulet) != 0 && !p.IsDead());
 
                 // the regalia's reach
                 if (!me.IsDead())

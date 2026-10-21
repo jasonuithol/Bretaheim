@@ -91,6 +91,7 @@ namespace U5InValheim
                 WorldSize.Install(harmony);
                 Underworld.Install(harmony);
                 Whirlpool.Register();
+                Whirlpool.Install(harmony);
                 gameObject.AddComponent<UnderworldWatch>();
                 PlaceMarkers.Install(harmony);
                 Settlements.Install(harmony);

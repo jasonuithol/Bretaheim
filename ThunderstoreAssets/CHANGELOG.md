@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- Whirlpools are the edge of the world in one place: the sea sinks into a funnel, ships are drawn
+  in and fall through to the Underworld. The Amulet of Lord British shines. Dungeons are entered only
+  on foot. Britannia's deserts are sand again, not lava. `u5 quest` shows where the three flames are.
 - The story's end: caught in Blackthorn's palace thou art dragged before Blackthorn, who demands the
   mantra of a shrine (give it and the shrine is ruined; refuse and a companion pays), all played in
   the original's own map window and words. In Doom's last room the mirror takes thee to Lord

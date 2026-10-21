@@ -338,16 +338,17 @@ namespace U5InValheim.WorldGen
             var d = site.HasValue ? me.transform.position - site.Value : Vector3.one * 1000;
             if (!site.HasValue || new Vector2(d.x, d.z).magnitude > 2.5f || Mathf.Abs(d.y) > 2f)
             {
-                said += " " + Ovl.CStr(SNoEffect).Trim();
+                said += "\n" + Ovl.CStr(SNoEffect).Trim();
                 me.Message(MessageHud.MessageType.Center, said);
                 return said;
             }
-            said += " " + (Ovl.CStr(SCast) + Ovl.CStr(FlameNames[shard])).Replace("\n", " ").Trim();
+            // (a line each, as the original prints them: one line would run off the screen)
+            said += "\n" + (Ovl.CStr(SCast) + Ovl.CStr(FlameNames[shard])).Replace("\n", " ").Trim();
             GameCamera.instance?.AddShake(me.transform.position, 30f, 2f, false);
             if (CastIntoFlame(shard, me.transform.position))
             {
                 inv.RemoveItem(item, 1);
-                said += " " + (Ovl.CStr(SDoom) + Ovl.CStr(DoomNames[shard]) + Ovl.CStr(SWrought)).Replace("\n", " ").Trim();
+                said += "\n" + (Ovl.CStr(SDoom) + Ovl.CStr(DoomNames[shard]) + Ovl.CStr(SWrought)).Replace("\n", " ").Trim();
                 Plugin.Log.LogInfo($"{me.GetPlayerName()}: the doom of the Shadowlord {Name(shard)} is wrought");
             }
             me.Message(MessageHud.MessageType.Center, said);

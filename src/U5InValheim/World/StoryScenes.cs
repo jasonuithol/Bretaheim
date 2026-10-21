@@ -338,6 +338,7 @@ namespace U5InValheim.WorldGen
                    + $"Shadowlords doomed: {(doomed.Count > 0 ? string.Join(", ", doomed) : "none")}\n"
                    + (me != null ? $"Shards carried: {(shards.Length > 0 ? shards : "none")}; the Sandalwood Box {(Endgame.HasBox(me) ? "carried" : "not carried")}\n" : "")
                    + $"Doom's mirror: {(Endgame.DoomMirror?.Invoke() is Vector3 m ? $"at ({m.x:0}, {m.y:0}, {m.z:0})" : "not built (the Underworld)")}\n"
+                   + "Flames: " + string.Join(", ", Enumerable.Range(0, 3).Select(i => $"{Shadowlords.Name(i)}'s {(Shadowlords.ShardSite(i) is Vector3 f ? $"at ({f.x:0}, {f.y:0}, {f.z:0})" : "not built")}")) + "\n"
                    + (Endgame.Freed ? $"Lord British was freed on {Endgame.FreedOn}: the quest is won." : "Lord British is a prisoner in the Underworld.");
         }
     }

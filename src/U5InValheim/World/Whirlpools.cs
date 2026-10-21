@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HarmonyLib;
 using Jotunn.Entities;
 using Jotunn.Managers;
 using UnityEngine;
@@ -10,15 +11,21 @@ namespace U5InValheim.WorldGen
     /// The whirlpools of Britannia's deep sea (MAINOUT choose_spawn_monster, monster_turn,
     /// monster_contact; MASTER_PLAN §5.1 "Whirlpools (decided)"). One comes as a sea encounter on
     /// deep water (1 in 8 of them); it drifts a tile every other turn, half the time at random,
-    /// else towards the nearest player. A vessel that meets it ("WHIRLPOOL!") is dragged down,
-    /// spinning, and springs back up in the Underworld at (0x22, 0x12) (<see cref="Underworld"/>).
-    /// Swimmers are not taken (the original spares a party on foot).
+    /// else towards the nearest player. It is Valheim's edge of the world brought to one place: as
+    /// past 10.5 km the sea's surface drops 100 m and a ship falls off the world, round a whirlpool
+    /// the surface ships float on sinks in a funnel (<see cref="Funnel"/> m across, 100 m deep in the
+    /// middle) and ships within <see cref="Pull"/> m are drawn in. A ship that falls into it
+    /// ("WHIRLPOOL!") goes down, spinning, and springs back up in the Underworld at (0x22, 0x12)
+    /// (<see cref="Underworld"/>). Only ships feel it: swimmers are not taken (the original spares a
+    /// party on foot).
     /// </summary>
     public class Whirlpool : MonoBehaviour
     {
         public const string PrefabName = "u5_whirlpool";
-        /// <summary>How near a ship's middle must come to be dragged in.</summary>
-        public const float Reach = 9f;
+        /// <summary>The funnel's radius, the drop in its middle (Valheim's world edge: 100 m), and how far it draws ships in.</summary>
+        public const float Funnel = 14f, EdgeDrop = 100f, Pull = 60f;
+        /// <summary>A ship whose middle is this far under the sea, in a funnel, has fallen in.</summary>
+        public const float FallenIn = 3f;
         const float TurnEvery = 8f, Range = 250f, After = 30f;
 
         static readonly List<Whirlpool> all = new List<Whirlpool>();
@@ -31,6 +38,39 @@ namespace U5InValheim.WorldGen
         float moveStart;
 
         public static void Register() => PrefabManager.OnVanillaPrefabsAvailable += Create;
+
+        public static void Install(Harmony harmony)
+        {
+            var ship = AccessTools.Method(typeof(Ship), nameof(Ship.CustomFixedUpdate));
+            var surface = AccessTools.Method(typeof(WaterVolume), nameof(WaterVolume.GetWaterSurface), new[] { typeof(Vector3), typeof(float) });
+            if (ship == null || surface == null) { Plugin.Log.LogWarning("Whirlpools: Ship.CustomFixedUpdate or WaterVolume.GetWaterSurface not found (no funnel)"); return; }
+            harmony.Patch(ship, prefix: new HarmonyMethod(typeof(Whirlpool), nameof(ShipPhysics_Prefix)), finalizer: new HarmonyMethod(typeof(Whirlpool), nameof(ShipPhysics_Finalizer)));
+            harmony.Patch(surface, postfix: new HarmonyMethod(typeof(Whirlpool), nameof(GetWaterSurface_Postfix)));
+        }
+
+        /// <summary>A ship is reading the water now (the funnel is for ships only).</summary>
+        static bool shipPhysics;
+        static void ShipPhysics_Prefix() => shipPhysics = true;
+        static System.Exception ShipPhysics_Finalizer(System.Exception __exception) { shipPhysics = false; return __exception; }
+
+        static void GetWaterSurface_Postfix(Vector3 point, ref float __result)
+        {
+            if (shipPhysics && all.Count > 0) __result -= Drop(point);
+        }
+
+        /// <summary>How far the surface a ship floats on has sunk at a point: the deepest funnel there.</summary>
+        public static float Drop(Vector3 p)
+        {
+            float drop = 0f;
+            foreach (var w in all)
+            {
+                if (w == null) continue;
+                var c = w.transform.position;
+                float r = new Vector2(p.x - c.x, p.z - c.z).magnitude;
+                if (r < Funnel) drop = Mathf.Max(drop, EdgeDrop * (1f - r / Funnel) * (1f - r / Funnel));
+            }
+            return drop;
+        }
 
         static void Create()
         {

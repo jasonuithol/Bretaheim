@@ -631,6 +631,12 @@ namespace U5InValheim.WorldGen
                 player.Message(MessageHud.MessageType.Center, TownDoors.LockedText("magic"));
                 return true;
             }
+            // on foot only: no horse, carpet or boat goes through a dungeon's door (so none reaches the Underworld that way)
+            if (player.IsRiding() || player.IsAttached())
+            {
+                player.Message(MessageHud.MessageType.Center, Plugin.U5.Ovl.CStr(ItemUse.SOnlyOnFoot).Trim());
+                return true;
+            }
             if (Below) Underworld.EnterFromBelow(player, D);
             else Dungeons.Enter(player, this);
             return true;
