@@ -74,6 +74,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=story: Blackthorn's palace and dungeon, the scenes, Lord British freed (StorySelfTest)
+            if (only == "story")
+            {
+                yield return StorySelfTest.Run(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {

@@ -12,14 +12,17 @@ namespace U5InValheim.WorldGen
 {
     /// <summary>
     /// A whole-screen panel showing one of the original's 320×200 EGA screens (the introduction,
-    /// the gypsy), sharp-pixelled at the original's 4:3, with a line of hints and buttons under it.
-    /// Space, Enter or a click go on; Escape skips; letters answer when the screen asks.
+    /// the gypsy, the cut-scenes of the story), sharp-pixelled at the original's 4:3, with a line of
+    /// hints and buttons under it. Space, Enter or a click go on; Escape skips; letters answer when
+    /// the screen asks; a typed line (<see cref="Ask"/>) when it asks for words.
     /// </summary>
     public static class UltimaScreenPanel
     {
         static GameObject panel;
         static RawImage image;
         static Text hint;
+        static InputField field;
+        static Action<string> onTyped;
         static Texture2D texture;
         static readonly List<GameObject> buttons = new List<GameObject>();
         static Action onNext, onSkip;
@@ -28,6 +31,8 @@ namespace U5InValheim.WorldGen
         static int openedFrame;
 
         public static bool IsOpen => panel != null && panel.activeSelf;
+        /// <summary>A line is being typed in (<see cref="Ask"/>).</summary>
+        public static bool Asking => IsOpen && onTyped != null;
 
         public static void Install(Harmony harmony)
         {
@@ -46,14 +51,10 @@ namespace U5InValheim.WorldGen
         public static bool Show(Screen screen, string hintText, Action next, Action skip, string answers = "", Action<char> letter = null)
         {
             if (!Build()) return false;
-            var rgba = screen.Rgba();
-            // Unity's rows run from the bottom
-            var flipped = new byte[rgba.Length];
-            int row = Screen.W * 4;
-            for (int y = 0; y < Screen.H; y++) Buffer.BlockCopy(rgba, y * row, flipped, (Screen.H - 1 - y) * row, row);
-            texture.LoadRawTextureData(flipped);
-            texture.Apply(false);
+            Load(screen);
             hint.text = hintText ?? "";
+            onTyped = null;
+            field.gameObject.SetActive(false);
             onNext = next;
             onSkip = skip;
             onLetter = letter;
@@ -81,6 +82,51 @@ namespace U5InValheim.WorldGen
             return true;
         }
 
+        /// <summary>The open screen's picture changed (a cut-scene going on), its hints and buttons as they are.</summary>
+        public static void Redraw(Screen screen)
+        {
+            if (IsOpen) Load(screen);
+        }
+
+        static void Load(Screen screen)
+        {
+            var rgba = screen.Rgba();
+            // Unity's rows run from the bottom
+            var flipped = new byte[rgba.Length];
+            int row = Screen.W * 4;
+            for (int y = 0; y < Screen.H; y++) Buffer.BlockCopy(rgba, y * row, flipped, (Screen.H - 1 - y) * row, row);
+            texture.LoadRawTextureData(flipped);
+            texture.Apply(false);
+        }
+
+        /// <summary>A line to type under the screen (Blackthorn's "Your response?"); Enter hands it to <paramref name="typed"/>, Escape an empty one.</summary>
+        public static bool Ask(Screen screen, string prompt, Action<string> typed)
+        {
+            if (!Show(screen, prompt + "      Enter: answer", null, null)) return false;
+            onTyped = typed;
+            field.text = "";
+            field.gameObject.SetActive(true);
+            field.Select();
+            field.ActivateInputField();
+            return true;
+        }
+
+        /// <summary>Answers the open question as if typed (the console's u5 type, for tests).</summary>
+        public static bool Type(string text)
+        {
+            if (!Asking) return false;
+            Typed(text);
+            return true;
+        }
+
+        static void Typed(string text)
+        {
+            var a = onTyped;
+            onTyped = null;
+            field.gameObject.SetActive(false);
+            a?.Invoke(text ?? "");
+        }
+
         public static void Close()
         {
             if (!IsOpen) return;
@@ -88,6 +134,7 @@ namespace U5InValheim.WorldGen
             GUIManager.BlockInput(false);
             onNext = onSkip = null;
             onLetter = null;
+            onTyped = null;
         }
 
         /// <summary>What a key or button does, by name: "next", "skip" or an answer's letter (the console's u5 press, for tests).</summary>
@@ -132,6 +179,14 @@ namespace U5InValheim.WorldGen
             fit.aspectRatio = 4f / 3f; // the original's screen
             hint = g.CreateText("", panel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0, 75), g.AveriaSerifBold, 18, g.ValheimOrange, true, Color.black, 900, 30, false).GetComponent<Text>();
             hint.alignment = TextAnchor.MiddleCenter;
+            var input = g.CreateInputField(panel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0, 30), InputField.ContentType.Standard, "type, then Enter", 18, 380, 34);
+            field = input.GetComponent<InputField>();
+            field.characterLimit = 30;
+            field.onEndEdit.AddListener(text =>
+            {
+                if (onTyped != null && (ZInput.GetKeyDown(KeyCode.Return) || ZInput.GetKeyDown(KeyCode.KeypadEnter))) Typed(text);
+            });
+            input.SetActive(false);
             panel.AddComponent<Keys>();
             panel.SetActive(false);
             return true;
@@ -143,6 +198,13 @@ namespace U5InValheim.WorldGen
             {
                 // (the key that opened it is not the first answer)
                 if (Time.frameCount <= openedFrame + 1) return;
+                if (onTyped != null)
+                {
+                    // (the letters go into the line; Escape is the empty answer)
+                    if (ZInput.GetKeyDown(KeyCode.Escape)) Typed("");
+                    else if (!field.isFocused) { field.Select(); field.ActivateInputField(); }
+                    return;
+                }
                 if (ZInput.GetKeyDown(KeyCode.Escape)) { if (onSkip != null) Skip(); else if (onNext != null && letters.Length == 0) Next(); return; }
                 foreach (char c in letters)
                     if (ZInput.GetKeyDown((KeyCode)char.ToLowerInvariant(c))) { Letter(c); return; }

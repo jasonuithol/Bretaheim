@@ -122,6 +122,8 @@ namespace U5InValheim
                 MagicCarpet.Register();
                 gameObject.AddComponent<WornEffects.Tick>();
                 gameObject.AddComponent<BlackthornGuards>();
+                BlackthornCapture.Install(harmony);
+                gameObject.AddComponent<Endgame.Watch>();
                 Moongates.Install(harmony);
                 Shadowlords.Install(harmony);
                 gameObject.AddComponent<MoongateKeeper>();

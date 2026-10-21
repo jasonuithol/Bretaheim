@@ -11,7 +11,8 @@ namespace U5InValheim.WorldGen
     /// the player wanted in that settlement: its guards come for them, and the first to reach
     /// them says "Thou art under arrest! Wilt thou come quietly?". Yes: "The guard strikes thee
     /// unconscious!", and the player awakens in the jail of Yew at 8 o'clock. No: "Then defend
-    /// thyself, rogue!", and the guards fight them (they may be fought back). Leaving the
+    /// thyself, rogue!", and the guards fight them (they may be fought back). In Blackthorn's
+    /// palace there is no question: his guards take the player to him (BlackthornCapture). Leaving the
     /// settlement, or dying, ends it. Kept on the player's ZDO (the settlement's number), so every
     /// peer's guards know.
     /// </summary>
@@ -49,7 +50,8 @@ namespace U5InValheim.WorldGen
             Plugin.Log.LogInfo($"{town.Location.Name}: {p.GetPlayerName()} is wanted");
         }
 
-        static void Clear(Player p)
+        /// <summary>No longer wanted nor fought (also when Blackthorn's guards take them away).</summary>
+        public static void Clear(Player p)
         {
             Set(p, WantedKey, 0);
             Set(p, HostileKey, 0);
@@ -190,6 +192,8 @@ namespace U5InValheim.WorldGen
                     var npc = TownsfolkPatches.NpcOf(c);
                     if (npc == null || !npc.IsGuard || npc.IsDead || npc.Location != wanted) continue;
                     if (Vector3.Distance(c.transform.position, me.transform.position) > Reach) continue;
+                    // in Blackthorn's palace no question is asked: the guards take them to him
+                    if (wanted == BlackthornCapture.Palace && BlackthornCapture.Begin(me)) return;
                     TalkPanel.OpenArrest(npc);
                     return;
                 }
@@ -197,6 +201,7 @@ namespace U5InValheim.WorldGen
 
             IEnumerator Take(Player me, Settlements.Built town)
             {
+                if (town.Location.Number == BlackthornCapture.Palace && BlackthornCapture.Begin(me)) { taking = false; yield break; }
                 yield return Overpowered(me, town);
                 taking = false;
             }

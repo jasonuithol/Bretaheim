@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 type <text> answers the open text box (tests); u5 intro replays the introduction; u5 karma [n]; u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance; u5 quest: the state of the quest; u5 blackthorn and u5 endgame [box] (devcommands) play Blackthorn's interrogation and Lord British's rescue",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -66,6 +66,7 @@ namespace U5InValheim
             if (args.Length > 1 && args[0] == "type")
             {
                 // (an answer typed into Valheim's open text box and entered: for automated tests)
+                if (WorldGen.UltimaScreenPanel.Type(string.Join(" ", args.Skip(1)))) return;
                 if (!TextInput.IsVisible() || TextInput.instance == null) { Print("u5 type: no text box open"); return; }
                 // (exactly as Enter does: the text to its receiver, then the box hidden)
                 var input = TextInput.instance;
@@ -100,6 +101,7 @@ namespace U5InValheim
                 return;
             }
             if (Plugin.U5 != null && WorldGen.ClockCommands.Run(args, Print)) return;
+            if (Plugin.U5 != null && WorldGen.StoryCommands.Run(args, Print)) return;
             if (args.Length > 0 && (args[0] == "intro" || args[0] == "karma" || args[0] == "unmake"))
             {
                 // u5 intro: the introduction again; u5 karma [n]: show (set, devcommands); u5 unmake (devcommands): the Avatar unmade, for Hildir

@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- The story's end: caught in Blackthorn's palace thou art dragged before Blackthorn, who demands the
+  mantra of a shrine (give it and the shrine is ruined; refuse and a companion pays), all played in
+  the original's own map window and words. In Doom's last room the mirror takes thee to Lord
+  British's prison: bring the Sandalwood Box and he leads thee home through the Orb's moongate, to
+  the original's ending screens and certificate. `u5 quest` shows how the quest stands.
 - Britannia keeps the original's calendar (one Valheim day is one Ultima day, starting 4-5-139) and
   its moons: by night a moongate rises at every buried moonstone and carries you to the site the
   moons' phases choose. Moonstones can be dug up (the gate is gone) and buried again (use one).
