@@ -34,7 +34,7 @@ namespace U5InValheim.Tests
             Assert.All(ours, p => Assert.StartsWith("U5_", p));
             // two Ultima items made from one Valheim item stay apart
             Assert.NotEqual(items.Special("Pocket Watch").Prefab, items.Special("Black Badge").Prefab);
-            // gold and torches are Valheim's own
+            // gold is Valheim's own (torches are ours: stacks of 99)
             Assert.Equal("Coins", items.Special("Gold").Prefab);
         }
 

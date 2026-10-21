@@ -316,7 +316,8 @@ namespace U5InValheim.WorldGen
                 {
                     var ring = WornItem(me, id);
                     if (ring == null || !ItemUse.RingVanishes(random.Next(ItemUse.VanishRoll))) continue;
-                    me.UnequipItem(ring, false);
+                    // (one ring of a stack: the rest stay worn)
+                    if (ring.m_stack <= 1) me.UnequipItem(ring, false);
                     me.GetInventory().RemoveItem(ring, 1);
                     me.Message(MessageHud.MessageType.Center, Plugin.U5.Ovl.CStr(ItemUse.SRingVanished).Trim());
                     Plugin.Log.LogInfo($"{me.GetPlayerName()}'s {ring.m_shared.m_name} vanished as a fight began");

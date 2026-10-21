@@ -11,9 +11,9 @@ using Object = UnityEngine.Object;
 namespace U5InValheim.WorldGen
 {
     /// <summary>
-    /// Casting (MASTER_PLAN §5.5, Action mappings "Cast"): a mixed spell (a bowl of mead) is
-    /// readied like a stack of arrows (right-click: Valheim's ammunition slot, one spell at a
-    /// time) and the cast key (Z by default, Magic/CastKey) casts it as CAST.OVL does: the
+    /// Casting (MASTER_PLAN §5.5, Action mappings "Cast"): a mixed spell is readied in the pouch
+    /// (<see cref="PouchPanel"/>, beside the inventory; one spell at a time) and the cast key
+    /// (Z by default, Magic/CastKey) casts it as CAST.OVL does: the
     /// place, a mixture spent, the mana (its circle) and the level (its circle), then the spell
     /// (<see cref="SpellEffects"/>). Scrolls are read and potions drunk with a right-click. The
     /// Avatar's mana is shown on Valheim's eitr bar (the magic bar) with the readied spell over
@@ -21,7 +21,6 @@ namespace U5InValheim.WorldGen
     /// </summary>
     public static class Spells
     {
-        public const string AmmoType = "$u5_spell";
         public static ConfigEntry<KeyCode> CastKey { get; private set; }
 
         static Spell[] table;
@@ -34,7 +33,7 @@ namespace U5InValheim.WorldGen
 
         public static void Install(Harmony harmony)
         {
-            CastKey = Plugin.Instance.Config.Bind("Magic", "CastKey", KeyCode.Z, "Casts the readied spell (a mixed spell readied like arrows: right-click it in the inventory).");
+            CastKey = Plugin.Instance.Config.Bind("Magic", "CastKey", KeyCode.Z, "Casts the readied spell (readied in the pouch beside the inventory).");
             SpellStatus.Install(harmony);
             Patch(harmony, typeof(Humanoid), "UseItem", prefix: nameof(UseItem_Prefix));
             Patch(harmony, typeof(Character), "RPC_Damage", prefix: nameof(RPC_Damage_Prefix));
@@ -108,16 +107,8 @@ namespace U5InValheim.WorldGen
                 rt.anchoredPosition = new Vector2(0, 6);
                 rt.sizeDelta = new Vector2(320, 24);
             }
-            var readied = Readied(player);
-            spellLabel.text = readied != null ? $"{UltimaItems.Map.Get(readied.m_dropPrefab.name)?.Name} ×{readied.m_stack}  ({CastKey.Value})" : "MP";
-        }
-
-        /// <summary>The mixed spell in the ammunition slot, or null.</summary>
-        public static ItemDrop.ItemData Readied(Player p)
-        {
-            var item = p.GetAmmoItem();
-            var def = item?.m_dropPrefab != null ? UltimaItems.Map.Get(item.m_dropPrefab.name) : null;
-            return def != null && def.Kind == ItemKind.Spell ? item : null;
+            var pouch = PouchPanel.Of(player);
+            spellLabel.text = pouch.Readied >= 0 ? $"{Table[pouch.Readied].Words} ×{pouch.SpellCount(pouch.Readied)}  ({CastKey.Value})" : "MP";
         }
 
         // ── casting ─────────────────────────────────────────────────────────────────────────
@@ -126,15 +117,14 @@ namespace U5InValheim.WorldGen
         public static void CastReadied(Player me)
         {
             if (me.IsDead() || me.IsSleeping() || SpellStatus.Has(me, SpellStatus.Asleep)) return;
-            var item = Readied(me);
-            if (item == null) { me.Message(MessageHud.MessageType.Center, S(SpellEffects.SNone) + " (ready a mixed spell: right-click it)"); return; }
-            var def = UltimaItems.Map.Get(item.m_dropPrefab.name);
-            var spell = Table[def.Spell];
+            var pouch = PouchPanel.Of(me);
+            if (pouch.Readied < 0) { me.Message(MessageHud.MessageType.Center, S(SpellEffects.SNone) + " (ready a mixed spell in the pouch beside the inventory)"); return; }
+            var spell = Table[pouch.Readied];
             var a = Avatar.Load(me.m_customData);
             var place = SpellEffects.PlaceOf(me);
             int location = SpellEffects.LocationAt(me.transform.position);
             string words = spell.Words + "!";
-            var check = Magic.Check(spell, place, location, WearsCrown(me), item.m_stack, a.Mana, a.Level);
+            var check = Magic.Check(spell, place, location, WearsCrown(me), pouch.SpellCount(spell.Index), a.Mana, a.Level);
             // In An: no magic works in a fight ("Absorbed!", as COMBAT's cast)
             if (check == CastCheck.Ok && place == SpellPlace.Combat && SpellEffects.Party(me).Any(p => SpellStatus.Has(p, SpellStatus.NegateMagic)))
                 check = CastCheck.Absorbed;
@@ -144,7 +134,8 @@ namespace U5InValheim.WorldGen
                 case CastCheck.NotHere: Show(me, words, S(SpellEffects.SNotHere)); return;
                 case CastCheck.NoneMixed: Show(me, words, S(SpellEffects.SNoneMixed)); return;
             }
-            me.GetInventory().RemoveItem(item, 1);
+            pouch.TakeSpell(spell.Index);
+            PouchPanel.Save(me, pouch);
             if (check == CastCheck.ManaTooLow) { Show(me, words, S(SpellEffects.SMpTooLow) + "\n" + S(SpellEffects.SFailed)); return; }
             a.Mana -= spell.Circle;
             a.Save(me.m_customData);
@@ -167,7 +158,7 @@ namespace U5InValheim.WorldGen
 
         // ── scrolls and potions ──────────────────────────────────────────────────────────────
 
-        /// <summary>Right-click (or a hotbar key) on a scroll reads it, on a potion drinks it; a mixed spell is readied as Valheim readies arrows.</summary>
+        /// <summary>Right-click (or a hotbar key) on a scroll reads it, on a potion drinks it.</summary>
         static bool UseItem_Prefix(Humanoid __instance, Inventory inventory, ItemDrop.ItemData item)
         {
             if (!Active || !(__instance is Player me) || me != Me || item?.m_dropPrefab == null) return true;

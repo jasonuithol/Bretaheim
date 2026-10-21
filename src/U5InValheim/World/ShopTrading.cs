@@ -102,7 +102,7 @@ namespace U5InValheim.WorldGen
                 if (offer == 0 || drop == null) continue;
                 var entry = new Trader.TradeItem
                 {
-                    m_prefab = drop, m_stack = item.m_stack, m_price = offer, m_name = item.m_shared.m_name,
+                    m_prefab = drop, m_stack = 1, m_price = offer, m_name = item.m_shared.m_name,
                     m_tooltip = "", m_requiredGlobalKey = "", m_buyKey = "", m_incrementKey = "", m_buyPlayerEffects = new EffectList(),
                 };
                 trader.m_items.Add(entry);
@@ -120,7 +120,8 @@ namespace U5InValheim.WorldGen
             var selected = Traverse.Create(__instance).Field("m_selectedItem").GetValue<Trader.TradeItem>();
             var me = Player.m_localPlayer;
             if (selected == null || me == null || !visit.Items.TryGetValue(selected, out var item) || !me.GetInventory().ContainsItem(item)) return false;
-            me.GetInventory().RemoveItem(item);
+            // (one of a stack at a time, at the offer for one)
+            me.GetInventory().RemoveItem(item, 1);
             var coins = ObjectDB.instance.GetItemPrefab("Coins");
             if (coins != null) me.GetInventory().AddItem(coins, selected.m_price);
             int hour = TownNpc.Hour();

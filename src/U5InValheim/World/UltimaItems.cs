@@ -94,17 +94,16 @@ namespace U5InValheim.WorldGen
                     s.m_description = $"Worn with the {def.Name.Replace(" Leggings", "")}, whose defence it is part of.";
                     break;
                 case ItemKind.Reagent:
+                    // (kept in the pouch, never in the inventory: PouchPanel)
                     Carried(s, 99);
-                    s.m_description = "A reagent, for mixing spells.";
+                    s.m_description = "A reagent, for mixing spells. Kept in thy pouch (beside the inventory).";
                     break;
                 case ItemKind.Spell:
-                    // readied like a stack of arrows (Valheim's ammunition slot), cast with the cast key (Spells)
+                    // (kept in the pouch and readied there, cast with the cast key: PouchPanel, Spells)
                     Carried(s, 99);
-                    s.m_itemType = ItemDrop.ItemData.ItemType.Ammo;
-                    s.m_ammoType = Spells.AmmoType;
                     s.m_damages = new HitData.DamageTypes();
                     s.m_attack.m_attackProjectile = null;
-                    s.m_description = $"A mixed spell of the {Ordinal(def.Spell / 6 + 1)} circle ({def.Spell / 6 + 1} mana). Right-click to ready it, then cast it ({Spells.CastKey?.Value}).";
+                    s.m_description = $"A mixed spell of the {Ordinal(def.Spell / 6 + 1)} circle ({def.Spell / 6 + 1} mana). Kept in thy pouch (beside the inventory): ready it there, then cast it ({Spells.CastKey?.Value}).";
                     break;
                 case ItemKind.Scroll:
                     Carried(s, 99);
@@ -115,21 +114,27 @@ namespace U5InValheim.WorldGen
                     s.m_description = "A potion. Right-click to drink it.";
                     break;
                 case ItemKind.Moonstone:
-                    Carried(s, 1);
+                    Carried(s, 99);
                     s.m_description = "One of the eight moonstones.";
                     break;
                 case ItemKind.Special:
-                    // keys, gems, food and the like stack (what is worn or held does not)
+                    // keys, gems and the like are carried things (what is worn or held stays so)
                     if (s.m_itemType == ItemDrop.ItemData.ItemType.Material || s.m_itemType == ItemDrop.ItemData.ItemType.Consumable) Carried(s, 99);
-                    else if (s.m_itemType == ItemDrop.ItemData.ItemType.Misc) s.m_maxStackSize = 99;
                     // (Hildir's chest, the Sandalwood Box, weighs 200)
                     s.m_weight = Mathf.Min(s.m_weight, 1f);
                     s.m_description = "";
+                    // a torch burns out (Valheim's torch, one of the stack at a time: BigInventory)
+                    if (s.m_itemType == ItemDrop.ItemData.ItemType.Torch) s.m_useDurability = true;
                     break;
             }
             // what wearing or using it does (rings, regalia, the utility items)
             WornEffects.Prepare(def, s);
+            // every Ultima item stacks to 99 (MAPPING_DECISIONS 2026-10-22), worn and wielded ones too
+            s.m_maxStackSize = Stack;
         }
+
+        /// <summary>The stack of every Ultima item.</summary>
+        public const int Stack = 99;
 
         static bool Hits(ItemDrop.ItemData.ItemType t)
             => t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft

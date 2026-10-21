@@ -16,7 +16,8 @@ namespace U5InValheim.WorldGen
     /// reagents are carried shown so); choosing one marks its recipe (DATA.OVL) among the eight
     /// reagents, which may be changed; "How much?"; Mix spends one of each marked reagent per
     /// mixture and, when the marks are the spell's recipe, gives that many of the spell ("Done!",
-    /// at most 99); any other mixture blows up as a trapped chest does (trap_effect).
+    /// at most 99); any other mixture blows up as a trapped chest does (trap_effect). Reagents
+    /// and spells are the pouch's (<see cref="PouchPanel"/>), not the inventory's.
     /// </summary>
     public static class MixPanel
     {
@@ -48,13 +49,8 @@ namespace U5InValheim.WorldGen
         // DATA.OVL (DGROUP) CMDS mixing words
         const int SNoReagents = 0x8f98, SForWhat = 0x8fac, SMixing = 0x8ff0, SDone = 0x8ffc, SNothingToMix = 0x9004, SInsufficient = 0x8f7e, SHowMuch = 0x8f72;
 
-        static int Held(Player me, int reagent)
-        {
-            var def = UltimaItems.Map.Reagent(reagent);
-            var prefab = def != null ? ObjectDB.instance?.GetItemPrefab(def.Prefab) : null;
-            var name = prefab?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name;
-            return name != null ? me.GetInventory().CountItems(name) : 0;
-        }
+        /// <summary>The reagent's count in the pouch.</summary>
+        static int Held(Player me, int reagent) => reagent >= 0 && reagent < Magic.Reagents ? PouchPanel.Of(me).Reagents[reagent] : 0;
 
         public static void Open(Player me)
         {
@@ -120,10 +116,7 @@ namespace U5InValheim.WorldGen
         static string Mixed(int s)
         {
             var me = Me;
-            var def = UltimaItems.Map.Inventory(ItemMap.SpellBase + s);
-            var prefab = def != null ? ObjectDB.instance?.GetItemPrefab(def.Prefab) : null;
-            var name = prefab?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name;
-            int n = me != null && name != null ? me.GetInventory().CountItems(name) : 0;
+            int n = me != null ? PouchPanel.Of(me).SpellCount(s) : 0;
             return n > 0 ? $"(Thou hast {n} mixed.)" : "";
         }
 
@@ -137,29 +130,20 @@ namespace U5InValheim.WorldGen
             int most = Magic.MostToMix(marks, r => Held(me, r));
             if (most < count) { info.text = S(SInsufficient); return; }
             if (!Spells.NearFire(me.transform.position)) { Close(); return; }
-            foreach (int r in Magic.ReagentsOf(marks))
-            {
-                var def = UltimaItems.Map.Reagent(r);
-                var name = ObjectDB.instance.GetItemPrefab(def.Prefab).GetComponent<ItemDrop>().m_itemData.m_shared.m_name;
-                me.GetInventory().RemoveItem(name, count);
-            }
+            var pouch = PouchPanel.Of(me);
+            foreach (int r in Magic.ReagentsOf(marks)) pouch.TakeReagent(r, count);
             var sp = Spells.Table[spell];
-            if (!Magic.Mixes(sp, marks))
+            bool mixes = Magic.Mixes(sp, marks);
+            // the spell into the pouch (at most 99: the rest is lost, as the original's)
+            if (mixes) pouch.AddSpell(spell, count);
+            PouchPanel.Save(me, pouch);
+            if (!mixes)
             {
                 Plugin.Log.LogInfo($"{me.GetPlayerName()} mixes {sp.Words} wrongly (0x{marks:x2}, not 0x{sp.Recipe:x2})");
                 Close();
                 me.Message(MessageHud.MessageType.Center, S(SMixing));
                 Treasure.Spring(me, me.transform.position, chest: false);
                 return;
-            }
-            var spellDef = UltimaItems.Map.Inventory(ItemMap.SpellBase + spell);
-            var prefab = spellDef != null ? ObjectDB.instance.GetItemPrefab(spellDef.Prefab) : null;
-            if (prefab != null)
-            {
-                var shared = prefab.GetComponent<ItemDrop>().m_itemData.m_shared;
-                int room = Math.Max(0, Magic.MostMixed - me.GetInventory().CountItems(shared.m_name));
-                int n = Math.Min(count, room);
-                if (n > 0 && !me.GetInventory().AddItem(prefab, n)) Treasure.DropOnGround(prefab, n, me.transform.position + Vector3.up);
             }
             SpellStatus.Fx("vfx_bowl_AddItem", me.transform.position, 3f);
             info.text = S(SMixing) + " " + S(SDone) + " " + Mixed(spell);

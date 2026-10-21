@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- The inventory overhaul: every Ultima item stacks to 99 (torches are now our own and burn out one
+  at a time); in Britannia the pack has 8 × 14 slots, shown six rows at a time and scrolled with the
+  mouse wheel, and nothing is lost going back to a Valheim world. Reagents and mixed spells live in
+  a pouch of their own: a panel beside the inventory shows them, a click readies a spell for the
+  cast key. Older characters' reagents and spells move into the pouch by themselves.
 - A new Avatar starts as the original's: Chain Coif, Chain Mail, Long Sword and the Ankh worn, with
   the party's spells, scrolls, potions, reagents, keys and torches. Items that do not fit in the pack
   now drop at thy feet (they used to vanish).

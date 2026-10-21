@@ -14,6 +14,8 @@ namespace U5InValheim.WorldGen
     /// and armour its companions used: there are none), its
     /// reagents, keys, gems and torches, 150 gold (Valheim coins) and its food as barley rations
     /// (63): once per character per Britannia world, remembered in the character's custom data.
+    /// The spells and reagents land in the pouch (<see cref="PouchPanel"/> takes them from the
+    /// inventory's AddItem).
     /// </summary>
     public static class StartingGold
     {

@@ -109,6 +109,8 @@ namespace U5InValheim
                 Treasure.Register();
                 TalkPanel.Install(harmony);
                 ShopTrading.Install(harmony);
+                BigInventory.Install(harmony);
+                PouchPanel.Install(harmony);
                 StartingGold.Install(harmony);
                 TownWatch.Install(harmony);
                 TownsfolkPatches.Install(harmony);
