@@ -359,7 +359,7 @@ namespace U5InValheim.WorldGen
     /// <summary>The conversation's view of the game: the local player (their name, met townsfolk and karma kept with the character, coins as gold).</summary>
     public class PlayerTalkWorld : ITalkWorld
     {
-        const string KarmaKey = "u5_karma";
+        const string CharityKey = "u5_charity_at";
         readonly ITalker npc;
         readonly System.Random random = new System.Random();
 
@@ -376,15 +376,37 @@ namespace U5InValheim.WorldGen
             set { if (Me != null && value) Me.m_customData[MetKey] = "1"; }
         }
 
-        /// <summary>Karma (0..99), 50 for a new Avatar (until the virtue questions set it, Phase 5).</summary>
+        /// <summary>Karma (0..99, Data.Karma), 50 for a new Avatar.</summary>
         public int Karma
         {
-            get => Me != null && Me.m_customData.TryGetValue(KarmaKey, out var k) && int.TryParse(k, out int v) ? v : 50;
-            set { if (Me != null) Me.m_customData[KarmaKey] = Mathf.Clamp(value, 0, 99).ToString(); }
+            get => Me != null ? Data.Karma.Get(Me.m_customData) : Data.Karma.Start;
+            set
+            {
+                if (Me == null) return;
+                int before = Data.Karma.Get(Me.m_customData);
+                Data.Karma.Set(Me.m_customData, value);
+                if (value != before) Plugin.Log.LogInfo($"Karma {before} -> {Data.Karma.Clamp(value)} (conversation)");
+            }
         }
 
         public int Gold => Me?.GetInventory().CountItems("$item_coins") ?? 0;
-        public void TakeGold(int amount) => Me?.GetInventory().RemoveItem("$item_coins", amount);
+
+        /// <summary>Paying (TALK 0x85); paying a beggar is charity (pay_gold_price: karma at most once every 100 turns, more for the last coin).</summary>
+        public void TakeGold(int amount)
+        {
+            if (Me == null) return;
+            Me.GetInventory().RemoveItem("$item_coins", amount);
+            var loc = Plugin.U5.Location(npc.Location);
+            var who = loc != null && npc.Slot > 0 ? Plugin.U5.NpcsOf(loc)[npc.Slot] : null;
+            if (!Data.Karma.IsBeggar(who) || ZNet.instance == null) return;
+            double now = ZNet.instance.GetTimeSeconds();
+            double last = Me.m_customData.TryGetValue(CharityKey, out var l) && double.TryParse(l, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double t) ? t : -1;
+            double minute = (EnvMan.instance != null ? EnvMan.instance.m_dayLengthSec : 1800) / 1440.0;
+            int k = Data.Karma.ForCharity(now, last, Data.Karma.CharityInterval(minute), Gold);
+            if (k == 0) return;
+            Me.m_customData[CharityKey] = now.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            KarmaDeeds.Change(Me, k, "charity");
+        }
 
         public void Give(int item)
         {

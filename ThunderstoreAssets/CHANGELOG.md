@@ -7,6 +7,17 @@
   The three Shadowlords travel between the eight towns every midnight; where one is, Falsehood
   cheats you, Hatred turns the townsfolk on you, Cowardice sends them into hiding. Call one to its
   flame by yelling its name and cast its shard in to destroy it. `u5 time`, `u5 moons`, `u5 dusk`.
+- A new Britannia world opens with the original's introduction (its 21 pictures and words, read from
+  your Ultima V files; Space goes on, Escape skips), then thou standest in Iolo's hut. Hildir waits
+  beside thee and the door is locked until thou hast answered the gypsy's seven virtue questions,
+  which make thy strength, dexterity, intelligence and mana as the original did (0 until then).
+- Karma (shown on the Tab screen): striking townsfolk, murder, opening chests in towns and picking
+  others' crops cost karma; charity to beggars and the conversations' own deeds earn it.
+- Food: rations are barley (crops and taverns give it); one is eaten each day, and with none thou
+  losest 30 % of thy health. Valheim's food is not eaten in Britannia.
+- Restrictions: no felling trees, breaking rocks, reshaping the ground, crafting, brewing, cooking
+  or building crafting tables; only garlic and ginseng are planted. The hammer, hoe and cultivator
+  of Iolo's hut stay at the hut.
 - Every Ultima item is an item of its own, with its Ultima name and numbers: the 48 arms and armour,
   mixed spells, scrolls, potions, reagents, moonstones, keys and the quest items; recoloured ones
   (gold regalia, the purple gem, potions, shards) have their own colours and icons. Shops sell them.

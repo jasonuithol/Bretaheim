@@ -161,6 +161,7 @@ namespace U5InValheim.WorldGen
             if (zdo == null || zdo.GetBool(OpenedKey)) return true;
             nview.ClaimOwnership();
             zdo.Set(OpenedKey, true);
+            KarmaDeeds.ChestOpened(player, __instance.transform.position);
             if (zdo.GetBool(TrapKey))
             {
                 zdo.Set(TrapKey, false);

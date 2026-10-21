@@ -39,7 +39,15 @@ namespace U5InValheim.Tests
             new Avatar { Strength = 20, Level = 4, Experience = 512 }.Save(data);
             var b = Avatar.Load(data);
             Assert.Equal((20, 15, 4, 512), (b.Strength, b.Dexterity, b.Level, b.Experience));
-            Assert.Equal(15, Avatar.Load(new Dictionary<string, string>()).Intelligence);
+            // a new character's Avatar is unmade, every stat 0, until the virtue questions
+            var unmade = Avatar.Load(new Dictionary<string, string>());
+            Assert.False(unmade.Made);
+            Assert.Equal((0, 0, 0, 0), (unmade.Strength, unmade.Dexterity, unmade.Intelligence, unmade.Mana));
+            var again = new Dictionary<string, string>();
+            unmade.Save(again);
+            Assert.False(Avatar.Load(again).Made);
+            // saved before the questions existed: made
+            Assert.True(Avatar.Load(new Dictionary<string, string> { { "u5_avatar_str", "18" } }).Made);
         }
 
         [U5Fact]
