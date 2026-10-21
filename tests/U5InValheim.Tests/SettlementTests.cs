@@ -41,7 +41,9 @@ namespace U5InValheim.Tests
         public void PlansUseOnlyRealPrefabsWithinTheSquare(int location, string kind)
         {
             var p = Plan(location, kind);
-            Assert.All(p.Pieces, x => Assert.Contains(x.Prefab, prefabs.Value));
+            // (the plugin's own: the baked ladders)
+            Assert.All(p.Pieces.Where(x => !x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, prefabs.Value));
+            Assert.All(p.Pieces.Where(x => x.Prefab.StartsWith("u5_")), x => Assert.Contains(x.Prefab, new[] { SettlementPlanner.LadderUp, SettlementPlanner.LadderDown }));
             Assert.All(p.Pieces, x => Assert.InRange(x.X, -p.HalfSize - 2, p.HalfSize + 2));
             Assert.All(p.Pieces, x => Assert.InRange(x.Z, -p.HalfSize - 2, p.HalfSize + 2));
             Assert.Contains(p.Pieces, x => x.Prefab.Contains("door"));
@@ -491,7 +493,7 @@ namespace U5InValheim.Tests
                 if (NearDug(c))
                     Assert.Contains(p.Pieces, pc => pc.Prefab == "stone_floor_2x2" && Covers(p, pc, c));
             // the corner towers' ladders lead down and back up
-            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > 0 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a pole's pivot is its middle)
+            Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y > -1 && pc.Y < 2 && Math.Abs(pc.ClimbY + p.BasementDepth - 0.2f) < 0.01f); // (a ladder's pivot is its foot)
             Assert.Contains(p.Pieces, pc => pc.Climb && pc.Y < -2 && Math.Abs(pc.ClimbY - 0.2f) < 0.01f);
             // its walls and the armourer's display wall stand a storey down
             Assert.True(p.Pieces.Where(pc => pc.Prefab.StartsWith("stone_wall") && pc.Y < 0).Sum(WallVolume) > 500);
@@ -515,22 +517,25 @@ namespace U5InValheim.Tests
             var p = Plan(17, "castle");
             var climb = p.Pieces.Where(pc => pc.Climb).ToList();
             Assert.All(climb, pc => Assert.Equal("passable", pc.Look));
-            // both fill half the storey from the middle of the wall zone: going up into the ceiling,
-            // going down into the floor (a pole's pivot is its middle)
-            var rails = climb.Where(pc => pc.Prefab == "wood_pole2").ToList();
-            float Floor(Placement pc) => pc.Y < 0 ? p.LevelY(-1) : (float)Math.Floor(pc.Y / p.Storey) * p.Storey;
-            Assert.All(rails, pc => Assert.InRange(pc.SY * 2, p.Storey / 2, p.Storey / 2 + 0.2f));
-            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb up");
-            Assert.Contains(rails, pc => pc.ClimbVerb == "Climb down");
-            Assert.All(rails, pc =>
+            // each ladder is one baked piece (its pivot at its foot): going up it fills the top half
+            // of the storey into the ceiling, going down the bottom half into the floor
+            var ladders = climb.Where(pc => pc.Prefab == SettlementPlanner.LadderUp || pc.Prefab == SettlementPlanner.LadderDown).ToList();
+            Assert.Contains(ladders, pc => pc.Prefab == SettlementPlanner.LadderUp && pc.ClimbVerb == "Climb up");
+            Assert.Contains(ladders, pc => pc.Prefab == SettlementPlanner.LadderDown && pc.ClimbVerb == "Climb down");
+            float Floor(Placement pc) => pc.Y < -0.5f ? p.LevelY(-1) : (float)Math.Floor((pc.Y + 0.5f) / p.Storey) * p.Storey;
+            Assert.All(ladders, pc =>
             {
-                float bottom = pc.Y - pc.SY - Floor(pc), top = pc.Y + pc.SY - Floor(pc);
-                if (pc.ClimbVerb == "Climb up") { Assert.InRange(bottom, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); Assert.True(top > p.Storey, $"{pc} top {top}"); }
+                bool up = pc.Prefab == SettlementPlanner.LadderUp;
+                var rails = SettlementPlanner.LadderParts(up, p.Storey).Where(x => x.prefab == "wood_pole2").ToList();
+                Assert.Equal(2, rails.Count);
+                Assert.All(rails, r => Assert.True(r.sx < 0.5f && r.sz < 0.5f, "thin rails"));
+                float bottom = pc.Y - Floor(pc), top = bottom + rails[0].sy * 2;
+                if (up) { Assert.InRange(bottom, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); Assert.True(top > p.Storey, $"{pc} top {top}"); }
                 else { Assert.True(bottom < 0, $"{pc} bottom {bottom}"); Assert.InRange(top, p.Storey / 2 - 0.01f, p.Storey / 2 + 0.01f); }
+                Assert.True(SettlementPlanner.LadderParts(up, p.Storey).Count(x => x.prefab == "wood_beam_1") >= 5, "rungs");
             });
-            Assert.All(rails, pc => Assert.True(pc.SX < 0.5f && pc.SZ < 0.5f, "thin rails"));
-            // rungs between each pair of rails, and every part of a ladder climbs
-            Assert.True(climb.Count(pc => pc.Prefab == "wood_beam_1") > 5 * rails.Count / 2);
+            // nothing of a ladder is left as loose pieces
+            Assert.DoesNotContain(climb, pc => pc.Prefab == "wood_pole2" || pc.Prefab == "wood_beam_1");
         }
 
         [Fact]

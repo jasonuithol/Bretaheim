@@ -370,6 +370,8 @@ namespace U5InValheim.DevTools
         }
 
         /// <summary>Yew's jail: prisoners (not guards) in the cells, the cell door locked, the secret wall behind the cell, the trapdoor and ladders down to the basement.</summary>
+        static float Flat(Vector3 a, Vector3 b) => Vector2.Distance(new Vector2(a.x, a.z), new Vector2(b.x, b.z));
+
         IEnumerator Jail(Settlements.Built yew, Vector3 cell)
         {
             var plan = yew.Plan;
@@ -492,7 +494,9 @@ namespace U5InValheim.DevTools
                 Plugin.Log.LogInfo($"townsfolk self-test jail: grate at {cp.transform.position - yew.Origin} ({cp.Verb}) to {cp.Target - yew.Origin}");
             var grate = At(0, 25, 9);
             var under = Physics.RaycastAll(grate + Vector3.up * 1f, Vector3.down, 8f, solid).OrderBy(h => h.distance).Select(h => $"{h.collider.transform.root.name} {h.point.y - yew.Origin.y:0.0}");
-            Plugin.Log.LogInfo($"townsfolk self-test jail: down through the grate (25,9): {string.Join(", ", under)}; ladders back up {FindObjectsByType<ClimbPoint>(FindObjectsSortMode.None).Count(c => Vector3.Distance(c.transform.position, grate) < 2.5f && c.Verb == "Climb up")} pieces");
+            Plugin.Log.LogInfo($"townsfolk self-test jail: down through the grate (25,9): {string.Join(", ", under)}; ladders back up {FindObjectsByType<ClimbPoint>(FindObjectsSortMode.None).Count(c => Flat(c.transform.position, grate) < 2.5f && c.Verb == "Climb up")} pieces");
+            var baked = FindObjectsByType<U5Ladder>(FindObjectsSortMode.None).Where(l => Vector3.Distance(l.transform.position, yew.Origin) < 50f).ToList();
+            Plugin.Log.LogInfo($"townsfolk self-test jail: {baked.Count} baked ladders in Yew, {baked.Count(l => l.GetComponent<ClimbPoint>() != null)} climbable, {baked.Sum(l => l.GetComponentsInChildren<Collider>().Length)} colliders, layer {(baked.Count > 0 ? LayerMask.LayerToName(baked[0].GetComponentInChildren<Collider>().gameObject.layer) : "-")}");
             // the torture table in the hall (21,8): the axe and knife flat on it, blood on the top, the chain over it
             foreach (var tableAt in new[] { At(0, 21, 8), At(0, 29, 8) })
             foreach (var st in FindObjectsByType<ItemStand>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, tableAt) < 2f))

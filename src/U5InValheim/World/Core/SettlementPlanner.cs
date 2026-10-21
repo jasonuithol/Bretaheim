@@ -2028,13 +2028,8 @@ namespace U5InValheim.WorldGen.Core
                 // a floor grate: the iron grate over the hole is the way down (stood on, not walked through)
                 ctx.Top("iron_floor_2x2", x, y + 0.02f, z, 0);
             else
-            {
-                Ctx.Rotate(LadderHalfWidth, 0, yaw, out float rx, out float rz);
-                foreach (int side in new[] { -1, 1 })
-                    ctx.Stand("wood_pole2", lx + side * rx, bottom, lz + side * rz, yaw, LadderRail, height / 2, LadderRail);
-                for (float h = up ? 0.15f : LadderSink + LadderRungStep; h < height - (up ? LadderSink : 0.15f); h += LadderRungStep)
-                    ctx.Centre("wood_beam_1", lx, bottom + h, lz, yaw, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
-            }
+                // the ladder baked into one piece (rails and rungs: LadderRails, LadderRungs), its pivot at its foot
+                ctx.Add(up ? LadderUp : LadderDown, lx, bottom, lz, yaw);
             bool climb = target >= 0 && target < levels.Count;
             if (climb) p.Links.Add((lv.Z, c, levels[target].Z));
             // stand the arrival a step off the ladder, on a floor tile of the target level
@@ -2057,6 +2052,22 @@ namespace U5InValheim.WorldGen.Core
 
         /// <summary>Ladder: how far it stands back from its tile's centre, half its width, rail and rung thickness (scale of a 0.4 m pole), rung spacing, and how far its rails reach into the ceiling or floor.</summary>
         const float LadderBack = 0.55f, LadderHalfWidth = 0.3f, LadderRail = 0.25f, LadderRung = 0.18f, LadderRungStep = 0.33f, LadderSink = 0.15f;
+
+        /// <summary>The baked ladders (the plugin's prefabs): one going up into the ceiling, one down into the floor.</summary>
+        public const string LadderUp = "u5_ladder_up", LadderDown = "u5_ladder_down";
+
+        /// <summary>
+        /// A ladder's parts, from its foot (local: x across, y up), as the ladder was once laid
+        /// piece by piece: two thin rails (wood_pole2, pivot at its middle) and rungs (wood_beam_1).
+        /// </summary>
+        public static IEnumerable<(string prefab, float x, float y, float sx, float sy, float sz)> LadderParts(bool up, float storey = 4f)
+        {
+            float height = storey / 2 + LadderSink;
+            foreach (int side in new[] { -1, 1 })
+                yield return ("wood_pole2", side * LadderHalfWidth, height / 2, LadderRail, height / 2, LadderRail);
+            for (float h = up ? 0.15f : LadderSink + LadderRungStep; h < height - (up ? LadderSink : 0.15f); h += LadderRungStep)
+                yield return ("wood_beam_1", 0, h, 2 * LadderHalfWidth + 0.06f, LadderRung, LadderRung);
+        }
 
         /// <summary>
         /// The piece just placed is somewhere to sit or lie: Valheim's chair seats you 0.1 m above
