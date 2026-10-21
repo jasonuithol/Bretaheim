@@ -984,6 +984,60 @@ namespace U5InValheim.WorldGen.Core
             // courses of bricks
             int courses = (int)Math.Round(p.Storey), lintel = courses - 1;
             var (openCells, low) = Floorless(lv);
+            bool BrickAt(int c, int course)
+            {
+                // (an enclosure with no floor has walls half a storey high)
+                if (low[c] && course >= courses / 2) return false;
+                // (no lintel across a ladder's shaft, or under a trapdoor, or over a floorless enclosure's gap)
+                if (lv.Doorway[c] && openCells[c]) return false;
+                if (lv.Doorway[c]) return course == lintel && TallFlanks(lv, c) && !Climbs(lv.Rule[c].Kind) && !(above != null && above.Rule[c].Trapdoor);
+                if (!lv.Built[c]) return false;
+                var r = lv.Rule[c];
+                if (r.Kind == TileKind.Wall) return r.Build == WallBuild.Brick;
+                if (r.Kind == TileKind.Window && r.Narrow) return course != 1;
+                return r.IsOpening && course == lintel;
+            }
+            bool SecretWall(int c) => lv.Rule[c].Kind == TileKind.Wall && lv.Rule[c].Secret;
+            // Slabs first: where a 2 m band of courses (0-1, 2-3) is solid wall, the big block lies
+            // along the run, 1 m deep, out of phase with the band below; the rest are bricks.
+            var laid = new bool[courses][];
+            for (int k = 0; k < courses; k++) laid[k] = new bool[G * G];
+            if (style.Slab != null && ctx.Known(style.Slab))
+                for (int band = 0; band + 1 < courses; band += 2)
+                {
+                    bool Solid2(int gx, int gy, bool alongX)
+                    {
+                        if (gx < 0 || gy < 0 || gx >= G || gy >= G || laid[band][gy * G + gx] || laid[band + 1][gy * G + gx]) return false;
+                        int c = (gy / 2) * N + gx / 2;
+                        return along[c] == alongX && !SecretWall(c) && BrickAt(c, band) && BrickAt(c, band + 1);
+                    }
+                    float by = y0 + band + 1f;
+                    // the full slabs, on their band's phase; then halves (a full slab squeezed) where a whole one does not fit
+                    foreach (int length in new[] { style.SlabLength, style.SlabLength / 2 })
+                    {
+                        if (length < 2) continue;
+                        for (int gy = 0; gy < G; gy++)
+                        for (int gx = 0; gx < G; gx++)
+                        {
+                            int c = (gy / 2) * N + gx / 2;
+                            bool ax = along[c];
+                            if (!Solid2(gx, gy, ax)) continue;
+                            int pos = ax ? gx : gy;
+                            if (length == style.SlabLength && (pos + band * 2) % length != 0) continue;
+                            bool fits = true;
+                            for (int i = 1; i < length && fits; i++) fits = ax ? Solid2(gx + i, gy, true) : Solid2(gx, gy + i, false);
+                            if (!fits) continue;
+                            for (int i = 0; i < length; i++)
+                            {
+                                int cell = ax ? gy * G + gx + i : (gy + i) * G + gx;
+                                laid[band][cell] = laid[band + 1][cell] = true;
+                            }
+                            float scale = (float)length / style.SlabLength;
+                            if (ax) ctx.Centre(style.Slab, gx + length / 2f - N, by, N - gy - 0.5f, 0, scale, 1, 1);
+                            else ctx.Centre(style.Slab, gx + 0.5f - N, by, N - gy - length / 2f, 90, scale, 1, 1);
+                        }
+                    }
+                }
             for (int course = 0; course < courses; course++)
             {
                 bool Brick(int c)
@@ -1001,7 +1055,7 @@ namespace U5InValheim.WorldGen.Core
                 }
                 // a secret wall's bricks (all but its lintel) are its own, taken away when it is hit
                 int Secret(int c) => lv.Rule[c].Kind == TileKind.Wall && lv.Rule[c].Secret && course < lintel ? SecretGroup(lv, c) : 0;
-                var used = new bool[G * G];
+                var used = (bool[])laid[course].Clone();
                 bool Cell(int gx, int gy, bool alongX, int secret)
                 {
                     if (gx < 0 || gy < 0 || gx >= G || gy >= G || used[gy * G + gx]) return false;

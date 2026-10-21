@@ -606,10 +606,8 @@ namespace U5InValheim.DevTools
             var back = Respawn.Point();
             if (back.HasValue && Vector3.Distance(back.Value, town.Origin) < 60f)
             {
-                bool floor = Physics.Raycast(back.Value + Vector3.up, Vector3.down, out var fh, 3f);
+                bool floor = Physics.Raycast(back.Value + Vector3.up, Vector3.down, out var fh, 3f, LayerMask.GetMask("piece"));
                 Plugin.Log.LogInfo($"townsfolk self-test town: the dead come back at {back.Value - town.Origin}, standing on {(floor ? $"{fh.collider.transform.root.name} at {fh.point.y - town.Origin.y:0.00}" : "nothing")}");
-                foreach (var h in Physics.RaycastAll(back.Value + Vector3.up * 3f, Vector3.down, 6f).OrderBy(h => h.distance))
-                    Plugin.Log.LogInfo($"townsfolk self-test town:   ray hits {h.collider.name} of {h.collider.transform.root.name} (layer {LayerMask.LayerToName(h.collider.gameObject.layer)}, trigger {h.collider.isTrigger}) at {h.point.y - town.Origin.y:0.00}, root at {h.collider.transform.root.position - town.Origin}");
             }
             foreach (var st in near.Where(v => v.name.StartsWith("StatueEvil")))
                 Plugin.Log.LogInfo($"townsfolk self-test town: gargoyle at {st.transform.position - town.Origin}, facing {st.transform.forward}");

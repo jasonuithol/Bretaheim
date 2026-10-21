@@ -83,6 +83,9 @@ namespace U5InValheim.WorldGen.Core
     public class TownStyle
     {
         public string Brick, BrickSmall, Sill, Arch, Floor, Door, Gate, Merlon;
+        /// <summary>The big block solid wall is laid with, two courses (2 m) high and 1 m deep, SlabLength metres long; or null.</summary>
+        public string Slab;
+        public int SlabLength = 4;
         /// <summary>A leaf of a double door: no frame of its own, centred on its tile, hinged on its local +x side.</summary>
         public string DoubleDoor;
     }
@@ -201,6 +204,7 @@ namespace U5InValheim.WorldGen.Core
                 {
                     Brick = Json.Str(o, "brick"), BrickSmall = Json.Str(o, "brick_small"), Sill = Json.Str(o, "sill"), Arch = Json.Str(o, "arch"),
                     Floor = Json.Str(o, "floor"), Door = Json.Str(o, "door"), DoubleDoor = Json.Str(o, "double_door"), Gate = Json.Str(o, "gate"), Merlon = Json.Str(o, "merlon"),
+                    Slab = Json.Str(o, "slab"), SlabLength = Json.Get(o, "slab_length") is double sl ? (int)sl : 4,
                 };
             }
             foreach (var kv in Json.Obj(root["roofs"]))

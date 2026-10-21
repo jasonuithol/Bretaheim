@@ -83,9 +83,14 @@ namespace U5InValheim.Tests
         {
             var p = Plan(location, kind);
             Assert.InRange(p.Pieces.Count, 1, maxPieces);
-            // runs are laid in 2 m bricks; 1 m bricks only at run ends and every other course's start
+            // solid wall is laid in 4x2 slabs (a quarter of the pieces bricks would take); bricks only
+            // where a slab does not fit: run ends, openings' lintels, half-height walls
+            int slab = p.Pieces.Count(x => x.Prefab == "stone_wall_4x2");
             int big = p.Pieces.Count(x => x.Prefab == "stone_wall_2x1"), small = p.Pieces.Count(x => x.Prefab == "stone_wall_1x1" && !x.Scaled);
-            Assert.InRange(small, 0, Math.Max(20, (big + small) * 3 / 10)); // lintels over openings are often single bricks
+            if (big + small + slab < 100) return; // (a hut's few bricks)
+            Assert.True(slab > 0, "slabs");
+            double slabVolume = 8 * p.Pieces.Where(x => x.Prefab == "stone_wall_4x2").Sum(x => x.Scaled ? x.SX : 1);
+            Assert.True(slabVolume > 2 * big + small, $"walls mostly slabs ({slabVolume} m³ slabs, {2 * big + small} m³ bricks)");
         }
 
         [U5Theory]
