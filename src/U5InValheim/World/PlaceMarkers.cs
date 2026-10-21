@@ -43,6 +43,8 @@ namespace U5InValheim.WorldGen
             foreach (var p in Britannia.Pois)
             {
                 if (p.Underworld || (p.Location > 0 && Settlements.IsBuilt(p.Location))) continue;
+                // the shrines and the Codex are built (Shrines)
+                if ((p.Kind == "shrine" || p.Kind == "codex") && Shrines.Data != null) continue;
                 var zone = ZoneSystem.GetZone(Britannia.TileCentre(p.TileX, p.TileY));
                 if (!byZone.TryGetValue(zone, out var list)) byZone[zone] = list = new List<Poi>();
                 list.Add(p);

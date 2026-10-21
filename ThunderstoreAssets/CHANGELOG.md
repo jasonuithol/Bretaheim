@@ -7,6 +7,9 @@
   which make thy strength, dexterity, intelligence and mana as the original did (0 until then).
 - Karma (shown on the Tab screen): striking townsfolk, murder, opening chests in towns and picking
   others' crops cost karma; charity to beggars and the conversations' own deeds earn it.
+- The shrines of virtue and the Shrine of the Codex stand on the map, built from the original's plans.
+  Kneel at the altar (E), name the virtue and chant its mantra three times: the Altar ordains a
+  quest to the Codex, rewards a quest done (karma and a stat) or takes an offering of gold.
 - Food: rations are barley (crops and taverns give it); one is eaten each day, and with none thou
   losest 30 % of thy health. Valheim's food is not eaten in Britannia.
 - Restrictions: no felling trees, breaking rocks, reshaping the ground, crafting, brewing, cooking

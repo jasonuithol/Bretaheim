@@ -86,6 +86,23 @@ namespace U5InValheim.DevTools
             // the introduction's and the gypsy's files
             var story = Story.Available(Plugin.U5.Directory) ? Story.Load(Plugin.U5.Directory, Plugin.U5.Ovl) : null;
             Log($"intro: {(story == null ? "files missing" : $"{story.Count} screens")}; gypsy files {VirtueCasting.Available(Plugin.U5.Directory)}");
+
+            // the shrines: Honesty's and the Codex built, their kneeling stones; a ruin and its restoration
+            var sd = Shrines.Data;
+            foreach (var (x, y, name) in new[] { (sd.X[0], sd.Y[0], "Honesty"), (ShrineData.CodexX, ShrineData.CodexY, "the Codex") })
+            {
+                var at = Britannia.TileCentre(x, y);
+                yield return generate(at);
+                var altars = Object.FindObjectsByType<ShrineAltar>(FindObjectsSortMode.None).Where(a => Vector3.Distance(a.transform.position, at) < 20f).ToList();
+                int pieces = Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Count(v => v.GetZDO() != null && v.GetZDO().GetBool(Settlements.FixedKey) && Vector3.Distance(v.transform.position, at) < 16f);
+                Log($"shrine of {name} at {at}: {pieces} pieces, kneeling stones {altars.Count} ({string.Join(",", altars.Select(a => a.GetHoverName() + " | " + a.GetHoverText().Replace("\n", " | ")))}), sign {Object.FindObjectsByType<Sign>(FindObjectsSortMode.None).Count(s => Vector3.Distance(s.transform.position, at) < 16f)}");
+            }
+            Shrines.Desecrate(2);
+            yield return new WaitForSeconds(1f);
+            bool ruined = Shrines.IsRuined(2);
+            Shrines.Restore(2);
+            yield return new WaitForSeconds(1f);
+            Log($"shrine of Valour ruined {ruined}, restored {!Shrines.IsRuined(2)}");
         }
     }
 }
