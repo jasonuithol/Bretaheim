@@ -70,6 +70,7 @@ namespace U5InValheim.WorldGen
                 Pois = Core.Pois.Build(Plugin.U5);
                 Settlements.Prepare(cached, Pois);
                 PlaceMarkers.Reset();
+                Shrines.Reset();
                 Active = cached;
                 Plugin.Log.LogInfo($"World '{world.m_name}' is Britannia ({Pois.Count} places).");
             }

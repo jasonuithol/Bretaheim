@@ -126,6 +126,7 @@ namespace U5InValheim
                 Intro.Install(harmony);
                 IolosHut.Install(harmony);
                 Spells.Install(harmony);
+                Shrines.Install(harmony);
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();
