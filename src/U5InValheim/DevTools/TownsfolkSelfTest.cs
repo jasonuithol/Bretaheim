@@ -528,6 +528,44 @@ namespace U5InValheim.DevTools
                 if (bb.max.x < town.Origin.x - h || bb.min.x > town.Origin.x + h || bb.max.z < town.Origin.z - h || bb.min.z > town.Origin.z + h) continue;
                 Plugin.Log.LogInfo($"townsfolk self-test town: wild {Utils.GetPrefabName(v.gameObject)} at {v.transform.position - town.Origin} reaches {bb.min - town.Origin}..{bb.max - town.Origin} (square ±{h:0})");
             }
+            // anything at all with a collider in the square that is not the settlement's own (or the ground, or someone)
+            {
+                float h = town.Site.Half;
+                var seenRoots = new System.Collections.Generic.Dictionary<string, int>();
+                foreach (var col in Physics.OverlapBox(town.Origin + Vector3.up * 10f, new Vector3(h, 40f, h)))
+                {
+                    if (col.GetType().Name == "TerrainCollider" || col.GetComponentInParent<Heightmap>() != null || col.GetComponentInParent<Character>() != null) continue;
+                    var nv = col.GetComponentInParent<ZNetView>();
+                    if (nv != null && (nv.GetZDO()?.GetBool(Settlements.FixedKey) == true || nv.name.StartsWith(Structures.PrefabName))) continue;
+                    var root = nv != null ? nv.gameObject : col.transform.root.gameObject;
+                    string key = $"{root.name} (zdo {nv != null}) at {root.transform.position - town.Origin}";
+                    seenRoots[key] = seenRoots.TryGetValue(key, out int k) ? k + 1 : 1;
+                }
+                foreach (var kv in seenRoots) Plugin.Log.LogInfo($"townsfolk self-test town: in the square: {kv.Key} x{kv.Value}");
+            }
+            // the settlement's own rocks, and how far they reach
+            foreach (var v in near.Where(v => v.name.StartsWith("Rock") || v.name.StartsWith("rock") || v.name.StartsWith("stone_pile")))
+            {
+                var cols = v.GetComponentsInChildren<Collider>().Where(c => c.enabled && !c.isTrigger).ToList();
+                if (cols.Count == 0) { Plugin.Log.LogInfo($"townsfolk self-test town: rock {v.name} at {v.transform.position - town.Origin}, no colliders"); continue; }
+                var bb = cols[0].bounds; foreach (var c in cols) bb.Encapsulate(c.bounds);
+                Plugin.Log.LogInfo($"townsfolk self-test town: rock {Utils.GetPrefabName(v.gameObject)} at {v.transform.position - town.Origin}, {bb.size.x:0.0} x {bb.size.y:0.0} x {bb.size.z:0.0} m");
+            }
+            // the ground poking up through the ground floor's walked tiles (four points round each tile's middle)
+            {
+                var walk0 = town.Plan.Walk.TryGetValue(0, out var w0) ? w0 : null;
+                int bumps = 0;
+                for (int c = 0; c < 32 * 32 && walk0 != null; c++)
+                {
+                    if (!walk0[c]) continue;
+                    var (tx, ty, tz) = town.Plan.TilePos(0, c);
+                    float worst = float.MinValue;
+                    foreach (var (dx, dz) in new[] { (0f, 0f), (0.8f, 0.8f), (-0.8f, 0.8f), (0.8f, -0.8f), (-0.8f, -0.8f) })
+                        worst = Mathf.Max(worst, ZoneSystem.instance.GetGroundHeight(town.Origin + new Vector3(tx + dx, 0, tz + dz)) - (town.Origin.y + ty));
+                    if (worst > 0.3f) { bumps++; if (bumps <= 12) Plugin.Log.LogInfo($"townsfolk self-test town: ground {worst:0.0} m above the floor at tile ({c % 32},{c / 32})"); }
+                }
+                Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name}: {bumps} floor tiles with the ground above them");
+            }
             foreach (var t in FindObjectsByType<CreatureTalker>(FindObjectsSortMode.None).Where(t => Vector3.Distance(t.transform.position, town.Origin) < town.Site.Half + 5f))
             {
                 var c = t.GetComponent<Character>();
