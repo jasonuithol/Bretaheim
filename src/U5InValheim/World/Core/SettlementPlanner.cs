@@ -1015,7 +1015,7 @@ namespace U5InValheim.WorldGen.Core
                     // the full slabs, on their band's phase; then halves (a full slab squeezed) where a whole one does not fit
                     foreach (int length in new[] { style.SlabLength, style.SlabLength / 2 })
                     {
-                        if (length < 2) continue;
+                        if (length < 1) continue;
                         for (int gy = 0; gy < G; gy++)
                         for (int gx = 0; gx < G; gx++)
                         {
@@ -1023,7 +1023,9 @@ namespace U5InValheim.WorldGen.Core
                             bool ax = along[c];
                             if (!Solid2(gx, gy, ax)) continue;
                             int pos = ax ? gx : gy;
-                            if (length == style.SlabLength && (pos + band * 2) % length != 0) continue;
+                            // (every other band, counted up through the storeys, half a slab along: the joints alternate)
+                            int bandNo = (lv.Z * courses + band) / 2, shift = (bandNo % 2 + 2) % 2 * (length / 2);
+                            if (length == style.SlabLength && (pos + shift) % length != 0) continue;
                             bool fits = true;
                             for (int i = 1; i < length && fits; i++) fits = ax ? Solid2(gx + i, gy, true) : Solid2(gx, gy + i, false);
                             if (!fits) continue;
