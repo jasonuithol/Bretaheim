@@ -87,6 +87,22 @@ namespace U5InValheim.WorldGen
             Refresh();
         }
 
+        /// <summary>A question answered by typing (a guard's password), the answer handed to <paramref name="answered"/>.</summary>
+        public static void AskTyped(ITalker who, string heading, string question, string promptText, Action<string> answered)
+        {
+            if (!Start(who, heading)) return;
+            session = null;
+            Show(question);
+            SetButtons();
+            typedAnswer = answered;
+            prompt.text = promptText;
+            field.text = "";
+            field.gameObject.SetActive(true);
+            Focus();
+        }
+
+        static Action<string> typedAnswer;
+
         /// <summary>Words from the game (not the townsperson's conversation) in the open panel.</summary>
         public static void Tell(string text) { if (IsOpen) Show(text); }
 
@@ -202,6 +218,7 @@ namespace U5InValheim.WorldGen
             if (!Build()) return false;
             npc = who;
             visit = null;
+            typedAnswer = null;
             lines.Clear();
             openLine = false;
             title.text = heading;
@@ -247,11 +264,22 @@ namespace U5InValheim.WorldGen
             npc = null;
             session = null;
             visit = null;
+            typedAnswer = null;
         }
 
         /// <summary>The player's line (typed, or a button).</summary>
         static void Say(string text)
         {
+            if (typedAnswer != null)
+            {
+                var answered = typedAnswer;
+                typedAnswer = null;
+                field.text = "";
+                field.gameObject.SetActive(false);
+                prompt.text = "";
+                answered(text);
+                return;
+            }
             if (session == null || session.Over) { Close(); return; }
             session.Respond(text);
             Show(session.TakeOutput());
