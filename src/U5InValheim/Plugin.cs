@@ -96,6 +96,7 @@ namespace U5InValheim
                 Ettin.Register();
                 Camp.Register();
                 Ladders.Register();
+                Dungeons.Register();
                 UltimaItems.Register();
                 Treasure.Register();
                 TalkPanel.Install(harmony);
@@ -113,6 +114,7 @@ namespace U5InValheim
                 Sleep.Install(harmony);
                 Respawn.Install(harmony);
                 TerrainQueue.Install(harmony);
+                Dungeons.Install(harmony);
                 Treasure.Install(harmony);
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
@@ -122,6 +124,7 @@ namespace U5InValheim
                 BiomeBlend.Install(harmony);
                 RiverBanks.Install(harmony);
                 gameObject.AddComponent<WorldWrap>();
+                gameObject.AddComponent<DungeonRunner>();
                 if (SelfTest.Value) gameObject.AddComponent<DevTools.TownsfolkSelfTest>();
                 if (LogHitches.Value) gameObject.AddComponent<DevTools.LoadProfiler>();
             }

@@ -56,6 +56,8 @@ namespace U5InValheim.WorldGen.Core
         public override string ToString() => $"{Kind} {Value:x2} at ({U},{V}) cell {Cell}";
     }
 
+    public enum FieldKind { Energy, Sleep, Poison, Fire, Electric }
+
     public struct RoomMonster { public int Type, X, Y; }
     public struct RoomObject { public Loot Loot; public int Tile, X, Y; }
     public struct RoomTrigger { public int Index, X, Y, X1, Y1, X2, Y2; public byte Tile; }
@@ -150,6 +152,19 @@ namespace U5InValheim.WorldGen.Core
                 }
                 int type = (tile & 0xfc) == 0xec ? random[tile & 3] : (tile - 0x40) >> 2;
                 monsters.Add(new RoomMonster { Type = type, X = xs[k], Y = ys[k] });
+            }
+        }
+
+        /// <summary>A field's kind: hallway cells 0x80/0x88 sleep, 0x81/0x89 poison, 0x82/0x8a fire, 0x83 electric; room objects 0xe8 poison, 0xe9 sleep, 0xea fire, 0xeb force.</summary>
+        public static FieldKind Field(byte value)
+        {
+            switch (value)
+            {
+                case 0x80: case 0x88: case 0xe9: return FieldKind.Sleep;
+                case 0x81: case 0x89: case 0xe8: return FieldKind.Poison;
+                case 0x82: case 0x8a: case 0xea: return FieldKind.Fire;
+                case 0x83: case 0xeb: return FieldKind.Electric;
+                default: return FieldKind.Energy;
             }
         }
 
@@ -506,6 +521,11 @@ namespace U5InValheim.WorldGen.Core
             var t = plan.CellTileMap(i);
             int ox = (i % 8) * DungeonLevelPlan.CellTiles, oy = (i / 8) * DungeonLevelPlan.CellTiles;
             var ctx = NewCtx();
+            // the room's field objects (0xe8..0xeb among its monster entries) stay where they lie
+            var map = Room(plan.Dungeon, plan.CellByIndex(i) & 0xf);
+            for (int k = 0; k < 16; k++)
+                if ((map.MonsterTiles[k] & 0xfc) == 0xe8)
+                    plan.Features.Add(new DFeature { Kind = DFeatureKind.Field, U = ox + map.MonsterX[k], V = oy + map.MonsterY[k], Cell = i, Value = map.MonsterTiles[k] });
             for (int y = 0; y < 11; y++)
             for (int x = 0; x < 11; x++)
             {

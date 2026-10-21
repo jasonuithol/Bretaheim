@@ -134,6 +134,23 @@ namespace U5InValheim.WorldGen
             return go;
         }
 
+        /// <summary>A chest holding just <paramref name="contents"/> (a dungeon hallway's chest: its own table).</summary>
+        public static GameObject SpawnChest(Vector3 at, Quaternion rot, List<Loot> contents, bool trapped)
+        {
+            var prefab = ZNetScene.instance?.GetPrefab(ChestPrefab);
+            if (prefab == null) return null;
+            var go = Object.Instantiate(prefab, at, rot);
+            var zdo = go.GetComponent<ZNetView>()?.GetZDO();
+            var container = go.GetComponent<Container>();
+            if (zdo == null || container == null) return go;
+            zdo.Set(TrapKey, trapped);
+            foreach (var loot in contents) Give(container.GetInventory(), loot, at);
+            return go;
+        }
+
+        /// <summary>A piece of loot lying in the open for the taking (E), made now (a dungeon room's objects).</summary>
+        public static GameObject SpawnLoot(Vector3 at, Loot loot) => SpawnSpot(at, loot, false, NotHidden, false, ZoneSystem.SpawnMode.Full, null);
+
         /// <summary>A dying Ultima creature or townsperson (on its owner) may leave a chest; Valheim's drops of Ultima creatures are not theirs.</summary>
         static void OnDeath_Prefix(Character __instance)
         {

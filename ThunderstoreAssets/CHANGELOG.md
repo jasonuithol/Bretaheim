@@ -13,6 +13,13 @@
 - No more terrain freezes when arriving in new land: a zone's terrain the game is waiting for is built
   first, and finished terrain is no longer thrown away when moving quickly (Valheim kept only 16).
 - Load profiler (Development/LogHitches): frames over 150 ms are logged with what ran in them.
+- Dungeons: the seven dungeons on Britannia have stone doors in the mountainside, sealed until their
+  word of power is said in chat beside them (say it again to seal it). Inside, every level is built from
+  the original's maps: hallways, ladders and grates between the levels, rooms with their monsters,
+  treasure and traps (tiles that change when stepped on), fountains to drink from, hidden pits, bomb
+  traps, sleep/poison/fire/electric fields, heavy doors, secret doors found with a blow, chests of the
+  dungeon's own loot. Dark inside: bring a torch. Rooms stay cleared, except the few that always fill
+  again. Doom (in the Underworld) waits for the Underworld.
 
 Settlements (built from TOWNE/DWELLING/CASTLE/KEEP.DAT, setting `BuildSettlements`; tried in-game on
 Britain, Lord British's castle and Iolo's hut):

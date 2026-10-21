@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 dungeon <name> (devcommands) takes you to a dungeon entrance",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -42,6 +42,23 @@ namespace U5InValheim
                 if (!Terminal.m_cheat) Print("u5 encounter needs devcommands");
                 else if (me == null || WorldGen.Britannia.Active == null) Print("u5 encounter: only in Britannia");
                 else Print(WorldGen.UltimaSpawner.Encounter(me.transform.position, me.GetPlayerName(), new System.Random()) ?? "nothing comes here (no monster for this land, a town, or 8 already near)");
+                return;
+            }
+            if (args.Length > 0 && args[0] == "dungeon")
+            {
+                // u5 dungeon <name|0-7> (devcommands): to the dungeon's entrance
+                var me = Player.m_localPlayer;
+                int d = args.Length > 1 ? (int.TryParse(args[1], out int n) ? n : (Plugin.U5?.FindLocation(args[1])?.Number ?? 0) - WorldGen.Core.DungeonInfo.FirstLocation) : -1;
+                var c = WorldGen.Dungeons.Centre(d);
+                if (!Terminal.m_cheat) Print("u5 dungeon needs devcommands");
+                else if (me == null || c == null) Print("u5 dungeon <Deceit|Despise|Destard|Wrong|Covetous|Shame|Hythloth>: only in Britannia");
+                else
+                {
+                    var shape = WorldGen.Britannia.Active;
+                    float x = c.Value.x, z = c.Value.y - 9f;
+                    me.TeleportTo(new UnityEngine.Vector3(x, WorldGen.Britannia.SeaLevel + shape.Height(x, z) + 1f, z), me.transform.rotation, true);
+                    Print($"to {WorldGen.Dungeons.Name(d)}: say {Plugin.U5.Ovl.WordsOfPower[d]} near its door to open it");
+                }
                 return;
             }
             if (args.Length > 0 && args[0] == "play")
