@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- No Valheim skills in Britannia: they no longer level up, give no bonus there, and are not lost by
+  dying there (thy Valheim worlds keep them).
 - The mod is now **Bretaheim** (was U5InValheim). Its plugin folder is `BepInEx/plugins/Bretaheim` and
   its settings `BepInEx/config/tarbaby.bretaheim.cfg`: remove the old `U5InValheim` plugin folder and
   copy your old `tarbaby.u5invalheim.cfg` over if you changed any settings. Worlds and characters carry over.

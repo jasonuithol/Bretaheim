@@ -32,6 +32,9 @@ namespace Bretaheim.WorldGen
             Patch(harmony, typeof(Player), "SetSleeping", postfix: nameof(SetSleeping_Postfix));
             Patch(harmony, typeof(Character), "OnDeath", prefix: nameof(OnDeath_Prefix));
             Patch(harmony, typeof(SkillsDialog), "Setup", postfix: nameof(SkillsSetup_Postfix));
+            Patch(harmony, typeof(Skills), nameof(Skills.RaiseSkill), prefix: nameof(RaiseSkill_Prefix));
+            Patch(harmony, typeof(Skills), nameof(Skills.GetSkillLevel), prefix: nameof(GetSkillLevel_Prefix));
+            Patch(harmony, typeof(Skills), nameof(Skills.OnDeath), prefix: nameof(RaiseSkill_Prefix));
             Patch(harmony, typeof(Game), "Start", postfix: nameof(GameStart_Postfix));
             Patch(harmony, typeof(Player), "RPC_UseStamina", prefix: nameof(UseStamina_Prefix));
             Patch(harmony, typeof(Bed), "Interact", prefix: nameof(BedInteract_Prefix));
@@ -164,6 +167,20 @@ namespace Bretaheim.WorldGen
         // ── Z-stats (Tab) ───────────────────────────────────────────────────────────────────
 
         /// <summary>The Tab screen's skill list shows the Avatar instead: strength, dexterity, intelligence, mana, hit points, level, experience, karma.</summary>
+        /// <summary>
+        /// No Valheim skills in Britannia (§1: replaced by the Ultima stats): none is raised, and
+        /// those earned elsewhere count for nothing here (level 0: run, jump, swim, sneak, weapon
+        /// skills), nor are they lost by dying here. The saved levels are kept for Valheim's own worlds.
+        /// </summary>
+        static bool RaiseSkill_Prefix() => !Active;
+
+        static bool GetSkillLevel_Prefix(ref float __result)
+        {
+            if (!Active) return true;
+            __result = 0f;
+            return false;
+        }
+
         static void SkillsSetup_Postfix(SkillsDialog __instance, Player player)
         {
             if (!Active || player != Me) return;
