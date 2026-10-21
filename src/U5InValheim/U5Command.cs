@@ -25,7 +25,7 @@ namespace U5InValheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter (devcommands) brings a random encounter; u5 play <notes> plays the harpsichord you stand at; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -53,6 +53,7 @@ namespace U5InValheim
                 else harp.SetText(string.Join("", args.Skip(1)));
                 return;
             }
+            if (Plugin.U5 != null && WorldGen.ClockCommands.Run(args, Print)) return;
             if (args.Length == 0 || args[0] != "dump")
             {
                 Print(Dump.Usage);

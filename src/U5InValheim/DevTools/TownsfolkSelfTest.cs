@@ -46,6 +46,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=clock: the calendar, moongates and Shadowlords
+            if (only == "clock")
+            {
+                yield return ClockSelfTest.Run(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {

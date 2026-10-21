@@ -145,6 +145,7 @@ namespace U5InValheim.WorldGen
                     return;
                 }
                 if (price > 0) me.GetInventory().RemoveItem("$item_coins", price);
+                Shadowlords.Cheat(me, shop.Location.Number);
                 bought = true;
                 Inns.Rent(me, shop);
                 bool female = me.GetComponent<VisEquipment>()?.GetModelIndex() == 1;
@@ -190,6 +191,7 @@ namespace U5InValheim.WorldGen
                 return;
             }
             if (price > 0) inv.RemoveItem("$item_coins", price);
+            if (price > 0 && visit != null) Shadowlords.Cheat(me, visit.Location.Number);
             if (cure) me.GetSEMan().RemoveStatusEffect("Poison".GetStableHashCode(), true);
             else me.Heal(me.GetMaxHealth() - me.GetHealth(), true);
             bought = true;
@@ -240,6 +242,8 @@ namespace U5InValheim.WorldGen
                 var said = LastQuote(Plugin.U5.Shops.Farewell(visit, bought, TownNpc.Hour(), random));
                 if (said != null) Chat.instance.SetNpcText(npc.gameObject, Vector3.up * 2.1f, 20f, 8f, "", said, false);
             }
+            // Falsehood in town: something is stolen after a conversation
+            if (session != null && npc is TownNpc talked) Shadowlords.AfterConversation(talked.Location);
             panel.SetActive(false);
             GUIManager.BlockInput(false);
             // (buying: they wait at the counter while the trade window is open)

@@ -114,6 +114,10 @@ namespace U5InValheim
                 Respawn.Install(harmony);
                 TerrainQueue.Install(harmony);
                 Treasure.Install(harmony);
+                Moongates.Install(harmony);
+                Shadowlords.Install(harmony);
+                gameObject.AddComponent<MoongateKeeper>();
+                gameObject.AddComponent<ShadowlordWatch>();
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();

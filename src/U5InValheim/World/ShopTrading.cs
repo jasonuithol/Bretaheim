@@ -75,6 +75,7 @@ namespace U5InValheim.WorldGen
             var keeper = __instance.transform.parent != null ? __instance.transform.parent.gameObject : __instance.gameObject;
             if (thanks.Count > 0 && Chat.instance != null)
                 Chat.instance.SetNpcText(keeper, Vector3.up * 2.1f, 20f, 6f, "", thanks[random.Next(thanks.Count)], false);
+            Shadowlords.Cheat(me, visit.Shop.Location.Number);
             return false;
         }
 

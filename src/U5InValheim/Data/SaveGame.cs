@@ -94,6 +94,8 @@ namespace U5InValheim.Data
         public int Day => d[0x2d8];
         public int Hour => d[0x2d9];
         public int Minute => d[0x2db];
+        /// <summary>Shadowlord 0..2 (Falsehood, Hatred, Cowardice): the location it is in (0x58c8; 0xff destroyed).</summary>
+        public int ShadowlordLocation(int i) => d[0x322 + i];
         public int Karma => d[0x2e2];
         public int Location => d[0x2ed];
         public int PartyZ => (sbyte)d[0x2ef];

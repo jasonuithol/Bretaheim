@@ -288,8 +288,8 @@ namespace U5InValheim.WorldGen
         string label = "";
         bool ready;
 
-        /// <summary>The hour of Britannia's day (Valheim's day as 24 Ultima hours).</summary>
-        public static int Hour() => EnvMan.instance != null ? Mathf.FloorToInt(EnvMan.instance.GetDayFraction() * 24f) % 24 : 12;
+        /// <summary>The hour of Britannia's day (Valheim's day as 24 Ultima hours: <see cref="Calendar.Hour"/>).</summary>
+        public static int Hour() => Calendar.Hour;
 
         void Awake()
         {
@@ -461,6 +461,9 @@ namespace U5InValheim.WorldGen
         {
             if (hold || !ready || user != Player.m_localPlayer || Asleep || IsDead) return false;
             var me = Player.m_localPlayer;
+            // under a Shadowlord's air (TALK modes 0xfd and 0xfe)
+            if (sway == 2) { me.Message(MessageHud.MessageType.Center, Shadowlords.DontHurtMe); return true; }
+            if (sway == 1) { Shadowlords.Begone(gameObject, me.transform.position); return true; }
             ShopInfo shop = npc.IsShopkeeper ? Plugin.U5.Shops.Of(home.Location, npc) : null;
             if (shop != null && !Shops.IsOpen(npc, Hour()))
             {
@@ -598,6 +601,7 @@ namespace U5InValheim.WorldGen
                 frightUntil = 0;
                 if (duty == Duty.Hide && !home.Watch.Alarmed) Duty = Duty.None;
             }
+            Sway();
             if (duty != Duty.None) OnDuty();
             if (nview.GetZDO() == null) return; // (left town)
             walker.Tick(dt, Hour());
@@ -736,6 +740,70 @@ namespace U5InValheim.WorldGen
 
         static bool DoorOpen(Door door) => door.GetComponent<ZNetView>()?.GetZDO()?.GetInt(ZDOVars.s_state) != 0;
 
+        // ── a Shadowlord's air (Shadowlords) ────────────────────────────────────────────────
+
+        /// <summary>The air of the Shadowlord in town on them (on their owner): 0 none, 1 Hatred, 2 Cowardice.</summary>
+        public int Swayed => sway;
+        int sway;
+        bool hating, cursed;
+
+        /// <summary>
+        /// TOWN shadowlord_influence_npcs: touched by Hatred (half the townsfolk, Shadowlords.Sway)
+        /// they come at the nearest player in town and, reaching them, curse them ("Begone,
+        /// vermin!") and run off home; touched by Cowardice they hide at home. When the Shadowlord
+        /// leaves they go back to their day. The town's alarm comes first.
+        /// </summary>
+        void Sway()
+        {
+            int air = IsGuard || IsPrisoner || IsReinforcement || npc == null ? 0 : Shadowlords.Sway(Location, Slot, npc.Schedule.Times);
+            if (air != sway)
+            {
+                if (sway != 0 && (duty == Duty.Hide || hating) && !home.Watch.Alarmed) Duty = Duty.None;
+                sway = air;
+                hating = cursed = false;
+            }
+            if (sway == 0 || home.Watch.Alarmed || (duty != Duty.None && duty != Duty.Hide && !hating)) return;
+            if (sway == 2 || cursed) { Duty = Duty.Hide; return; }
+            if (!hating && Shadowlords.HateTarget(this) != null)
+            {
+                hating = true;
+                Duty = Duty.Fight;
+            }
+        }
+
+        /// <summary>Hatred: after the nearest player in town; beside them, "Begone, vermin!", then away home.</summary>
+        void Hate()
+        {
+            var target = Shadowlords.HateTarget(this);
+            if (target == null)
+            {
+                hating = false;
+                Duty = Duty.None;
+                return;
+            }
+            var to = target.transform.position - transform.position;
+            bool level = Mathf.Abs(to.y) < SameLevel;
+            to.y = 0;
+            if (level && to.magnitude < 2.2f)
+            {
+                Steer(Vector3.zero);
+                human.SetLookDir(to.normalized);
+                Shadowlords.Begone(gameObject, target.transform.position);
+                hating = false;
+                cursed = true;
+                Duty = Duty.Hide;
+                return;
+            }
+            if (level && to.magnitude < 6f && InSight(target))
+            {
+                Steer(to.normalized);
+                human.SetLookDir(to.normalized);
+                return;
+            }
+            var local = target.transform.position - home.Origin;
+            walker.Chase(FloorOf(target.transform.position), home.Plan.CellAt(local.x, local.z));
+        }
+
         // ── on duty in the alarm ────────────────────────────────────────────────────────────
 
         Character foe;
@@ -793,6 +861,7 @@ namespace U5InValheim.WorldGen
         /// </summary>
         void Guard()
         {
+            if (hating) { Hate(); return; }
             foe = home.Watch.Target(transform.position);
             if (foe == null)
             {

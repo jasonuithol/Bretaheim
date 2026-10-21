@@ -28,6 +28,8 @@ namespace U5InValheim.WorldGen
         /// </summary>
         public static string Failure { get; private set; }
         public static List<Poi> Pois { get; private set; } = new List<Poi>();
+        /// <summary>The loaded Britannia world's seed (World.m_seed; the Shadowlords' travels are drawn from it).</summary>
+        public static int Seed { get; private set; }
 
         static BritanniaShape cached;
         static int cachedSeed;
@@ -70,6 +72,7 @@ namespace U5InValheim.WorldGen
                 Pois = Core.Pois.Build(Plugin.U5);
                 Settlements.Prepare(cached, Pois);
                 PlaceMarkers.Reset();
+                Seed = world.m_seed;
                 Active = cached;
                 Plugin.Log.LogInfo($"World '{world.m_name}' is Britannia ({Pois.Count} places).");
             }
