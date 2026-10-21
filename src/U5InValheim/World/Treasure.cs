@@ -176,11 +176,12 @@ namespace U5InValheim.WorldGen
         }
 
         /// <summary>trap_effect: acid (3 in 8: the opener, 1..30), poison (2 in 8: the opener), bomb (2 in 8: everyone near, 1..30 each), gas (1 in 8: everyone near poisoned).</summary>
-        static void Spring(Player opener, Vector3 at)
+        /// (Also a mixture gone wrong, CMDS cmd_mix_reagents: then without the chest's words.)
+        public static void Spring(Player opener, Vector3 at, bool chest = true)
         {
             int kind = Ovl.U8(Dg.TrapTypeTable + random.Next(8));
             int[] said = { Dg.StrAcid, Dg.StrPoison, Dg.StrBomb, Dg.StrGas };
-            opener.Message(MessageHud.MessageType.Center, Ovl.CStr(STrapped).Trim() + " " + Ovl.CStr(said[kind & 3]).Trim());
+            opener.Message(MessageHud.MessageType.Center, (chest ? Ovl.CStr(STrapped).Trim() + " " : "") + Ovl.CStr(said[kind & 3]).Trim());
             var near = new List<Player>();
             Player.GetPlayersInRange(at, 8f, near);
             if (!near.Contains(opener)) near.Add(opener);

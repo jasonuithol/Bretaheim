@@ -13,6 +13,11 @@
 - No more terrain freezes when arriving in new land: a zone's terrain the game is waiting for is built
   first, and finished terrain is no longer thrown away when moving quickly (Valheim kept only 16).
 - Load profiler (Development/LogHitches): frames over 150 ms are logged with what ran in them.
+- Magic: mana (thy intelligence, filled by six hours' sleep) on the magic bar; M by a burning fire mixes
+  spells from the original's recipes (a wrong mixture blows up); a mixed spell is readied like arrows
+  (right-click) and cast with Z, with the original's circles, mana, level and places; the 48 spells
+  as real-time effects (bolts, fields, winds, the earthquake, sleep, fear, charm, summons, light,
+  protection, blink …). Scrolls are read and potions drunk with a right-click.
 
 Settlements (built from TOWNE/DWELLING/CASTLE/KEEP.DAT, setting `BuildSettlements`; tried in-game on
 Britain, Lord British's castle and Iolo's hut):

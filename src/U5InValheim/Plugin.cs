@@ -97,6 +97,7 @@ namespace U5InValheim
                 Camp.Register();
                 Ladders.Register();
                 UltimaItems.Register();
+                SpellStatus.Register();
                 Treasure.Register();
                 TalkPanel.Install(harmony);
                 ShopTrading.Install(harmony);
@@ -114,9 +115,11 @@ namespace U5InValheim
                 Respawn.Install(harmony);
                 TerrainQueue.Install(harmony);
                 Treasure.Install(harmony);
+                Spells.Install(harmony);
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();
+                gameObject.AddComponent<Spells.Keys>();
                 gameObject.AddComponent<UltimaSpawner>();
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);

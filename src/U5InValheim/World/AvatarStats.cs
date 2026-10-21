@@ -117,7 +117,8 @@ namespace U5InValheim.WorldGen
         public static int Defence(Player player)
         {
             var worn = player.GetInventory().GetEquippedItems().Where(i => i.m_dropPrefab != null).Select(i => ShopTrading.Items.EquipmentOf(i.m_dropPrefab.name));
-            return Avatar.Defence(Plugin.U5.Ovl, worn);
+            // In Sanct's protection ('P'): +3
+            return Avatar.Defence(Plugin.U5.Ovl, worn) + (SpellStatus.Has(player, SpellStatus.Protection) ? Magic.ProtectionDefence : 0);
         }
 
         // ── experience and levels ───────────────────────────────────────────────────────────

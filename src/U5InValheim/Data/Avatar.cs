@@ -22,11 +22,14 @@ namespace U5InValheim.Data
         public static Avatar Load(IDictionary<string, string> data)
         {
             int Get(string key, int fallback) => data != null && data.TryGetValue(Prefix + key, out var v) && int.TryParse(v, out int n) ? n : fallback;
-            return new Avatar
+            var a = new Avatar
             {
                 Strength = Get("str", StartingStat), Dexterity = Get("dex", StartingStat), Intelligence = Get("int", StartingStat),
-                Mana = Get("mp", 0), Level = Get("level", 1), Experience = Get("exp", 0),
+                Level = Get("level", 1), Experience = Get("exp", 0),
             };
+            // a new Avatar starts with full mana (their intelligence)
+            a.Mana = Get("mp", a.Intelligence);
+            return a;
         }
 
         public void Save(IDictionary<string, string> data)
