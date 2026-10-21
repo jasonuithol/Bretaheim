@@ -58,6 +58,7 @@ namespace U5InValheim.WorldGen.Core
         public const float PathWidth = 4f;
         static readonly int[] DirX = { 1, -1, 0, 0, 1, -1, 1, -1 }, DirY = { 0, 0, 1, -1, 1, 1, -1, -1 };
         readonly int seed;
+        readonly Cliffs cliffs;
 
         public BritanniaShape(WorldMap map, TerrainTable terrain, int seed, float tileMetres = 32f,
                               int marginTiles = 16, int fadeTiles = 6, float originX = 0f, float originZ = 0f)
@@ -70,6 +71,7 @@ namespace U5InValheim.WorldGen.Core
             OriginX = originX;
             OriginZ = originZ;
             this.seed = seed;
+            cliffs = new Cliffs(map, terrain);
 
             var tBase = new float[N * N];
             var tAmp = new float[N * N];
@@ -467,6 +469,9 @@ namespace U5InValheim.WorldGen.Core
                     double bed = Lerp(SandHeight, -2.8 - Math.Max(0, r - 0.75) * 2.0, SmoothStep((r - 0.3) / 0.45));
                     h = Math.Min(h, bed);
                 }
+                // the land stands higher behind a waterfall: a cliff across the river, the river's banks rising
+                // as walls a few metres from its water (a gorge), the water itself left at the sea's level
+                h += cliffs.Offset(u, v) * SmoothStep((h - 0.1) / 0.5);
             }
 
             if (outside > MarginTiles)

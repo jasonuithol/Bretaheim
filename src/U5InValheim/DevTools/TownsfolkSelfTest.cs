@@ -74,6 +74,13 @@ namespace U5InValheim.DevTools
                 Done();
                 yield break;
             }
+            // U5_SELFTEST=places: the overworld's bridges and the cliffs at the waterfalls (PlacesSelfTest)
+            if (only == "places")
+            {
+                yield return PlacesSelfTest.Overworld(Generate);
+                Done();
+                yield break;
+            }
             // U5_SELFTEST=crime: only the ballista, arrest and jail scenarios
             if (only == "crime")
             {
@@ -570,6 +577,7 @@ namespace U5InValheim.DevTools
             yield return new WaitForSeconds(5f);
             var near = FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, town.Origin) < town.Site.Half + 5f).ToList();
             Plugin.Log.LogInfo($"townsfolk self-test town {town.Location.Name}: {near.Count} objects ({near.Count(v => v.name.StartsWith(Structures.PrefabName))} structures); top kinds {string.Join(", ", near.GroupBy(v => Utils.GetPrefabName(v.gameObject)).OrderByDescending(g => g.Count()).Take(12).Select(g => $"{g.Key} {g.Count()}"))}");
+            PlacesSelfTest.Check(town, near);
             // the wild's things (not the settlement's) reaching into its square
             foreach (var v in FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
             {

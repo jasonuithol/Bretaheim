@@ -97,6 +97,67 @@ namespace U5InValheim.Tests
         }
 
         [U5Fact]
+        public void BridgesSpanTheirRiverFromBankToBank()
+        {
+            var s = shape.Value;
+            var bridges = BridgePlanner.Bridges(s).ToList();
+            Assert.Equal(22, bridges.Count);
+            foreach (var (x, y, ew) in bridges)
+            {
+                // the river runs on under the bridge tile
+                s.TileCentre(x, y, out float cx, out float cz);
+                Assert.True(s.Height(cx, cz) < -1.5f, $"bridge ({x},{y}): ground {s.Height(cx, cz)} m under its middle");
+                var pieces = BridgePlanner.Plan(s, x, y, ew);
+                var deck = pieces.Where(p => p.Prefab == "wood_floor" && !p.Turned).ToList();
+                float top = deck[0].Y + 0.097f;
+                Assert.All(deck, d => Assert.True(Math.Abs(top - (d.Y + 0.097f)) < 0.001f));
+                Assert.InRange(top, BridgePlanner.MinDeck, 6f);
+                // every bit of water along the path, out to the banks, is under the deck
+                float along(Placement p) => ew ? p.X - cx : p.Z - cz;
+                float lo = deck.Min(d => along(d) - d.SX), hi = deck.Max(d => along(d) + d.SX);
+                for (float t = -40; t <= 40; t += 1f)
+                {
+                    float h = ew ? s.Height(cx + t, cz) : s.Height(cx, cz + t);
+                    if (h < 0 && Math.Abs(t) < 20) Assert.InRange(t, lo, hi);
+                }
+                Assert.Contains(pieces, p => p.Prefab == "wood_pole_log_4");
+                Assert.True(pieces.Count < 140, $"bridge ({x},{y}): {pieces.Count} pieces");
+            }
+        }
+
+        [U5Fact]
+        public void TheLandStandsHigherBehindAWaterfall()
+        {
+            var s = shape.Value;
+            var cliffs = new Cliffs(Env.Data.Britannia, terrain.Value);
+            Assert.Equal(3, cliffs.Falls.Count);
+            // (54,137) falls south into the sea
+            Assert.Contains(cliffs.Falls, f => f.x == 54.5 && f.y == 137.5 && f.dx == 0 && f.dy == 1);
+            foreach (var (fx, fy, dx, dy) in cliffs.Falls)
+            {
+                // beside the river (on the land a tile and a half across, one side or the other: rivers bend and widen), a
+                // cliff: well higher a little upstream than a little downstream
+                float best = float.MinValue;
+                string seen = "";
+                foreach (int side in new[] { -1, 1 })
+                {
+                    double bu = fx + side * dy * 1.4, bv = fy - side * dx * 1.4;
+                    float H(double along)
+                    {
+                        s.TileCentre(bu - dx * along - 0.5, bv - dy * along - 0.5, out float wx, out float wz);
+                        return s.Height(wx, wz);
+                    }
+                    best = Math.Max(best, H(0.25) - H(-0.25));
+                    seen += $" side {side}: {H(-0.25):0.0} m below, {H(0.25):0.0} m above;";
+                }
+                Assert.True(best > Cliffs.Rise * 0.6, $"fall ({fx},{fy}):{seen}");
+                // the river still runs through it, boat deep
+                s.TileCentre(fx - 0.5, fy - 0.5, out float rx, out float rz);
+                Assert.True(s.Height(rx, rz) < -1.5f, $"fall ({fx},{fy}): river {s.Height(rx, rz)} m");
+            }
+        }
+
+        [U5Fact]
         public void MountainsAreAManagedAscent()
         {
             var a = Slopes("mountains", "peaks", "foothills");

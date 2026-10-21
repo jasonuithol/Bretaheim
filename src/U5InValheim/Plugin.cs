@@ -97,6 +97,7 @@ namespace U5InValheim
                 Camp.Register();
                 Ladders.Register();
                 Furnishings.Register();
+                Stairs.Register();
                 Dungeons.Register();
                 UltimaItems.Register();
                 SpellStatus.Register();
@@ -135,6 +136,7 @@ namespace U5InValheim
                 Spells.Install(harmony);
                 Shrines.Install(harmony);
                 Furnishings.Install(harmony);
+                Stairs.Install(harmony);
                 if (LogHitches.Value) DevTools.LoadProfiler.Install(harmony);
                 gameObject.AddComponent<Crime.Watch>();
                 gameObject.AddComponent<Camp.Keys>();
@@ -146,6 +148,7 @@ namespace U5InValheim
                 FixedPieces.Install(harmony);
                 BiomeBlend.Install(harmony);
                 RiverBanks.Install(harmony);
+                Bridges.Install(harmony);
                 gameObject.AddComponent<WorldWrap>();
                 gameObject.AddComponent<DungeonRunner>();
                 if (SelfTest.Value) gameObject.AddComponent<DevTools.TownsfolkSelfTest>();
