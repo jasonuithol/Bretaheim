@@ -678,6 +678,25 @@ namespace U5InValheim.DevTools
                 }
             }
             finally { Player.m_localPlayer = null; }
+            // one camp each: Fred pitches, Mary pitches, Mary pitches again (her first goes, Fred's stays)
+            foreach (var l in FindObjectsByType<LeanTo>(FindObjectsSortMode.None)) ZNetScene.instance.Destroy(l.gameObject);
+            yield return new WaitForSeconds(0.5f);
+            var fred = body;
+            var mary = Instantiate(ZNetScene.instance.GetPrefab("Player"), wild, Quaternion.identity).GetComponent<Player>();
+            mary.enabled = false;
+            fred.m_customData.Remove(Camp.CampKey);
+            foreach (var (who, dx, label) in new[] { (fred, 0f, "Fred"), (mary, 20f, "Mary"), (mary, 40f, "Mary again") })
+            {
+                var p = wild + new Vector3(dx, 0, 0); p.y = ZoneSystem.instance.GetGroundHeight(p) + 0.1f;
+                who.transform.position = p;
+                who.GetComponent<Rigidbody>().position = p;
+                Player.m_localPlayer = who;
+                Camp.Pitch(who);
+                Player.m_localPlayer = null;
+                yield return new WaitForSeconds(0.5f);
+                Plugin.Log.LogInfo($"townsfolk self-test sleep: {label} pitches: lean-tos at {string.Join(", ", FindObjectsByType<LeanTo>(FindObjectsSortMode.None).Select(l => $"{(l.transform.position - wild).x:0}"))} (x from the first)");
+            }
+            ZNetScene.instance.Destroy(mary.gameObject);
             ZNetScene.instance.Destroy(body.gameObject);
         }
 
