@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+## 0.3.0 (alpha)
 - Dying is the original's: nothing is lost (no tombstone, no corpse run, no "No skill drain"), but
   Lord British's raising costs experience by thy karma (and the level it no longer earns); he raises
   thee in his throne room with full hit points and mana, karma at least 75, at six in the morning, with
