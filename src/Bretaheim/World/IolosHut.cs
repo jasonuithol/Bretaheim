@@ -173,6 +173,17 @@ namespace Bretaheim.WorldGen
                     if (made == 1 && hut != null && InHut(me.transform.position)) ShutDoors();
                 }
                 if (ZNet.instance.IsServer() && hut != null && hut.Plan.HasSpawn) KeepHildir(hut);
+                else Why($"server {ZNet.instance.IsServer()}, hut {hut != null}, spawn {hut?.Plan.HasSpawn}");
+            }
+
+            string why;
+
+            /// <summary>Logs why Hildir is or isn't there, when that changes.</summary>
+            void Why(string now)
+            {
+                if (now == why) return;
+                why = now;
+                Plugin.Log.LogInfo($"Iolo's hut keeper: {now}");
             }
 
             /// <summary>The hut's open doors shut while it is locked (from an unmade player's machine).</summary>
@@ -200,6 +211,12 @@ namespace Bretaheim.WorldGen
                 }
             }
 
+            static readonly System.Reflection.MethodInfo zoneGenerated = AccessTools.Method(typeof(ZoneSystem), "IsZoneGenerated", new[] { typeof(Vector2s) });
+
+            /// <summary>The hut's zone is built: loaded here, or (a dedicated server only builds ghost zones for its peers) generated.</summary>
+            static bool Ready(Vector2s zone)
+                => ZoneSystem.instance.IsZoneLoaded(zone) || (zoneGenerated != null && (bool)zoneGenerated.Invoke(ZoneSystem.instance, new object[] { zone }));
+
             void KeepHildir(Settlements.Built hut)
             {
                 bool wanted = PlayerZdos().Any(z => z.GetInt(MadeKey) == 1 && InHut(z.GetPosition()));
@@ -209,9 +226,11 @@ namespace Bretaheim.WorldGen
                 ZDOMan.instance.FindSectorObjects(zone, new SimulationDistance(1, 0), near);
                 int hash = HildirName.GetStableHashCode();
                 var hildirs = near.Where(z => z.GetPrefab() == hash).ToList();
+                var players = PlayerZdos().ToList();
+                Why($"{players.Count} players ({string.Join(", ", players.Select(z => $"made {z.GetInt(MadeKey)} in hut {InHut(z.GetPosition())}"))}), {hildirs.Count} Hildir, zone {zone} ready {Ready(zone)}, prefab {ZNetScene.instance.GetPrefab(HildirName) != null}");
                 if (wanted && hildirs.Count == 0)
                 {
-                    if (!ZoneSystem.instance.IsZoneLoaded(zone)) return;
+                    if (!Ready(zone)) return;
                     var prefab = ZNetScene.instance.GetPrefab(HildirName);
                     if (prefab == null) return;
                     var face = Quaternion.LookRotation(new Vector3(-1, 0, 0));
