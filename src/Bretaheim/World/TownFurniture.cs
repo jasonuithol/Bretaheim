@@ -9,7 +9,7 @@ namespace Bretaheim.WorldGen
     /// hanging items): the original lets one only Search a tile. Wardrobes (dressers), wooden chests
     /// (trunks), pots, the hearth (fireplace) and braziers are searched (<see cref="Searching"/>),
     /// with the original's words for each; torches, candles, campfires, cauldrons and item stands
-    /// show their name and do nothing. Iolo's hut keeps its tool chest and workbench (§5.12), and the
+    /// show their name and do nothing. Iolo's hut keeps its tool chest (§5.12), and the
     /// loot chests (u5_chest, not settlement pieces) stay chests.
     /// </summary>
     public static class TownFurniture
@@ -34,7 +34,7 @@ namespace Bretaheim.WorldGen
             h.Patch(method, prefix: new HarmonyMethod(typeof(TownFurniture), prefix));
         }
 
-        /// <summary>A settlement's furniture in Britannia (not Iolo's hut, whose chest and workbench are the players').</summary>
+        /// <summary>A settlement's furniture in Britannia (not Iolo's hut, whose tool chest is the players').</summary>
         static bool Town(Component c)
         {
             if (Britannia.Active == null || c == null || c.GetComponentInParent<U5Fixed>() == null) return false;

@@ -10,7 +10,7 @@ using Object = UnityEngine.Object;
 namespace Bretaheim.DevTools
 {
     /// <summary>
-    /// U5_SELFTEST=hut (a dedicated server): Iolo's hut built, its tool chest and workbench; a
+    /// U5_SELFTEST=hut (a dedicated server): Iolo's hut built, its tool chest (and no workbench); a
     /// stand-in player body unmade in the hut brings Hildir and locks the doors, made sends her
     /// away; a player's axe on a tree and the recipes they are offered; the introduction's and the
     /// gypsy's files read. Logged as "hut self-test …".
@@ -27,7 +27,7 @@ namespace Bretaheim.DevTools
             Log($"hut at {hut.Origin}, spawn {spawn}, Hildir's spot {IolosHut.HildirSpot(hut)}");
             yield return generate(hut.Origin);
 
-            // the tool chest and the workbench
+            // the tool chest, and no workbench
             var chests = Object.FindObjectsByType<Container>(FindObjectsSortMode.None).Where(c => IolosHut.InHut(c.transform.position)).ToList();
             Log("chests: " + string.Join("; ", chests.Select(c => $"{c.name} [{string.Join(",", c.GetInventory().GetAllItems().Select(i => i.m_dropPrefab?.name))}]")));
             var benches = Object.FindObjectsByType<CraftingStation>(FindObjectsSortMode.None).Where(c => IolosHut.InHut(c.transform.position)).ToList();

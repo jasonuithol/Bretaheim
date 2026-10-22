@@ -18,13 +18,13 @@ namespace Bretaheim.Tests
         static SettlementPlan Plan(int location, string kind) => planner.Value.Plan(Env.Data.Location(location), kind, VBiome.BlackForest);
 
         [U5Fact]
-        public void IolosHutHasToolsWorkbenchAndSpawn()
+        public void IolosHutHasToolsAndSpawnButNoWorkbench()
         {
             var p = Plan(13, "dwelling");
             var chest = p.Pieces.Single(x => x.Items != null);
             Assert.Equal("piece_chest_wood", chest.Prefab);
             Assert.Equal(new[] { "Hammer", "Hoe", "Cultivator" }, chest.Items);
-            Assert.Single(p.Pieces, x => x.Prefab == "piece_workbench");
+            Assert.DoesNotContain(p.Pieces, x => x.Prefab == "piece_workbench");
             Assert.True(p.HasSpawn);
             // the spawn point is inside the hut: under its roof
             Assert.Contains(p.Pieces, x => x.Prefab == "wood_roof" && Math.Abs(x.X - p.SpawnX) < 6 && Math.Abs(x.Z - p.SpawnZ) < 6);

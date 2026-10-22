@@ -2640,7 +2640,7 @@ static int Hash(int x, int y, int salt)
 
         /// <summary>
         /// Iolo's hut (MASTER_PLAN §5.12): the chest with the only Valheim tools in Britannia,
-        /// inside the hut, and the one exposed workbench beside the garden.
+        /// inside the hut. No workbench (removed at the user's request).
         /// </summary>
         void IolosHut(Ctx ctx, Level g)
         {
@@ -2662,16 +2662,6 @@ static int Hash(int x, int y, int salt)
                 pl.Items = new[] { "Hammer", "Hoe", "Cultivator" };
                 p.Pieces[p.Pieces.Count - 1] = pl;
             }
-            // workbench: the free outdoor tile nearest the crops that is clear of the fence
-            var crops = Enumerable.Range(0, N * N).Where(c => g.Rule[c].Kind == TileKind.Crop || g.Rule[c].Paint == Paint.Cultivated).ToList();
-            if (crops.Count == 0) return;
-            double mx = crops.Average(c => c % N), my = crops.Average(c => c / N);
-            int bench = Enumerable.Range(0, N * N)
-                .Where(c => g.Exterior[c] && Free(c) && Neighbours8(c).All(n => Free(n) || g.Rule[n].Kind == TileKind.FenceEW || g.Rule[n].Kind == TileKind.FenceNS)
-                            && Neighbours8(c).All(n => g.Rule[n].Kind != TileKind.Tree))
-                .OrderBy(c => Math.Pow(c % N - mx, 2) + Math.Pow(c / N - my, 2))
-                .DefaultIfEmpty(-1).First();
-            if (bench >= 0) ctx.Stand("piece_workbench", CellX(p, bench), 0, CellZ(p, bench), 270);
         }
     }
 }
