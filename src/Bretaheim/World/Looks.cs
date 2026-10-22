@@ -35,6 +35,7 @@ namespace Bretaheim.WorldGen
                 case "bloody": Bloody(go); break;
                 case "portcullis": go.AddComponent<Portcullis>(); break;
                 case "harpsichord": go.AddComponent<Harpsichord>(); break;
+                case "stump": go.AddComponent<SearchableStump>(); break;
                 case "tune": go.AddComponent<TuneWall>(); break;
                 case "ghost": foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false; break;
                 default:

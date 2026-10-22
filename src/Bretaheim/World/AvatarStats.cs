@@ -82,7 +82,7 @@ namespace Bretaheim.WorldGen
 
         static bool TownBed(Bed bed) => Active && bed.GetComponentInParent<U5Fixed>() != null;
 
-        /// <summary>The townsfolk's beds are theirs: not to be claimed or slept in, but for a room paid for at the inn (Inns).</summary>
+        /// <summary>The townsfolk's beds are theirs: not to be claimed or slept in, but for a room paid for at the inn (Inns); any other is searched (Searching).</summary>
         static bool BedInteract_Prefix(Bed __instance, Humanoid human, bool repeat, ref bool __result)
         {
             if (!TownBed(__instance)) return true;
@@ -97,7 +97,9 @@ namespace Bretaheim.WorldGen
                 }
                 if (why != null) Plugin.Log.LogInfo($"Inn bed refused: {why}");
             }
-            human.Message(MessageHud.MessageType.Center, "Not thy bed!");
+            // not thy bed: searched, as the original's Search does any tile (Searching)
+            if (human is Player searcher && searcher == Player.m_localPlayer) Searching.Search(__instance.transform.position, Searching.BedReach, Searching.SUnderTheBed, searcher);
+            __result = true;
             return false;
         }
 
@@ -106,7 +108,7 @@ namespace Bretaheim.WorldGen
             if (!TownBed(__instance)) return true;
             var me = Player.m_localPlayer;
             __result = Localization.instance.Localize(__instance.GetHoverName()
-                + (me != null && Inns.MayRest(me, __instance) ? "\n[<color=yellow><b>$KEY_Use</b></color>] Sleep" : ""));
+                + (me != null && Inns.MayRest(me, __instance) ? "\n[<color=yellow><b>$KEY_Use</b></color>] Sleep" : "\n[<color=yellow><b>$KEY_Use</b></color>] Search"));
             return false;
         }
 
@@ -188,18 +190,20 @@ namespace Bretaheim.WorldGen
         }
 
         /// <summary>
-        /// No Rested in Britannia, nor the comfort that builds it (Resting): they quicken stamina
-        /// and skills, neither of which Britannia has. A night's sleep heals and restores mana as
+        /// None of Valheim's comfort and weather effects in Britannia: Rested and the Resting that
+        /// builds it (they quicken stamina and skills, neither of which Britannia has), Wet, Cold,
+        /// Freezing, Shelter and the campfire's Fire (the original has none of them). A night's sleep heals and restores mana as
         /// the original's does (Sleep). Our own looks borrowed from Rested are named U5_SE_….
         /// </summary>
-        static bool Restful(int hash) => hash == SEMan.s_statusEffectRested || hash == SEMan.s_statusEffectResting;
+        static readonly int[] comfort = { SEMan.s_statusEffectRested, SEMan.s_statusEffectResting, SEMan.s_statusEffectWet, SEMan.s_statusEffectCold,
+                                          SEMan.s_statusEffectFreezing, SEMan.s_statusEffectShelter, SEMan.s_statusEffectCampFire };
+        static bool Restful(int hash) => System.Array.IndexOf(comfort, hash) >= 0;
 
-        /// <summary>A Rested brought from a Valheim world is gone on arriving in Britannia.</summary>
+        /// <summary>Those brought from a Valheim world are gone on arriving in Britannia.</summary>
         static void OnSpawned_Postfix(Player __instance)
         {
             if (!Active || __instance != Me) return;
-            __instance.GetSEMan().RemoveStatusEffect(SEMan.s_statusEffectRested);
-            __instance.GetSEMan().RemoveStatusEffect(SEMan.s_statusEffectResting);
+            foreach (int hash in comfort) __instance.GetSEMan().RemoveStatusEffect(hash);
         }
 
         static bool AddStatusEffectHash_Prefix(int nameHash, ref StatusEffect __result)

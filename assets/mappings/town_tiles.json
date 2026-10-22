@@ -30,7 +30,7 @@
     "28": {"kind": "roof"},
     "29": {"kind": "prop", "parts": [{"prefab": "piece_table_round", "place": "stand", "look": "sphere"}, {"prefab": "itemstandh", "y": 0.795, "place": "stand", "item": "DragonTear"}]},
     "2a": {"kind": "prop", "parts": [{"prefab": "blackmarble_column_2", "y": 0, "place": "stand"}, {"prefab": "blackmarble_column_2", "y": 1, "place": "stand"}, {"prefab": "blackmarble_column_2", "y": 2, "place": "stand"}, {"prefab": "piece_brazierfloor01", "y": 3, "place": "stand"}]},
-    "2b": {"kind": "prop", "parts": [{"prefab": "SwampTree1", "scale": [0.25, 0.25, 0.25], "place": "pivot"}]},
+    "2b": {"kind": "prop", "parts": [{"prefab": "SwampTree1", "scale": [0.25, 0.25, 0.25], "place": "pivot", "look": "stump"}]},
     "2c": {"kind": "ground", "paint": "cultivated"},
     "2d": {"kind": "crop", "paint": "cultivated", "prefab": "Pickable_Barley"},
     "2e": {"kind": "fruittree"},

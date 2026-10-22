@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- Searching as in the original: beds (not thine), barrels, stumps, wardrobes, chests, pots, hearths and
+  braziers are searched with E ("Under the bed thou dost find …"); some of the hidden treasures are in
+  beds. Town furniture no longer stores, brews, burns fuel or crafts. No Wet, Cold, Freezing, Shelter or
+  Fire effects. The pouch takes the crafting panel's place. A new Avatar arrives straight from baseball
+  practice: in a tunic of Hildir's (Cloth Armour) with a club.
 - No Valheim skills in Britannia: they no longer level up, give no bonus there, and are not lost by
   dying there (thy Valheim worlds keep them). No Rested bonus either.
 - The mod is now **Bretaheim** (was U5InValheim). Its plugin folder is `BepInEx/plugins/Bretaheim` and

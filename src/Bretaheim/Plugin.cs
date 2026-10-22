@@ -91,6 +91,7 @@ namespace Bretaheim
                 WorldSize.Install(harmony);
                 Underworld.Install(harmony);
                 Whirlpool.Register();
+                TownFurniture.Install(harmony);
                 Whirlpool.Install(harmony);
                 gameObject.AddComponent<UnderworldWatch>();
                 PlaceMarkers.Install(harmony);

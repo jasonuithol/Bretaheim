@@ -57,6 +57,8 @@ namespace Bretaheim.WorldGen
             Prefix(harmony, typeof(InventoryGui), "DoCrafting", nameof(DoCrafting_Prefix));
             Prefix(harmony, typeof(Fermenter), nameof(Fermenter.Interact), nameof(Brew_Prefix));
             Prefix(harmony, typeof(Fermenter), nameof(Fermenter.UseItem), nameof(BrewItem_Prefix));
+            Prefix(harmony, typeof(Fermenter), nameof(Fermenter.GetHoverText), nameof(BarrelHover_Prefix));
+            Prefix(harmony, typeof(Fermenter), nameof(Fermenter.GetHoverName), nameof(BarrelName_Prefix));
             Prefix(harmony, typeof(CookingStation), nameof(CookingStation.Interact), nameof(Brew_Prefix));
             Prefix(harmony, typeof(CookingStation), nameof(CookingStation.UseItem), nameof(BrewItem_Prefix));
             Prefix(harmony, typeof(Humanoid), nameof(Humanoid.DropItem), nameof(DropItem_Prefix));
@@ -177,19 +179,34 @@ namespace Bretaheim.WorldGen
             if (Active) available?.Clear();
         }
 
-        static bool Brew_Prefix(Humanoid user, bool hold, ref bool __result)
+        /// <summary>A fermenter in Britannia is a barrel (tile 0xa6): searched, never brewing (Searching).</summary>
+        static bool Brew_Prefix(Fermenter __instance, Humanoid user, bool hold, ref bool __result)
         {
             if (!Active) return true;
-            if (!hold) Say(user, "No food or potion is made in Britannia.");
+            if (!hold && user is Player p && p == Player.m_localPlayer)
+                Searching.Search(__instance.transform.position, Searching.TileReach, Searching.SInTheBarrel, p);
+            __result = true;
+            return false;
+        }
+
+        static bool BrewItem_Prefix(ref bool __result)
+        {
+            if (!Active) return true;
             __result = false;
             return false;
         }
 
-        static bool BrewItem_Prefix(Humanoid user, ref bool __result)
+        static bool BarrelHover_Prefix(ref string __result)
         {
             if (!Active) return true;
-            Say(user, "No food or potion is made in Britannia.");
-            __result = false;
+            __result = Searching.SearchHover("Barrel");
+            return false;
+        }
+
+        static bool BarrelName_Prefix(ref string __result)
+        {
+            if (!Active) return true;
+            __result = "Barrel";
             return false;
         }
 

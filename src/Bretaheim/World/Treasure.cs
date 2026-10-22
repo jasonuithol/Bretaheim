@@ -28,7 +28,7 @@ namespace Bretaheim.WorldGen
         public const string QualityKey = "u5_chest_quality", TrapKey = "u5_trap", OpenedKey = "u5_opened";
         public const string KindKey = "u5_loot_kind", ValueKey = "u5_loot_value", CountKey = "u5_loot_count",
                             HiddenKey = "u5_loot_hidden", IndexKey = "u5_loot_index", DayKey = "u5_loot_day", MoundKey = "u5_loot_mound",
-                            CoverKey = "u5_loot_cover";
+                            CoverKey = "u5_loot_cover", BedKey = "u5_loot_bed";
         /// <summary>A hidden spot under furniture (a wardrobe, a barrel) is searched through it: its box encloses the tile this high.</summary>
         public const float CoverHeight = 2.6f, CoverWidth = 1.98f;
         /// <summary>A loot spot that is no hidden-object entry (index key unset).</summary>
@@ -36,6 +36,7 @@ namespace Bretaheim.WorldGen
         /// <summary>The reagent patches' spots (hidden-object index 200 + patch): mandrake, mandrake, nightshade.</summary>
         public const int ReagentPatchBase = 200, MoonstoneBase = 300;
         // DATA.OVL (DGROUP)
+        public const int SNothingOfNote = 0x86cc;
         const int SFound = 0x8b5c, STrapped = 0x8b7e, SChestEmpty = 0x8b88, PatchX = 0x3e66, PatchY = 0x3e6a, PatchReagent = 0x3e6e;
         static readonly System.Random random = new System.Random();
 
@@ -233,7 +234,7 @@ namespace Bretaheim.WorldGen
 
         // ── loot spots ──────────────────────────────────────────────────────────────────────────
 
-        static GameObject SpawnSpot(Vector3 at, Loot loot, bool hidden, int index, bool mound, ZoneSystem.SpawnMode mode, List<GameObject> spawned, bool covered = false)
+        static GameObject SpawnSpot(Vector3 at, Loot loot, bool hidden, int index, bool mound, ZoneSystem.SpawnMode mode, List<GameObject> spawned, bool covered = false, bool inBed = false)
         {
             var prefab = ZNetScene.instance?.GetPrefab(SpotPrefab);
             if (prefab == null) return null;
@@ -249,6 +250,7 @@ namespace Bretaheim.WorldGen
                 zdo.Set(IndexKey, index);
                 zdo.Set(MoundKey, mound);
                 if (covered) zdo.Set(CoverKey, true);
+                if (inBed) zdo.Set(BedKey, true);
                 go.GetComponent<LootSpot>()?.Show();
             }
             if (mode == ZoneSystem.SpawnMode.Ghost)
@@ -267,7 +269,7 @@ namespace Bretaheim.WorldGen
         public static void SpawnSettlement(Settlements.Built b, Vector2s zone, ZoneSystem.SpawnMode mode, List<GameObject> spawned)
         {
             int loc = b.Location.Number;
-            int made = 0, covered = 0;
+            int made = 0, covered = 0, beds = 0;
             Vector3 World(int z, int x, int y)
             {
                 var (lx, ly, lz) = b.Plan.TilePos(z, y * SettlementPlan.Size + x);
@@ -295,12 +297,23 @@ namespace Bretaheim.WorldGen
                 var at = World(h.Z, h.X, h.Y);
                 if (ZoneSystem.GetZone(at) != zone) continue;
                 var (lx, ly, lz) = b.Plan.TilePos(h.Z, h.Y * SettlementPlan.Size + h.X);
-                bool under = Covered(b.Plan, lx, ly, lz);
-                SpawnSpot(at, h.Loot, true, h.Index, false, mode, spawned, under);
+                // in a bed it is found by searching the bed (Searching); under other furniture, through it
+                bool inBed = InBed(b.Plan, lx, ly, lz);
+                bool under = !inBed && Covered(b.Plan, lx, ly, lz);
+                SpawnSpot(at, h.Loot, true, h.Index, false, mode, spawned, under, inBed);
                 made++;
                 if (under) covered++;
+                if (inBed) beds++;
             }
-            if (made > 0) Plugin.Log.LogInfo($"{b.Location.Name}: {made} pieces of loot in zone {zone} ({covered} hidden under furniture)");
+            if (made > 0) Plugin.Log.LogInfo($"{b.Location.Name}: {made} pieces of loot in zone {zone} ({covered} hidden under furniture, {beds} in beds)");
+        }
+
+        /// <summary>Whether a bed lies on the tile around (x, y, z): a two-tile bed's pivot lies between its tiles (1 m from either middle), a one-tile bed's in the middle.</summary>
+        static bool InBed(SettlementPlan plan, float x, float y, float z)
+        {
+            foreach (var p in plan.Pieces)
+                if (Searching.IsBed(p.Prefab) && Mathf.Abs(p.X - x) <= plan.Tile * 0.6f && Mathf.Abs(p.Z - z) <= plan.Tile * 0.6f && Mathf.Abs(p.Y - y) < 0.5f) return true;
+            return false;
         }
 
         /// <summary>Whether furniture stands on the tile around (x, y, z): a piece (not a floor) whose pivot is inside it, above its floor.</summary>
@@ -359,8 +372,10 @@ namespace Bretaheim.WorldGen
         // ── searching and taking ────────────────────────────────────────────────────────────────
 
         /// <summary>E on a spot: the loot, if it can be had now; the spot is gone unless it is found again.</summary>
-        public static void Take(LootSpot spot, Player player)
+        public static void Take(LootSpot spot, Player player, string prefix = null)
         {
+            void Found(Player p, string what) => p.Message(MessageHud.MessageType.Center, prefix != null ? prefix + what + "!" : Ovl.CStr(SFound).Trim() + " " + what);
+            void Nothing(Player p) => p.Message(MessageHud.MessageType.Center, prefix != null ? prefix + Ovl.CStr(SNothingOfNote).Trim() : "Nothing!");
             var nview = spot.GetComponent<ZNetView>();
             var zdo = nview?.GetZDO();
             if (zdo == null) return;
@@ -417,8 +432,6 @@ namespace Bretaheim.WorldGen
             else nview.Destroy();
         }
 
-        static void Found(Player p, string what) => p.Message(MessageHud.MessageType.Center, Ovl.CStr(SFound).Trim() + " " + what);
-        static void Nothing(Player p) => p.Message(MessageHud.MessageType.Center, "Nothing!");
     }
 
     /// <summary>A loot chest: once opened, it is gone when empty (on its owner).</summary>
@@ -462,6 +475,8 @@ namespace Bretaheim.WorldGen
             var zdo = nview?.GetZDO();
             if (shown || zdo == null || zdo.GetInt(Treasure.KindKey) == 0) return;
             shown = true;
+            // in a bed: searched through the bed (Searching), not pointed at itself
+            if (zdo.GetBool(Treasure.BedKey) && GetComponent<BoxCollider>() is BoxCollider bedBox) bedBox.enabled = false;
             if (zdo.GetBool(Treasure.CoverKey) && GetComponent<BoxCollider>() is BoxCollider box)
             {
                 box.size = new Vector3(Treasure.CoverWidth, Treasure.CoverHeight, Treasure.CoverWidth);
@@ -505,6 +520,7 @@ namespace Bretaheim.WorldGen
         }
 
         bool Hidden => nview?.GetZDO()?.GetBool(Treasure.HiddenKey) ?? true;
+        public bool IsHidden => nview != null && nview.IsValid() && Hidden;
 
         public string GetHoverText()
         {
@@ -525,7 +541,10 @@ namespace Bretaheim.WorldGen
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
             if (hold || !(user is Player p) || p != Player.m_localPlayer || nview == null || !nview.IsValid()) return false;
-            Treasure.Take(this, p);
+            // hidden in a barrel or a stump: said as searching it says it (Searching)
+            int where = Hidden ? Searching.FurnitureAt(transform.position) : 0;
+            if (where != 0) Searching.Search(transform.position, 0.1f, where, p);
+            else Treasure.Take(this, p);
             return true;
         }
 

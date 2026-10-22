@@ -8,9 +8,9 @@ using UnityEngine;
 namespace Bretaheim.WorldGen
 {
     /// <summary>
-    /// A new Avatar arrives in Britannia with what INIT.GAM gives the original's party: the
-    /// Avatar's own arms and armour, worn (party record 0's equipment: Chain Coif, Chain Mail,
-    /// Long Sword and the Ankh), the party's mixed spells, scrolls and potions (not the spare arms
+    /// A new Avatar arrives in Britannia fresh from baseball practice when the Codex called (the
+    /// user's lore): wearing Cloth Armour and holding a Club; with what INIT.GAM gives the
+    /// original's party besides: the party's mixed spells, scrolls and potions (not the spare arms
     /// and armour its companions used: there are none), its
     /// reagents, keys, gems and torches, 150 gold (Valheim coins) and its food as barley rations
     /// (63): once per character per Britannia world, remembered in the character's custom data.
@@ -20,6 +20,8 @@ namespace Bretaheim.WorldGen
     public static class StartingGold
     {
         public const int Amount = 150;
+        /// <summary>What the Avatar wears and holds on arriving: Cloth Armour (9) and a Club (18).</summary>
+        static readonly int[] StartingArms = { 9, 18 };
 
         public static void Install(Harmony harmony)
         {
@@ -54,7 +56,8 @@ namespace Bretaheim.WorldGen
         {
             var inv = p.GetInventory();
             var at = p.transform.position;
-            var worn = start.Character(0).Equipment.Where(id => id != 0xff).Select(id => (int)id).ToList();
+            // the Avatar was called away straight from baseball practice: cloth armour and a club (not INIT.GAM's chain and long sword)
+            var worn = new List<int>(StartingArms);
             foreach (int id in worn) Treasure.Give(inv, new Loot(LootKind.Item, id), at);
             // the party's mixed spells, scrolls and potions (its spare arms and armour were the companions': none here)
             for (int id = ItemMap.SpellBase; id < SaveGame.ItemCount; id++)

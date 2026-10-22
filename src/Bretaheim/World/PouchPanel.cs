@@ -147,6 +147,9 @@ namespace Bretaheim.WorldGen
         static void InventoryGuiUpdate_Postfix()
         {
             var me = Player.m_localPlayer;
+            // in Britannia the pouch takes the crafting panel's place: spells are all there is to make
+            var crafting = InventoryGui.instance != null ? InventoryGui.instance.m_crafting : null;
+            if (crafting != null && crafting.gameObject.activeSelf == (Britannia.Active != null)) crafting.gameObject.SetActive(Britannia.Active == null);
             bool show = me != null && Britannia.Active != null && InventoryGui.IsVisible() && !StoreGui.IsVisible();
             if (!show)
             {
@@ -215,8 +218,19 @@ namespace Bretaheim.WorldGen
             var gui = GUIManager.CustomGUIFront;
             if (gui == null) return false;
             var g = GUIManager.Instance;
-            // in the middle at the top, between the inventory (left) and the crafting panel (right)
-            panel = g.CreateWoodpanel(gui.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -Height / 2 - 24), Width, Height, false);
+            // where the crafting panel is (hidden in Britannia), in the inventory's own canvas; else in the middle at the top
+            var crafting = InventoryGui.instance != null ? InventoryGui.instance.m_crafting : null;
+            if (crafting != null)
+            {
+                panel = g.CreateWoodpanel(crafting.parent, crafting.anchorMin, crafting.anchorMax, Vector2.zero, Width, Height, false);
+                var rt = (RectTransform)panel.transform;
+                // its top where the crafting panel's top is
+                rt.pivot = new Vector2(crafting.pivot.x, 1f);
+                // (less its heading's height: the character's box above overlaps the crafting panel's top)
+                rt.anchoredPosition = crafting.anchoredPosition + new Vector2(0, (1f - crafting.pivot.y) * crafting.rect.height - 45f);
+                rt.SetSiblingIndex(crafting.GetSiblingIndex());
+            }
+            else panel = g.CreateWoodpanel(gui.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -Height / 2 - 24), Width, Height, false);
             panel.name = "u5_pouch";
             Text Label(string text, Vector2 at, int size, Color colour, float w, TextAnchor align)
             {

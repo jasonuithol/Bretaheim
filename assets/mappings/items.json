@@ -10,7 +10,7 @@
     { "id": 6,  "u5": "Spiked Shield",  "prefab": "ShieldBoneTower",    "status": "direct" },
     { "id": 7,  "u5": "Magic Shield",   "prefab": "ShieldSilver",       "status": "derived", "note": "moved from serpent scale when the Jewel Shield took it" },
     { "id": 8,  "u5": "Jewel Shield",   "prefab": "ShieldSerpentscale", "status": "direct" },
-    { "id": 9,  "u5": "Cloth Armour",   "prefab": "ArmorRagsChest",     "extra": ["ArmorRagsLegs"],      "status": "direct" },
+    { "id": 9,  "u5": "Cloth Armour",   "prefab": "ArmorTunic1",        "status": "user", "note": "user 2026-10-22: a tunic and trousers from Hildir, not rags (her tunics are whole outfits)" },
     { "id": 10, "u5": "Leather Armour", "prefab": "ArmorLeatherChest",  "extra": ["ArmorLeatherLegs"],   "status": "direct" },
     { "id": 11, "u5": "Ring Mail",      "prefab": "ArmorBronzeChest",   "extra": ["ArmorBronzeLegs"],    "status": "direct" },
     { "id": 12, "u5": "Scale Mail",     "prefab": "ArmorIronChest",     "extra": ["ArmorIronLegs"],      "status": "direct" },
