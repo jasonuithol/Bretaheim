@@ -227,25 +227,31 @@ namespace Bretaheim.WorldGen
 
     /// <summary>
     /// The original's random encounters around the local player (MAINOUT.OVL
-    /// update_overworld_monsters): one overworld turn every few seconds (about a tile at a
-    /// walk); a roll of 1..30 under the terrain's rate brings a monster of the original's tables
+    /// update_overworld_monsters): one overworld turn for every tile travelled (32 m), or every
+    /// few seconds standing; a roll of 1..30 under the terrain's rate brings a monster of the original's tables
     /// for the terrain where it appears, a group of 1..its group size, out of sight (scaled down
-    /// from the original's 7+ tiles to stay in the loaded world). None in or by the settlements.
+    /// from the original's 7+ tiles to stay in the loaded world), hunting the nearest player as the
+    /// original's close on the party. None in or by the settlements.
     /// </summary>
     public class UltimaSpawner : MonoBehaviour
     {
         const float TurnEvery = 8f, NearFrom = 50f, NearTo = 90f, CapRange = 150f;
         const int Cap = 8;
         float next;
+        Vector3? lastTurnAt;
         readonly System.Random random = new System.Random();
 
         void Update()
         {
-            if (Time.time < next) return;
-            next = Time.time + TurnEvery;
             var me = Player.m_localPlayer;
             if (Britannia.Active == null || me == null || me.IsDead() || ZoneSystem.instance == null || ZNetScene.instance == null) return;
             var at = me.transform.position;
+            // a turn for every tile travelled (the original's turn is a step), or every few seconds standing
+            float tile = Britannia.ShapeAt(at).TileMetres;
+            bool moved = lastTurnAt.HasValue && new Vector2(at.x - lastTurnAt.Value.x, at.z - lastTurnAt.Value.z).magnitude >= tile;
+            if (!moved && Time.time < next) return;
+            next = Time.time + TurnEvery;
+            lastTurnAt = at;
             var shape = Britannia.ShapeAt(at);
             if (InTown(shape, at.x, at.z)) return;
             if (!Encounters.Roll(shape.TileAt(at.x, at.z), TownNpc.Hour(), random, shape == Britannia.Under)) return;
@@ -301,7 +307,8 @@ namespace Bretaheim.WorldGen
                 {
                     var q = p + new Vector3((float)random.NextDouble() * 4 - 2, 0, (float)random.NextDouble() * 4 - 2);
                     if (!sea) q.y = ZoneSystem.instance.GetGroundHeight(q) + 0.2f;
-                    UltimaCreatures.Spawn(type, q, true);
+                    // the original's monsters close on the party (monster_turn): Valheim's raid hunting
+                    UltimaCreatures.Spawn(type, q, true)?.GetBaseAI()?.SetHuntPlayer(true);
                 }
                 var said = $"{count} {Plugin.U5.Ovl.CreatureName(type)} ({body.Value.prefab}) on tile {tile:x2}, {dist:0} m from {who}";
                 Plugin.Log.LogInfo("Encounter: " + said);
