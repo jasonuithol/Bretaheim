@@ -67,14 +67,17 @@ namespace Bretaheim.Data
         /// <summary>
         /// spawn_rate_for_terrain on the surface: 0 on roads and paths (0x20..0x26), 2 in swamp (4)
         /// and woods and hills (9..0xf), 1 elsewhere, plus 3 when the hour byte is above 0x1f or
-        /// below 5 (the original's test: the first never holds, so only the small hours count).
+        /// below 5 (the original's test: the first never holds, so only the small hours counted
+        /// there); here night starts at dusk, 20:00, as the test was surely meant.
         /// </summary>
         public static int Rate(byte tile, int hour, bool underworld = false)
         {
             // (the Underworld: always 3)
             if (underworld) return 3;
             int r = tile >= 0x20 && tile <= 0x26 ? 0 : tile == 4 || (tile > 8 && tile < 0x10) ? 2 : 1;
-            if (hour > 0x1f || hour < 5) r += 3;
+            // (the original tests hour > 0x1f, which never holds: its night ran midnight to 5 only;
+            // by the user's choice night starts at dusk, 20:00)
+            if (hour >= 20 || hour < 5) r += 3;
             return r;
         }
 

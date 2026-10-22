@@ -45,7 +45,10 @@ namespace Bretaheim.Tests
             Assert.Equal(2, Encounters.Rate(10, 12));   // forest
             Assert.Equal(2, Encounters.Rate(4, 12));    // swamp
             Assert.Equal(5, Encounters.Rate(10, 3));    // forest in the small hours
-            Assert.Equal(1, Encounters.Rate(5, 22));    // the original's night test never holds before midnight
+            Assert.Equal(4, Encounters.Rate(5, 22));    // night from dusk (the original's test never held before midnight)
+            Assert.Equal(4, Encounters.Rate(5, 20));
+            Assert.Equal(1, Encounters.Rate(5, 19));
+            Assert.Equal(1, Encounters.Rate(5, 5));
         }
 
         [U5Fact]

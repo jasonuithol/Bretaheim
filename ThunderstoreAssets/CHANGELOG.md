@@ -2,7 +2,7 @@
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
 - Random encounters come with every tile thou walkest (as the original's turns), and the creatures now
-  hunt thee down instead of wandering where they appeared.
+  hunt thee down instead of wandering where they appeared; more come by night, from dusk to five.
 - Searching as in the original: beds (not thine), barrels, stumps, wardrobes, chests, pots, hearths and
   braziers are searched with E ("Under the bed thou dost find …"); some of the hidden treasures are in
   beds. Town furniture no longer stores, brews, burns fuel or crafts. No Wet, Cold, Freezing, Shelter or
