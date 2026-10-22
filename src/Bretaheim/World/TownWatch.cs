@@ -200,15 +200,19 @@ namespace Bretaheim.WorldGen
         /// <summary>The nearest player in town the guards want to arrest.</summary>
         public Player WantedNear(Vector3 from) => wanted.Where(p => p != null).OrderBy(p => Vector3.Distance(p.transform.position, from)).FirstOrDefault();
 
-        /// <summary>Two guards go for each wanted player; with nobody wanted they go back to their day.</summary>
+        /// <summary>
+        /// Two guards go for each wanted player; with nobody wanted they go back to their day,
+        /// unless someone would not come quietly: then the guards who came attack at once (raise_alarm).
+        /// </summary>
         void Arrests(List<TownNpc> mine)
         {
-            var guards = mine.Where(f => f.IsGuard && !f.IsDead && !f.IsReinforcement).ToList();
             if (wanted.Count == 0)
             {
-                foreach (var g in guards.Where(g => g.Duty == Duty.Arrest)) g.Duty = Duty.None;
+                bool rogue = threats.Any(t => t is Player);
+                foreach (var g in mine.Where(g => g.IsGuard && !g.IsDead && g.Duty == Duty.Arrest)) g.Duty = rogue ? Duty.Fight : Duty.None;
                 return;
             }
+            var guards = mine.Where(f => f.IsGuard && !f.IsDead && !f.IsReinforcement).ToList();
             int going = guards.Count(g => g.Duty == Duty.Arrest);
             foreach (var p in wanted)
                 foreach (var g in guards.Where(g => g.Duty == Duty.None).OrderBy(g => Vector3.Distance(g.transform.position, p.transform.position)).Take(Math.Max(0, 2 - going)).ToList())
