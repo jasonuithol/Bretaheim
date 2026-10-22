@@ -83,7 +83,12 @@ namespace Bretaheim.WorldGen
                 Darkness(true);
                 focus = stage;
                 built.Add(Floor(stage));
-                me.TeleportTo(stage + Vector3.up * 0.1f, Quaternion.Euler(0f, 0f, 0f), false);
+                // a player just spawned (raised after a death) may not teleport for 2 s (Player.m_teleportCooldown)
+                for (float t = 0f; !me.TeleportTo(stage + Vector3.up * 0.1f, Quaternion.Euler(0f, 0f, 0f), false) && t < 5f; t += Time.deltaTime)
+                {
+                    yield return null;
+                    if (!Here(me)) yield break;
+                }
                 yield return new WaitForSeconds(1f);
                 if (!Here(me)) yield break;
                 built.Add(Glow(stage + Vector3.up * 3f, new Color(0.7f, 0.7f, 0.8f), 1.2f, 8f));
