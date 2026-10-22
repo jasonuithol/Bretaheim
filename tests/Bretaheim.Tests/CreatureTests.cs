@@ -11,6 +11,18 @@ namespace Bretaheim.Tests
     public class CreatureTests
     {
         [U5Fact]
+        public void CreaturesAreShadedAsTheirTilesAreDrawn()
+        {
+            int Hue(int type) => CreatureColours.Dominant(Env.Data.Tiles, type).Value;
+            Assert.Equal(0xd22828, Hue(41));   // the troll: dark and light red
+            Assert.Equal(0xaa5600, Hue(32));   // the orc: brown
+            Assert.Equal(0x1fc91f, Hue(24));   // the slime: green
+            Assert.Equal(0xececec, Hue(33));   // the skeleton: mostly white
+            // the shark is grey and white, not the water it is drawn in
+            Assert.Equal(0xd5d5d5, Hue(CreatureColours.Shark));
+        }
+
+        [U5Fact]
         public void GuardsAndTrollsAsTheOriginalHasThem()
         {
             var guard = CreatureStats.Of(Env.Data.Ovl, 12);

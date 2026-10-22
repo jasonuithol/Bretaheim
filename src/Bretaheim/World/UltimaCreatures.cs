@@ -79,7 +79,54 @@ namespace Bretaheim.WorldGen
             Patch(harmony, typeof(Character), "RPC_Damage", prefix: nameof(RPC_Damage_Prefix));
             Patch(harmony, typeof(SpawnSystem), "Spawn", prefix: nameof(Spawn_Prefix));
             Patch(harmony, typeof(RandEventSystem), "UpdateRandomEvent", prefix: nameof(UpdateRandomEvent_Prefix));
+            Patch(harmony, typeof(Character), "OnDeath", prefix: nameof(OnDeath_Prefix), postfix: nameof(OnDeath_Postfix));
+            Patch(harmony, typeof(Ragdoll), "Setup", postfix: nameof(RagdollSetup_Postfix));
+            Patch(harmony, typeof(Ragdoll), "Awake", postfix: nameof(RagdollAwake_Postfix));
         }
+
+        // ── colours ─────────────────────────────────────────────────────────────────────────
+
+        const string ShadeKey = "u5_shade";
+        static readonly Dictionary<int, Color?> shades = new Dictionary<int, Color?>();
+        static int dying = -1;
+
+        /// <summary>
+        /// The colour a creature type is shaded in: the one it is drawn in in TILES.16
+        /// (Data/CreatureColours). Not people (dressed, npcs.json), nor the ettin (its own red skin, EttinLook).
+        /// </summary>
+        public static Color? Shade(int type)
+        {
+            if (shades.TryGetValue(type, out var c)) return c;
+            if (type >= 16 && Body(type)?.prefab != Ettin.PrefabName && Plugin.U5?.Tiles != null)
+            {
+                var rgb = CreatureColours.Dominant(Plugin.U5.Tiles, type);
+                if (rgb.HasValue) c = new Color((rgb.Value >> 16 & 255) / 255f, (rgb.Value >> 8 & 255) / 255f, (rgb.Value & 255) / 255f);
+            }
+            return shades[type] = c;
+        }
+
+        static void Reshade(GameObject body, int type)
+        {
+            if (!Recolour.Draws || type < 0) return;
+            var c = Shade(type);
+            if (c.HasValue) Recolour.Model(body, c.Value);
+        }
+
+        static int TypeOf(Component c) => (c.GetComponent<ZNetView>()?.GetZDO()?.GetInt(TypeKey) ?? 0) - 1;
+
+        /// <summary>The body it leaves keeps its colour: the ragdoll made while it dies carries its type (ZDO, for the other peers).</summary>
+        static void OnDeath_Prefix(Character __instance) => dying = __instance is Player ? -1 : TypeOf(__instance);
+        static void OnDeath_Postfix() => dying = -1;
+
+        static void RagdollSetup_Postfix(Ragdoll __instance)
+        {
+            if (dying < 0) return;
+            __instance.GetComponent<ZNetView>()?.GetZDO()?.Set(ShadeKey, dying + 1);
+            Reshade(__instance.gameObject, dying);
+        }
+
+        static void RagdollAwake_Postfix(Ragdoll __instance)
+            => Reshade(__instance.gameObject, (__instance.GetComponent<ZNetView>()?.GetZDO()?.GetInt(ShadeKey) ?? 0) - 1);
 
         static void Patch(Harmony h, Type t, string m, string prefix = null, string postfix = null)
         {
@@ -89,7 +136,7 @@ namespace Bretaheim.WorldGen
                 postfix: postfix != null ? new HarmonyMethod(typeof(UltimaCreatures), postfix) : null);
         }
 
-        /// <summary>An Ultima monster loaded on any peer: its type's name and stats, the monsters' group (they never fight each other), its size.</summary>
+        /// <summary>An Ultima monster loaded on any peer: its type's name, colour and stats, the monsters' group (they never fight each other), its size.</summary>
         static void Awake_Postfix(Character __instance)
         {
             var zdo = __instance.GetComponent<ZNetView>()?.GetZDO();
@@ -124,6 +171,7 @@ namespace Bretaheim.WorldGen
             }
             var body = Body(type);
             if (body != null) __instance.transform.localScale = Vector3.one * body.Value.scale;
+            Reshade(__instance.gameObject, type);
             if (zdo.GetBool(WildKey) && __instance.GetComponent<WildEncounter>() == null) __instance.gameObject.AddComponent<WildEncounter>();
         }
 

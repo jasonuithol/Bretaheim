@@ -3,7 +3,8 @@
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
 - Iolo's hut has no workbench any more.
 - Wild thistles give Blood Moss and mushrooms Spider Silk.
-- Monsters show their Ultima names (Giant Spider, Giant Rat …), not their Valheim bodies' names.
+- Monsters show their Ultima names (Giant Spider, Giant Rat …), not their Valheim bodies' names, and are
+  coloured as the original draws them (red trolls, brown orcs, white skeletons, grey spiders …), bodies too.
 - Guards you refused to go quietly with no longer take you to Yew after a minute's fight: they fight
   you until you leave the town (as before, leaving the town or dying ends the crime).
 - Random encounters come with every tile thou walkest (as the original's turns), and the creatures now

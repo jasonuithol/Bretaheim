@@ -116,6 +116,34 @@ if (argv.Count > 0 && argv[0] == "preview")
     Console.WriteLine($"wrote {outPath}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "creatures")
+{
+    // creatures <out.ppm>: each creature type 16..47's four frames in TILES.16, a row each, at 4x
+    string outPath = argv.Count > 1 ? argv[1] : "creatures.ppm";
+    const int s = 4, t = Bretaheim.Data.TileSet.Size;
+    int w = 4 * t * s, h = 32 * t * s;
+    var img = new byte[w * h * 3];
+    for (int type = 16; type < 48; type++)
+    for (int f = 0; f < 4; f++)
+    {
+        var px = data.Tiles.Pixels(Bretaheim.Data.CreatureColours.FirstTile + 4 * type + f);
+        for (int y = 0; y < t * s; y++)
+        for (int x = 0; x < t * s; x++)
+        {
+            int rgb = Bretaheim.Data.TileSet.EgaPalette[px[(y / s) * t + x / s]];
+            int dst = (((type - 16) * t * s + y) * w + f * t * s + x) * 3;
+            img[dst] = (byte)(rgb >> 16); img[dst + 1] = (byte)(rgb >> 8); img[dst + 2] = (byte)rgb;
+        }
+    }
+    using (var o = File.Create(outPath))
+    {
+        var head = System.Text.Encoding.ASCII.GetBytes($"P6\n{w} {h}\n255\n");
+        o.Write(head, 0, head.Length);
+        o.Write(img, 0, img.Length);
+    }
+    Console.WriteLine($"wrote {outPath}");
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "banners")
 {
     // banners <out.ppm> [tile ...]: the shop banner cloths (default: the guild icons 0xf0-0xf9 but 0xf8), side by side, doubled

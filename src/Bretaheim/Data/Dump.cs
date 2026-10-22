@@ -40,6 +40,7 @@ namespace Bretaheim.Data
                     case "talk": return Talk(d, Need(args, 1), int.Parse(Need(args, 2)));
                     case "items": return Items(d);
                     case "monsters": return Monsters(d);
+                    case "colours": return Colours(d);
                     case "spells": return Lines(Enumerable.Range(0, 48).Select(i => $"{i,2} {d.Ovl.SpellName(i)}"));
                     case "reagents": return Lines(Enumerable.Range(0, 8).Select(i => $"{i} {d.Ovl.ReagentName(i)}"));
                     case "virtues":
@@ -185,6 +186,18 @@ namespace Bretaheim.Data
             var sb = new StringBuilder("type name             plural            stats(8 raw bytes)        flags\n");
             for (int i = 0; i < 48; i++)
                 sb.AppendLine($"{i,2} {d.Ovl.CreatureName(i),-16} {d.Ovl.CreatureNamePlural(i),-17} {BitConverter.ToString(d.Ovl.MonsterStats(i))} 0x{d.Ovl.MonsterFlags(i):x4}");
+            return sb.ToString();
+        }
+
+        /// <summary>Each creature's pixels per EGA colour (0 black .. 15 white) over its four frames in TILES.16, and the colour it is shaded.</summary>
+        public static string Colours(U5Data d)
+        {
+            var sb = new StringBuilder("type name             " + string.Join(" ", Enumerable.Range(0, 16).Select(c => $"{c,4}")) + "  colour\n");
+            for (int i = 16; i < 48; i++)
+            {
+                var c = CreatureColours.Dominant(d.Tiles, i);
+                sb.AppendLine($"{i,2} {d.Ovl.CreatureName(i),-16} " + string.Join(" ", CreatureColours.Histogram(d.Tiles, i).Select(n => $"{n,4}")) + (c.HasValue ? $"  #{c.Value:x6}" : "  -"));
+            }
             return sb.ToString();
         }
 
