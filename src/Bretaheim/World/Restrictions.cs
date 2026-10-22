@@ -22,6 +22,12 @@ namespace Bretaheim.WorldGen
         public static readonly string[] Tools = { "Hammer", "Hoe", "Cultivator" };
         /// <summary>What the plantable reagents grow into, and the reagent harvested from them (items.json reagents "plantable").</summary>
         static readonly Dictionary<string, int> Reagents = new Dictionary<string, int> { { "Carrot", 1 }, { "Turnip", 2 } };
+        /// <summary>Wild pickables whose harvest is a reagent: thistles give Blood Moss (4), mushrooms Spider Silk (3).</summary>
+        static readonly Dictionary<string, int> WildReagents = new Dictionary<string, int>
+        {
+            { "Thistle", 4 },
+            { "Mushroom", 3 }, { "MushroomYellow", 3 }, { "MushroomBlue", 3 }, { "MushroomMagecap", 3 }, { "MushroomJotunPuffs", 3 },
+        };
         /// <summary>Iolo's hut (location 13).</summary>
         public const int Hut = 13;
         const float Margin = 4f;
@@ -156,10 +162,12 @@ namespace Bretaheim.WorldGen
             if (byCategory != null) foreach (var list in byCategory) list.RemoveAll(Gone);
         }
 
-        /// <summary>A planted carrot is ginseng and a turnip garlic: their harvest is the reagent.</summary>
+        /// <summary>A planted carrot is ginseng and a turnip garlic, a wild thistle blood moss and a mushroom spider silk: their harvest is the reagent.</summary>
         static void PickableAwake_Postfix(Pickable __instance)
         {
-            if (!Active || __instance.m_itemPrefab == null || !Reagents.TryGetValue(__instance.m_itemPrefab.name, out var reagent)) return;
+            if (!Active || __instance.m_itemPrefab == null) return;
+            string item = __instance.m_itemPrefab.name;
+            if (!Reagents.TryGetValue(item, out var reagent) && !WildReagents.TryGetValue(item, out reagent)) return;
             var def = UltimaItems.Map?.Reagent(reagent);
             var prefab = def != null ? ObjectDB.instance?.GetItemPrefab(def.Prefab) : null;
             if (prefab != null) __instance.m_itemPrefab = prefab;
