@@ -34,6 +34,8 @@ namespace Bretaheim.WorldGen
         const float GuardianTempo = 0.1f;
         /// <summary>Lord British's apparition is twice a man's height (the user's).</summary>
         const float LordBritishScale = 2f;
+        /// <summary>The risen stand this far back from the stage's middle (towards the camera, away from Lord British).</summary>
+        const float RisenBack = 1f;
 
         public static bool Playing { get; private set; }
 
@@ -83,17 +85,18 @@ namespace Bretaheim.WorldGen
                 Darkness(true);
                 focus = stage;
                 built.Add(Floor(stage));
+                var risen = stage + Vector3.back * RisenBack;
                 // a player just spawned (raised after a death) may not teleport for 2 s (Player.m_teleportCooldown)
-                for (float t = 0f; !me.TeleportTo(stage + Vector3.up * 0.1f, Quaternion.Euler(0f, 0f, 0f), false) && t < 5f; t += Time.deltaTime)
+                for (float t = 0f; !me.TeleportTo(risen + Vector3.up * 0.1f, Quaternion.Euler(0f, 0f, 0f), false) && t < 5f; t += Time.deltaTime)
                 {
                     yield return null;
                     if (!Here(me)) yield break;
                 }
                 yield return new WaitForSeconds(1f);
                 if (!Here(me)) yield break;
-                built.Add(Glow(stage + Vector3.up * 3f, new Color(0.7f, 0.7f, 0.8f), 1.2f, 8f));
+                built.Add(Glow(risen + Vector3.up * 3f, new Color(0.7f, 0.7f, 0.8f), 1.2f, 8f));
                 // the risen lit from the camera's side as the guardians are
-                built.Add(Spot(stage + Vector3.up * 3.5f + CameraOffset.normalized * 3f, stage + Vector3.up, new Color(0.9f, 0.9f, 1f), 4f, 10f));
+                built.Add(Spot(risen + Vector3.up * 3.5f + CameraOffset.normalized * 3f, risen + Vector3.up, new Color(0.9f, 0.9f, 1f), 4f, 10f));
 
                 foreach (var (dg, wait) in new[] { (ResurrectionScene.SDarkness, 3.5f), (ResurrectionScene.SRefuge, 2.5f), (ResurrectionScene.SNoEvil, 3.5f), (ResurrectionScene.SDisturbed, 3f), (ResurrectionScene.SShouts, 3.5f) })
                 {
