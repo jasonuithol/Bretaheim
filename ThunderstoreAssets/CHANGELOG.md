@@ -2,8 +2,9 @@
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
 - Iolo's hut has no workbench any more.
-- Guards you refused to go quietly with no longer take you to Yew after a minute's fight: they fight
-  you until you are 100 of the town's tiles (200 m) past its edge, or dead.
+- Guards you refused to go quietly with no longer take you to Yew after a minute's fight: the fight
+  ends when you leave the town, but you stay wanted there (the guards come for you again when you
+  return) until you die or are taken to Yew.
 - Random encounters come with every tile thou walkest (as the original's turns), and the creatures now
   hunt thee down instead of wandering where they appeared; more come by night, from dusk to five.
 - Searching as in the original: beds (not thine), barrels, stumps, wardrobes, chests, pots, hearths and

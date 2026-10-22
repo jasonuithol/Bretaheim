@@ -27,7 +27,7 @@ namespace Bretaheim.WorldGen
             var at = me.transform.position;
             bool inside = Mathf.Max(Mathf.Abs(at.x - palace.Origin.x), Mathf.Abs(at.z - palace.Origin.z)) < palace.Site.Half + palace.Site.Blend;
             if (!inside) { passed = false; return; }
-            if (passed || TalkPanel.IsOpen || Crime.WantedBy(me) != 0 || Crime.HostileTo(me) != 0 || Time.time - askedAt < Again) return;
+            if (passed || TalkPanel.IsOpen || Crime.WantedBy(me) == ItemUse.BlackthornsPalace || Crime.HostileTo(me) == ItemUse.BlackthornsPalace || Time.time - askedAt < Again) return;
             foreach (var c in Character.GetAllCharacters())
             {
                 var npc = TownsfolkPatches.NpcOf(c);

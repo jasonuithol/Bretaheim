@@ -13,16 +13,14 @@ namespace Bretaheim.WorldGen
     /// unconscious!", and the player awakens in the jail of Yew at 8 o'clock. No: "Then defend
     /// thyself, rogue!", and the guards fight them (they may be fought back). In Blackthorn's
     /// palace there is no question: his guards take the player to him (BlackthornCapture). Leaving the
-    /// settlement ends being wanted; the guards fight a rogue until they are ForgetTiles of the
-    /// settlement's tiles past its edge, or dead. Kept on the player's ZDO (the settlement's number), so every
+    /// settlement ends the fight, not the crime: the player stays wanted there (its guards come
+    /// for them again on their return) until they die or are taken to Yew. Kept on the player's ZDO (the settlement's number), so every
     /// peer's guards know.
     /// </summary>
     public static class Crime
     {
         /// <summary>How close a guard comes to make the arrest.</summary>
         public const float Reach = 2.5f;
-        /// <summary>How far (in the settlement's tiles, past its edge) a player who would not come quietly must go before its guards forget them.</summary>
-        public const int ForgetTiles = 100;
         const string WantedKey = "u5_wanted", HostileKey = "u5_hostile", JailRpc = "U5_Jail";
         /// <summary>The jail of Yew (guard_arrest: location 4, x 25, y 4, level 0).</summary>
         public const int JailLocation = 4, JailX = 25, JailY = 4;
@@ -154,10 +152,11 @@ namespace Bretaheim.WorldGen
                 int wanted = WantedBy(me), hostile = HostileTo(me);
                 if (wanted == 0 && hostile == 0) return;
                 var town = Settlements.Get(wanted != 0 ? wanted : hostile);
-                // the wanted leave the settlement and are free; the guards fight those who refused until they are far away (or dead)
-                if (me.IsDead() || town == null || OutOf(town, me.transform.position, wanted != 0 ? 10f : ForgetTiles * town.Site.Tile))
+                if (me.IsDead() || town == null) { Clear(me); return; }
+                if (OutOf(town, me.transform.position))
                 {
-                    Clear(me);
+                    // the fight ends at the settlement's edge; the crime does not
+                    if (hostile != 0) { Set(me, HostileKey, 0); Set(me, WantedKey, hostile); }
                     return;
                 }
                 if (wanted == 0 || TalkPanel.IsOpen) return;
@@ -173,8 +172,8 @@ namespace Bretaheim.WorldGen
                 }
             }
 
-            static bool OutOf(Settlements.Built town, Vector3 p, float beyond)
-                => Mathf.Max(Mathf.Abs(p.x - town.Origin.x), Mathf.Abs(p.z - town.Origin.z)) > town.Site.Half + town.Site.Blend + beyond;
+            static bool OutOf(Settlements.Built town, Vector3 p)
+                => Mathf.Max(Mathf.Abs(p.x - town.Origin.x), Mathf.Abs(p.z - town.Origin.z)) > town.Site.Half + town.Site.Blend + 10f;
         }
     }
 }
