@@ -124,6 +124,7 @@ namespace Bretaheim
                 ResidentMonster.Install(harmony);
                 Sleep.Install(harmony);
                 Respawn.Install(harmony);
+                ResurrectionStage.Install(harmony);
                 TerrainQueue.Install(harmony);
                 Dungeons.Install(harmony);
                 Treasure.Install(harmony);

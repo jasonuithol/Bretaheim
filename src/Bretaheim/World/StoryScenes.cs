@@ -318,6 +318,12 @@ namespace Bretaheim.WorldGen
                     else if (me == null || Britannia.Active == null) print("u5 blackthorn: only in Britannia");
                     else if (!BlackthornCapture.Begin(me)) print("u5 blackthorn: cannot play the scene now (MISCMSG.DAT / MISCMAPS.DAT / IBM.CH missing, or a scene is playing)");
                     return true;
+                case "resurrect":
+                    // u5 resurrect [2d]: Lord British's raising played again (the scene only: nothing is spent or restored)
+                    if (!Terminal.m_cheat) print("u5 resurrect needs devcommands");
+                    else if (me == null || Britannia.Active == null) print("u5 resurrect: only in Britannia");
+                    else if (!Respawn.PlayScene(me, KarmaDeeds.Of(me), args.Length > 1 && args[1] == "2d")) print("u5 resurrect: cannot play the scene now (a scene is playing, or files missing)");
+                    return true;
                 case "endgame":
                     if (!Terminal.m_cheat) print("u5 endgame needs devcommands");
                     else if (me == null || Britannia.Active == null) print("u5 endgame: only in Britannia");

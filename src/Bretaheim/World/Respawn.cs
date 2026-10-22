@@ -92,15 +92,24 @@ namespace Bretaheim.WorldGen
                 else ZRoutedRpc.instance.InvokeRoutedRPC(ZNet.instance.GetServerPeer()?.m_uid ?? 0L, WakeRpc);
             }
             Plugin.Log.LogInfo($"{me.GetPlayerName()} raised by Lord British: karma {karma}, experience {exp} -> {a.Experience}, level {level} -> {a.Level}");
+            PlayScene(me, karma);
+        }
+
+        /// <summary>Lord British's scene: in the world (ResurrectionStage, a black void above the throne room), or on the Ultima screen when asked or when the throne room is not built.</summary>
+        public static bool PlayScene(Player me, int karma, bool screen = false)
+        {
+            if (ScenePlayer.Playing || ResurrectionStage.Playing || ScenePlayer.Read("KARMA.DAT") == null) return false;
+            var home = Point();
+            if (!screen && home != null) { Plugin.Instance.StartCoroutine(ResurrectionStage.Play(me, karma, home.Value)); return true; }
+            if (ScenePlayer.Read("IBM.CH") == null) return false;
             Plugin.Instance.StartCoroutine(Scene(me, karma));
+            return true;
         }
 
         static IEnumerator Scene(Player me, int karma)
         {
-            var karmaDat = ScenePlayer.Read("KARMA.DAT");
-            if (karmaDat == null || ScenePlayer.Read("IBM.CH") == null || ScenePlayer.Playing) yield break;
             yield return new WaitForSeconds(0.5f);
-            var scene = new ResurrectionScene(Plugin.U5.Ovl, karmaDat, karma);
+            var scene = new ResurrectionScene(Plugin.U5.Ovl, ScenePlayer.Read("KARMA.DAT"), karma);
             yield return ScenePlayer.Play(scene.Run(), scene.View, "Lord British", null, null);
         }
 
