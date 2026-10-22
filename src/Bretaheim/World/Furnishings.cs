@@ -276,11 +276,14 @@ namespace Bretaheim.WorldGen
 
         /// <summary>
         /// The earth before a grave (ours, Constructing world assets.txt): dug once (E): only
-        /// earth, a body (bones), a body that rises (a skeleton), or now and then treasure.
+        /// earth, a body (bones), a body that rises (a skeleton, in a Draugr's body), or now and then treasure.
         /// </summary>
         public class GravePlot : MonoBehaviour, Hoverable, Interactable
         {
             public const string DugKey = "u5_dug";
+            /// <summary>The body that rises: creature type 33 (Skeleton) in Valheim's Draugr.</summary>
+            public const int SkeletonType = 33;
+            public const string RisenBody = "Draugr";
             ZNetView nview;
             GameObject mound;
 
@@ -316,8 +319,9 @@ namespace Bretaheim.WorldGen
                         Drop("BoneFragments", random.Next(2, 5), at);
                         if (dig == FurnishingRules.Dig.Body) { Tell(p, "Thou hast unearthed a body!"); break; }
                         Tell(p, "Thou hast unearthed a body!\nThe dead rise!");
-                        var skeleton = ZNetScene.instance?.GetPrefab("Skeleton");
-                        if (skeleton != null) Object.Instantiate(skeleton, at + Vector3.up * 0.3f, Quaternion.LookRotation(p.transform.position - at));
+                        // the Ultima skeleton's numbers in a rotting Draugr's body (user's choice: more dead body than bones)
+                        var risen = UltimaCreatures.Spawn(SkeletonType, at + Vector3.up * 0.3f, false, RisenBody);
+                        if (risen != null) risen.transform.rotation = Quaternion.LookRotation(p.transform.position - at);
                         break;
                     default:
                         var found = new List<string>();

@@ -48,8 +48,8 @@ if (argv.Count > 0 && argv[0] == "intro")
 }
 if (argv.Count > 0 && argv[0] == "scene")
 {
-    // scene blackthorn|endgame <outdir> [answers…]: the cut-scene played with these answers (typed
-    // lines for Blackthorn, y/n for Lord British; "party=N", "box", "ruined=0,1"), a PPM at every
+    // scene blackthorn|endgame|resurrection <outdir> [answers…]: the cut-scene played with these answers (typed
+    // lines for Blackthorn, y/n for Lord British; "party=N", "box", "ruined=0,1", "karma=N"), a PPM at every
     // stop (key, question, picture), the text printed
     string which = argv.Count > 1 ? argv[1] : "blackthorn", outDir = argv.Count > 2 ? argv[2] : "scene";
     Directory.CreateDirectory(outDir);
@@ -72,6 +72,12 @@ if (argv.Count > 0 && argv[0] == "scene")
         s.OnBetray = v => Console.WriteLine($"** shrine {v} betrayed");
         s.OnExecute = sliced => Console.WriteLine($"** companion executed ({(sliced ? "sliced" : "merciful")})");
         view = s.View; beats = s.Run(); answer = a => s.Answer = a;
+    }
+    else if (which == "resurrection")
+    {
+        int karma = rest.Where(a => a.StartsWith("karma=")).Select(a => int.Parse(a.Substring(6))).DefaultIfEmpty(50).First();
+        var s = new ResurrectionScene(data.Ovl, Read("KARMA.DAT"), karma);
+        view = s.View; beats = s.Run(); answer = a => { };
     }
     else
     {

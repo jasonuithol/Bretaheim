@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased (Phase 2: Britain, the castle and Iolo's hut; not yet published)
+- Dying is the original's: nothing is lost (no tombstone, no corpse run, no "No skill drain"), but
+  Lord British's raising costs experience by thy karma (and the level it no longer earns); he raises
+  thee in his throne room with full hit points and mana, karma at least 75, at six in the morning, with
+  63 rations if thou hadst none, after his scene from the original.
+- A grave's risen dead is a Draugr (with the skeleton's numbers), not a skeleton.
+- No dotted area circles round the settlements' crafting stations and other pieces.
 - Iolo's hut has no workbench any more.
 - Wild thistles give Blood Moss and mushrooms Spider Silk.
 - Monsters show their Ultima names (Giant Spider, Giant Rat …), not their Valheim bodies' names, and are

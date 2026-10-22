@@ -184,5 +184,40 @@ namespace Bretaheim.Tests
             Assert.Contains("THE QUEST OF THE AVATAR\nIS FOREVER\n", text);
             Assert.Contains("2 years, 3 months, 18 days\nto Lord British at Origin Systems!", text);
         }
+
+        [Fact]
+        public void LordBritishRaisesTheFallenAtACostOfExperienceByKarma()
+        {
+            var a = new Avatar { Experience = 1000, Level = 5, Intelligence = 22, Mana = 3, Strength = 20 };
+            Resurrection.Raise(a, 50);
+            Assert.Equal(500, a.Experience);
+            Assert.Equal(4, a.Level);
+            Assert.Equal(22, a.Mana);
+            Assert.Equal(20, a.Strength);
+            var saint = new Avatar { Experience = 1000, Level = 5 };
+            Resurrection.Raise(saint, 98);
+            Assert.Equal(1000, saint.Experience);
+            Assert.Equal(5, saint.Level);
+            Assert.Equal(75, Resurrection.KarmaAfter(40));
+            Assert.Equal(90, Resurrection.KarmaAfter(90));
+        }
+
+        [U5Fact]
+        public void TheResurrectionSceneSpeaksByKarma()
+        {
+            string Text(int karma)
+            {
+                var s = new ResurrectionScene(Env.Data.Ovl, Read("KARMA.DAT"), karma);
+                var beats = Play(s.Run(), (b, i) => { });
+                Assert.Single(beats, b => b.Kind == BeatKind.Key);
+                return s.View.Text;
+            }
+            string low = Text(10), high = Text(99);
+            Assert.Contains("An unending darkness engulfs thee...", low);
+            Assert.Contains("FORTIS FORTUNA", low);
+            Assert.Contains("Thou hast strayed far from the path of the Avatar", low);
+            Assert.Contains("Well armed art thou to fight Death's embrace", high);
+            Assert.Contains("Vertigo...", high);
+        }
     }
 }

@@ -10,7 +10,8 @@ namespace Bretaheim.WorldGen
     /// (trunks), pots, the hearth (fireplace) and braziers are searched (<see cref="Searching"/>),
     /// with the original's words for each; torches, candles, campfires, cauldrons and item stands
     /// show their name and do nothing. Iolo's hut keeps its tool chest (§5.12), and the
-    /// loot chests (u5_chest, not settlement pieces) stay chests.
+    /// loot chests (u5_chest, not settlement pieces) stay chests. No settlement piece draws
+    /// Valheim's dotted area circle (crafting stations, turrets, wards).
     /// </summary>
     public static class TownFurniture
     {
@@ -25,6 +26,15 @@ namespace Bretaheim.WorldGen
                 Patch(harmony, t, "UseItem", nameof(UseItem_Prefix));
                 Patch(harmony, t, "GetHoverText", nameof(Hover_Prefix));
             }
+            Patch(harmony, typeof(CircleProjector), "Start", nameof(CircleStart_Prefix));
+        }
+
+        /// <summary>A settlement piece's area circle is never drawn: its segments are never made, and showing the marker shows nothing.</summary>
+        static bool CircleStart_Prefix(CircleProjector __instance)
+        {
+            if (Britannia.Active == null || __instance.GetComponentInParent<U5Fixed>() == null) return true;
+            __instance.enabled = false;
+            return false;
         }
 
         static void Patch(Harmony h, System.Type t, string m, string prefix)

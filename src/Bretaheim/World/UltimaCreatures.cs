@@ -115,7 +115,14 @@ namespace Bretaheim.WorldGen
         static int TypeOf(Component c) => (c.GetComponent<ZNetView>()?.GetZDO()?.GetInt(TypeKey) ?? 0) - 1;
 
         /// <summary>The body it leaves keeps its colour: the ragdoll made while it dies carries its type (ZDO, for the other peers).</summary>
-        static void OnDeath_Prefix(Character __instance) => dying = __instance is Player ? -1 : TypeOf(__instance);
+        static void OnDeath_Prefix(Character __instance) => dying = __instance is Player || !InOwnBody(__instance, TypeOf(__instance)) ? -1 : TypeOf(__instance);
+
+        /// <summary>A creature in the body monsters.json gives its type (not a stand-in passed to <see cref="Spawn"/>).</summary>
+        static bool InOwnBody(Character c, int type)
+        {
+            var body = type >= 0 ? Body(type) : null;
+            return body == null || Utils.GetPrefabName(c.gameObject.name) == body.Value.prefab;
+        }
         static void OnDeath_Postfix() => dying = -1;
 
         static void RagdollSetup_Postfix(Ragdoll __instance)
@@ -169,9 +176,13 @@ namespace Bretaheim.WorldGen
                 // Ultima's monsters go for people, not walls
                 ai.m_attackPlayerObjects = false;
             }
-            var body = Body(type);
-            if (body != null) __instance.transform.localScale = Vector3.one * body.Value.scale;
-            Reshade(__instance.gameObject, type);
+            // in its own body, the type's size and colour (a stand-in body, as the grave's Draugr for a skeleton, keeps its own)
+            if (InOwnBody(__instance, type))
+            {
+                var body = Body(type);
+                if (body != null) __instance.transform.localScale = Vector3.one * body.Value.scale;
+                Reshade(__instance.gameObject, type);
+            }
             if (zdo.GetBool(WildKey) && __instance.GetComponent<WildEncounter>() == null) __instance.gameObject.AddComponent<WildEncounter>();
         }
 

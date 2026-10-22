@@ -194,9 +194,12 @@ namespace Bretaheim.WorldGen
         /// builds it (they quicken stamina and skills, neither of which Britannia has), Wet, Cold,
         /// Freezing, Shelter and the campfire's Fire (the original has none of them). A night's sleep heals and restores mana as
         /// the original's does (Sleep). Our own looks borrowed from Rested are named U5_SE_….
+        /// Nor death's: "No skill drain" (SoftDeath) and "Corpse run" (a tombstone looted), as
+        /// dying keeps everything and costs experience instead (Respawn).
         /// </summary>
         static readonly int[] comfort = { SEMan.s_statusEffectRested, SEMan.s_statusEffectResting, SEMan.s_statusEffectWet, SEMan.s_statusEffectCold,
-                                          SEMan.s_statusEffectFreezing, SEMan.s_statusEffectShelter, SEMan.s_statusEffectCampFire };
+                                          SEMan.s_statusEffectFreezing, SEMan.s_statusEffectShelter, SEMan.s_statusEffectCampFire,
+                                          SEMan.s_statusEffectSoftDeath, "CorpseRun".GetStableHashCode() };
         static bool Restful(int hash) => System.Array.IndexOf(comfort, hash) >= 0;
 
         /// <summary>Those brought from a Valheim world are gone on arriving in Britannia.</summary>
