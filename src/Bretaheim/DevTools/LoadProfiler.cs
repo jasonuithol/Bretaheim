@@ -36,6 +36,8 @@ namespace Bretaheim.DevTools
             (typeof(WorldGen.U5Structure), "Build"),
             (typeof(WorldGen.Settlements), "Prepare"),
             (typeof(Minimap), "GenerateWorldMap"),
+            (typeof(WorldGen.TownWatch), "Tick"),
+            (typeof(WorldGen.Core.TownPath), "Find"),
         };
 
         public static void Install(Harmony harmony)

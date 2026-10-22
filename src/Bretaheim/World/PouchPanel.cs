@@ -238,6 +238,9 @@ namespace Bretaheim.WorldGen
                 t.alignment = align;
                 return t;
             }
+            // (a panel built again after another world: the last one's labels went with it)
+            reagentNames.Clear();
+            reagentCounts.Clear();
             Label("Pouch", new Vector2(0, -28), 24, g.ValheimOrange, Width - 30, TextAnchor.MiddleCenter);
             Label("Reagents", new Vector2(0, -60), 18, g.ValheimOrange, Width - 40, TextAnchor.MiddleLeft);
             for (int r = 0; r < Magic.Reagents; r++)

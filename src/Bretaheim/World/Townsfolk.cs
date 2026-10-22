@@ -1008,16 +1008,27 @@ namespace Bretaheim.WorldGen
         void Rearm()
         {
             if (human.GetCurrentWeapon() != null && human.GetCurrentWeapon() != human.m_unarmedWeapon?.m_itemData) return;
-            var npcFrom = LookSource();
-            foreach (var name in TownsfolkSpawner.Outfit(npcFrom.loc, npcFrom.npc))
+            // (not mid-throw: the hand can't take a weapon until the attack is over, and a weapon
+            // added every frame till then filled their pack and left them unarmed, at a cost each frame)
+            if (human.InAttack() || Time.time < rearmAt) return;
+            rearmAt = Time.time + 0.5f;
+            var inv = human.GetInventory();
+            var spare = inv.GetAllItems().FirstOrDefault(i => i.IsWeapon());
+            if (spare == null)
             {
-                var drop = ObjectDB.instance.GetItemPrefab(name)?.GetComponent<ItemDrop>();
-                if (drop == null || !drop.m_itemData.IsWeapon()) continue;
-                var item = human.GetInventory().AddItem(name, 1, 1, 0, 0L, "", false);
-                if (item != null) human.EquipItem(item, false);
-                break;
+                var npcFrom = LookSource();
+                foreach (var name in TownsfolkSpawner.Outfit(npcFrom.loc, npcFrom.npc))
+                {
+                    var drop = ObjectDB.instance.GetItemPrefab(name)?.GetComponent<ItemDrop>();
+                    if (drop == null || !drop.m_itemData.IsWeapon()) continue;
+                    spare = inv.AddItem(name, 1, 1, 0, 0L, "", false);
+                    break;
+                }
             }
+            if (spare != null) human.EquipItem(spare, false);
         }
+
+        float rearmAt;
 
         (Data.Location loc, SettlementNpc npc) LookSource()
         {
