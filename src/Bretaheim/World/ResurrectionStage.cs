@@ -8,9 +8,10 @@ namespace Bretaheim.WorldGen
 {
     /// <summary>
     /// Lord British's raising (Data/ResurrectionScene) played in the world instead of on the
-    /// Ultima screen: the risen player lies in a black void high above the throne room (their own
-    /// body, Valheim's rest pose); the original's words come one by one; two hooded figures kneel
-    /// where the sparkles leave them (the scene's tiles at either side below the sleeper),
+    /// Ultima screen: the risen player stands in a black void high above the throne room, the
+    /// camera held above and back so every figure is in sight; the original's words come one by one; two guardian Valkyries hover
+    /// where the sparkles leave them (the scene's tiles at either side below the sleeper; spotlit from
+    /// the camera's side, with a glow of their own),
     /// lightning and the ground shaking for the thunder, Lord British's apparition (cyan, as his
     /// tile) above, his KARMA.DAT words over him until a key; "Strange words are intoned.",
     /// "Vertigo..." and the player is in the throne room. All of it is local to the risen
@@ -27,6 +28,8 @@ namespace Bretaheim.WorldGen
         /// <summary>The scene's sparkles (tile 0x16): Odin's vanishing smoke.</summary>
         const string Sparkle = "vfx_odin_despawn";
         static readonly Color Apparition = new Color(0.35f, 0.9f, 0.95f);
+        /// <summary>How big and how high the guardian Valkyries hover (Valheim's is made to carry a player).</summary>
+        const float ValkyrieScale = 0.3f, ValkyrieHover = 1.6f;
 
         public static bool Playing { get; private set; }
 
@@ -35,6 +38,22 @@ namespace Bretaheim.WorldGen
             var take = AccessTools.Method(typeof(PlayerController), "TakeInput");
             if (take != null) harmony.Patch(take, prefix: new HarmonyMethod(typeof(ResurrectionStage), nameof(TakeInput_Prefix)));
             else Plugin.Log.LogWarning("Resurrection stage: PlayerController.TakeInput not found");
+            var cam = AccessTools.Method(typeof(GameCamera), "LateUpdate");
+            if (cam != null) harmony.Patch(cam, postfix: new HarmonyMethod(typeof(ResurrectionStage), nameof(CameraLateUpdate_Postfix)));
+            else Plugin.Log.LogWarning("Resurrection stage: GameCamera.LateUpdate not found");
+        }
+
+        /// <summary>The stage's middle (the risen player) while the scene plays.</summary>
+        static Vector3? focus;
+        /// <summary>The camera: well above and back (south) of the stage, so the guardians, the risen and Lord British are all in sight.</summary>
+        static readonly Vector3 CameraOffset = new Vector3(0f, 6.5f, -9f);
+
+        static void CameraLateUpdate_Postfix(GameCamera __instance)
+        {
+            if (!Playing || focus == null) return;
+            var at = focus.Value + CameraOffset;
+            __instance.transform.position = at;
+            __instance.transform.rotation = Quaternion.LookRotation(focus.Value + new Vector3(0f, 0.8f, 0.8f) - at);
         }
 
         static bool TakeInput_Prefix(ref bool __result)
@@ -58,16 +77,14 @@ namespace Bretaheim.WorldGen
             try
             {
                 Darkness(true);
+                focus = stage;
                 built.Add(Floor(stage));
                 me.TeleportTo(stage + Vector3.up * 0.1f, Quaternion.Euler(0f, 0f, 0f), false);
                 yield return new WaitForSeconds(1f);
                 if (!Here(me)) yield break;
-                for (float t = 0f; t < 3f && !me.InEmote(); t += 0.25f)
-                {
-                    me.StartEmote("rest", true);
-                    yield return new WaitForSeconds(0.25f);
-                }
                 built.Add(Glow(stage + Vector3.up * 3f, new Color(0.7f, 0.7f, 0.8f), 1.2f, 8f));
+                // the risen lit from the camera's side as the guardians are
+                built.Add(Spot(stage + Vector3.up * 3.5f + CameraOffset.normalized * 3f, stage + Vector3.up, new Color(0.9f, 0.9f, 1f), 4f, 10f));
 
                 foreach (var (dg, wait) in new[] { (ResurrectionScene.SDarkness, 3.5f), (ResurrectionScene.SRefuge, 2.5f), (ResurrectionScene.SNoEvil, 3.5f), (ResurrectionScene.SDisturbed, 3f), (ResurrectionScene.SShouts, 3.5f) })
                 {
@@ -76,16 +93,18 @@ namespace Bretaheim.WorldGen
                     if (!Here(me)) yield break;
                 }
 
-                // the two figures kneel where the sparkles leave them: the original's (2, 7) and (8, 7) either side of the
-                // sleeper at (5, 5); brought level with the sleeper's head, where the camera behind them sees them
+                // the two guardians appear where the sparkles leave them: the original's (2, 7) and (8, 7), below and either side of the sleeper at (5, 5)
                 foreach (int x in new[] { 2, 8 })
                 {
-                    var at = stage + new Vector3((x - 5) * Tile, 0f, 1.5f * Tile);
+                    var at = stage + new Vector3((x - 5) * Tile * 1.3f, 0f, -(7 - 5) * Tile * 0.5f);
                     Effect(Sparkle, at);
                     yield return new WaitForSeconds(0.6f);
-                    var monk = Figure(at, Face(at, stage), new[] { "HelmetMage", "ArmorMageChest", "ArmorMageLegs" });
-                    if (monk != null) { built.Add(monk); Pose(monk, "kneel"); }
-                    built.Add(Glow(at + Vector3.up * 2f, new Color(0.4f, 0.45f, 1f), 1.5f, 5f));
+                    // the guardians are Valkyries (the user's): the one that brings a newcomer to Valheim, hovering
+                    var valkyrie = Valkyrie(me, at + Vector3.up * ValkyrieHover, Face(at, stage));
+                    if (valkyrie != null) built.Add(valkyrie);
+                    // lit from the camera's side, the light turned on them (not on the camera), and a soft glow of their own
+                    built.Add(Spot(at + Vector3.up * (ValkyrieHover + 2f) + CameraOffset.normalized * 2.5f, at + Vector3.up * ValkyrieHover, new Color(0.85f, 0.88f, 1f), 6f, 9f));
+                    built.Add(Glow(at + Vector3.up * ValkyrieHover, new Color(0.45f, 0.5f, 1f), 0.8f, 2.5f));
                     yield return new WaitForSeconds(0.8f);
                     if (!Here(me)) yield break;
                 }
@@ -138,8 +157,10 @@ namespace Bretaheim.WorldGen
             finally
             {
                 foreach (var go in built) if (go != null) Object.Destroy(go);
+                for (; valkyriesLoaded > 0; valkyriesLoaded--) me?.m_valkyrie.Release();
                 Darkness(false);
                 Playing = false;
+                focus = null;
                 if (me != null && !me.IsDead() && me == Player.m_localPlayer)
                 {
                     me.TeleportTo(home, me.transform.rotation, false);
@@ -176,6 +197,21 @@ namespace Bretaheim.WorldGen
             go.transform.position = at - Vector3.up * 0.5f;
             var box = go.AddComponent<BoxCollider>();
             box.size = new Vector3(30f, 1f, 30f);
+            return go;
+        }
+
+        /// <summary>A spotlight at <paramref name="from"/> turned on <paramref name="onto"/>.</summary>
+        static GameObject Spot(Vector3 from, Vector3 onto, Color colour, float intensity, float range)
+        {
+            var go = new GameObject("u5_void_spot");
+            go.transform.position = from;
+            go.transform.rotation = Quaternion.LookRotation(onto - from);
+            var l = go.AddComponent<Light>();
+            l.type = LightType.Spot;
+            l.spotAngle = 45f;
+            l.color = colour;
+            l.intensity = intensity;
+            l.range = range;
             return go;
         }
 
@@ -232,6 +268,37 @@ namespace Bretaheim.WorldGen
             Object.Destroy(holder);
             return go;
         }
+
+        /// <summary>
+        /// A guardian: Valheim's Valkyrie (the Player prefab's, which brings a newcomer), only its
+        /// body and animator, no flight and no network object.
+        /// </summary>
+        static GameObject Valkyrie(Player me, Vector3 at, Quaternion facing)
+        {
+            // loaded for the scene (released when it ends: the copies draw from its assets)
+            var reference = me.m_valkyrie;
+            reference.Load();
+            valkyriesLoaded++;
+            {
+                var prefab = reference.Asset;
+                if (prefab == null) return null;
+                var holder = new GameObject("u5_valkyrie_holder");
+                holder.SetActive(false);
+                var go = Object.Instantiate(prefab, at, facing, holder.transform);
+                go.name = "u5_stage_valkyrie";
+                for (int pass = 0; pass < 4; pass++)
+                    foreach (var c in go.GetComponentsInChildren<Component>(true))
+                        if (c != null && (c is Rigidbody || c is Collider || (c is MonoBehaviour && !(c is LODGroup))))
+                            Object.DestroyImmediate(c);
+                go.transform.localScale *= ValkyrieScale;
+                go.transform.SetParent(null, true);
+                go.SetActive(true);
+                Object.Destroy(holder);
+                return go;
+            }
+        }
+
+        static int valkyriesLoaded;
 
         /// <summary>One of Valheim's emotes on a stage figure (kneel, challenge, point …).</summary>
         static void Pose(GameObject figure, string emote)

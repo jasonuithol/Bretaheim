@@ -5,7 +5,7 @@
   Lord British's raising costs experience by thy karma (and the level it no longer earns); he raises
   thee in his throne room with full hit points and mana, karma at least 75, at six in the morning, with
   63 rations if thou hadst none, after his scene from the original, played in the world: thou liest in a
-  black void, two hooded figures kneel, thunder, and his glowing apparition speaks.
+  black void, seen from above, two guardian Valkyries appear, thunder, and his glowing apparition speaks.
 - Every new Avatar wears the Ankh again, and the Ankh worn counts as 10 more karma (not lost when taken off:
   the karma itself is unchanged).
 - A grave's risen dead is a Draugr (with the skeleton's numbers), not a skeleton.
