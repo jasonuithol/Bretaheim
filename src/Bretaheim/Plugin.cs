@@ -18,7 +18,7 @@ namespace Bretaheim
     {
         public const string PluginGUID = "tarbaby.bretaheim";
         public const string PluginName = "Bretaheim";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.3.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }

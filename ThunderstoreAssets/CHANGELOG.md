@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 (alpha)
+- Hildir waits in Iolo's hut on a dedicated server too (she never appeared there).
+- Guards draw a new spear once their throw is over (they filled their packs trying mid-throw and
+  fought on bare-handed, at a cost every frame of a town's fight).
+- No more errors from the pouch panel after loading another world.
+
 ## 0.3.0 (alpha)
 - Dying is the original's: nothing is lost (no tombstone, no corpse run, no "No skill drain"), but
   Lord British's raising costs experience by thy karma (and the level it no longer earns); he raises
