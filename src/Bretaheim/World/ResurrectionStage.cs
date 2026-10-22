@@ -29,7 +29,7 @@ namespace Bretaheim.WorldGen
         const string Sparkle = "vfx_odin_despawn";
         static readonly Color Apparition = new Color(0.35f, 0.9f, 0.95f);
         /// <summary>How big and how high the guardian Valkyries hover (Valheim's is made to carry a player).</summary>
-        const float ValkyrieScale = 0.3f, ValkyrieHover = 1.6f;
+        const float ValkyrieScale = 0.3f, FallenScale = 0.3f, ValkyrieHover = 1.6f;
 
         public static bool Playing { get; private set; }
 
@@ -99,12 +99,13 @@ namespace Bretaheim.WorldGen
                     var at = stage + new Vector3((x - 5) * Tile * 1.3f, 0f, -(7 - 5) * Tile * 0.5f);
                     Effect(Sparkle, at);
                     yield return new WaitForSeconds(0.6f);
-                    // the guardians are Valkyries (the user's): the one that brings a newcomer to Valheim, hovering
-                    var valkyrie = Valkyrie(me, at + Vector3.up * ValkyrieHover, Face(at, stage));
-                    if (valkyrie != null) built.Add(valkyrie);
+                    // the guardians (the user's): on the left the Valkyrie that brings a newcomer to Valheim, on the right a Fallen Valkyrie, hovering
+                    bool fallen = x > 5;
+                    var guardian = fallen ? FallenValkyrie(at + Vector3.up * ValkyrieHover, Face(at, stage)) : Valkyrie(me, at + Vector3.up * ValkyrieHover, Face(at, stage));
+                    if (guardian != null) built.Add(guardian);
                     // lit from the camera's side, the light turned on them (not on the camera), and a soft glow of their own
                     built.Add(Spot(at + Vector3.up * (ValkyrieHover + 2f) + CameraOffset.normalized * 2.5f, at + Vector3.up * ValkyrieHover, new Color(0.85f, 0.88f, 1f), 6f, 9f));
-                    built.Add(Glow(at + Vector3.up * ValkyrieHover, new Color(0.45f, 0.5f, 1f), 0.8f, 2.5f));
+                    built.Add(Glow(at + Vector3.up * ValkyrieHover, fallen ? new Color(0.75f, 0.3f, 0.9f) : new Color(0.45f, 0.5f, 1f), 0.8f, 2.5f));
                     yield return new WaitForSeconds(0.8f);
                     if (!Here(me)) yield break;
                 }
@@ -281,21 +282,33 @@ namespace Bretaheim.WorldGen
             valkyriesLoaded++;
             {
                 var prefab = reference.Asset;
-                if (prefab == null) return null;
-                var holder = new GameObject("u5_valkyrie_holder");
-                holder.SetActive(false);
-                var go = Object.Instantiate(prefab, at, facing, holder.transform);
-                go.name = "u5_stage_valkyrie";
-                for (int pass = 0; pass < 4; pass++)
-                    foreach (var c in go.GetComponentsInChildren<Component>(true))
-                        if (c != null && (c is Rigidbody || c is Collider || (c is MonoBehaviour && !(c is LODGroup))))
-                            Object.DestroyImmediate(c);
-                go.transform.localScale *= ValkyrieScale;
-                go.transform.SetParent(null, true);
-                go.SetActive(true);
-                Object.Destroy(holder);
-                return go;
+                return prefab != null ? Still(prefab, at, facing, ValkyrieScale) : null;
             }
+        }
+
+        /// <summary>The other guardian: a Fallen Valkyrie (Ashlands), its body and animator only.</summary>
+        static GameObject FallenValkyrie(Vector3 at, Quaternion facing)
+        {
+            var prefab = ZNetScene.instance?.GetPrefab("FallenValkyrie");
+            return prefab != null ? Still(prefab, at, facing, FallenScale) : null;
+        }
+
+        /// <summary>A copy of a prefab with nothing but its body and animator (no behaviour, physics or network object).</summary>
+        static GameObject Still(GameObject prefab, Vector3 at, Quaternion facing, float scale)
+        {
+            var holder = new GameObject("u5_still_holder");
+            holder.SetActive(false);
+            var go = Object.Instantiate(prefab, at, facing, holder.transform);
+            go.name = "u5_stage_" + prefab.name;
+            for (int pass = 0; pass < 4; pass++)
+                foreach (var c in go.GetComponentsInChildren<Component>(true))
+                    if (c != null && (c is Rigidbody || c is Collider || (c is MonoBehaviour && !(c is LODGroup))))
+                        Object.DestroyImmediate(c);
+            go.transform.localScale *= scale;
+            go.transform.SetParent(null, true);
+            go.SetActive(true);
+            Object.Destroy(holder);
+            return go;
         }
 
         static int valkyriesLoaded;
