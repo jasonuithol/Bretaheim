@@ -89,7 +89,7 @@ namespace Bretaheim.WorldGen
                 postfix: postfix != null ? new HarmonyMethod(typeof(UltimaCreatures), postfix) : null);
         }
 
-        /// <summary>An Ultima monster loaded on any peer: its type's stats, the monsters' group (they never fight each other), its size.</summary>
+        /// <summary>An Ultima monster loaded on any peer: its type's name and stats, the monsters' group (they never fight each other), its size.</summary>
         static void Awake_Postfix(Character __instance)
         {
             var zdo = __instance.GetComponent<ZNetView>()?.GetZDO();
@@ -110,6 +110,9 @@ namespace Bretaheim.WorldGen
             }
             Register(__instance, type);
             __instance.m_group = MonsterGroup;
+            // its Ultima name over its body's (hover, health bar, kill messages)
+            string name = Plugin.U5?.Ovl.CreatureName(type);
+            if (!string.IsNullOrEmpty(name)) __instance.m_name = name;
             var ai = __instance.GetComponent<MonsterAI>();
             if (ai != null)
             {
