@@ -59,6 +59,12 @@ namespace Bretaheim.Data
 
         public static int Clamp(int k) => Math.Max(0, Math.Min(Max, k));
 
+        /// <summary>The Ankh worn: 10 karma more, while it is worn (ours; the original's Ankh does nothing). The karma kept is unchanged.</summary>
+        public const int AnkhBonus = 10;
+
+        /// <summary>The karma that counts: the karma kept, and <see cref="AnkhBonus"/> more with the Ankh worn (at most 99).</summary>
+        public static int WithAnkh(int karma, bool ankh) => ankh ? Clamp(karma + AnkhBonus) : Clamp(karma);
+
         /// <summary>The karma kept in a character's custom data (<see cref="Start"/> when none is).</summary>
         public static int Get(IDictionary<string, string> data)
             => data != null && data.TryGetValue(Key, out var v) && int.TryParse(v, out int k) ? Clamp(k) : Start;

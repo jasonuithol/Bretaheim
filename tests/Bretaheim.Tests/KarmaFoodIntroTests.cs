@@ -10,6 +10,14 @@ namespace Bretaheim.Tests
     public class KarmaFoodIntroTests
     {
         [Fact]
+        public void TheAnkhCountsTenMoreKarmaWhileWorn()
+        {
+            Assert.Equal(60, Karma.WithAnkh(50, true));
+            Assert.Equal(50, Karma.WithAnkh(50, false));
+            Assert.Equal(99, Karma.WithAnkh(95, true));
+        }
+
+        [Fact]
         public void KarmaStartsAtFiftyAndStaysWithinNoughtToNinetyNine()
         {
             var data = new Dictionary<string, string>();

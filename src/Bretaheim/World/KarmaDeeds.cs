@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using HarmonyLib;
 using Bretaheim.Data;
@@ -25,7 +26,17 @@ namespace Bretaheim.WorldGen
         static bool Active => Britannia.Active != null;
 
         /// <summary>The local player's karma (0..99).</summary>
-        public static int Mine => Player.m_localPlayer != null ? Karma.Get(Player.m_localPlayer.m_customData) : Karma.Start;
+        public static int Mine => Player.m_localPlayer != null ? Of(Player.m_localPlayer) : Karma.Start;
+
+        /// <summary>A player's karma as it counts: the karma kept, 10 more while they wear the Ankh (Karma.WithAnkh). Deeds change the karma kept.</summary>
+        public static int Of(Player p) => p == null ? Karma.Start : Karma.WithAnkh(Karma.Get(p.m_customData), WearsAnkh(p));
+
+        /// <summary>The Ankh (item 47) among what a player wears.</summary>
+        public static bool WearsAnkh(Player p)
+        {
+            string ankh = UltimaItems.Map?.Inventory(ItemUse.Ankh)?.Prefab;
+            return ankh != null && p.GetInventory().GetEquippedItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == ankh);
+        }
 
         public static void Install(Harmony harmony)
         {

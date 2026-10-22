@@ -160,7 +160,7 @@ namespace Bretaheim
                 if (me == null || WorldGen.Britannia.Active == null) { Print($"u5 {args[0]}: only in Britannia"); return; }
                 if (args[0] == "intro") Plugin.Instance.StartCoroutine(WorldGen.Intro.Play());
                 else if (args[0] == "karma" && args.Length > 1 && Terminal.m_cheat && int.TryParse(args[1], out int k)) { Karma.Set(me.m_customData, k); Print($"karma {Karma.Get(me.m_customData)}"); }
-                else if (args[0] == "karma") Print($"karma {Karma.Get(me.m_customData)}");
+                else if (args[0] == "karma") Print($"karma {WorldGen.KarmaDeeds.Of(me)}{(WorldGen.KarmaDeeds.WearsAnkh(me) ? $" ({Karma.Get(me.m_customData)} and the Ankh's {Karma.AnkhBonus})" : "")}");
                 else if (args[0] == "exp")
                 {
                     var a = WorldGen.AvatarStats.Mine;

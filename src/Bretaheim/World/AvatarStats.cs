@@ -229,7 +229,7 @@ namespace Bretaheim.WorldGen
             var elements = Traverse.Create(__instance).Field("m_elements").GetValue<List<GameObject>>();
             if (elements == null) return;
             var a = Mine;
-            int karma = Karma.Get(player.m_customData);
+            int karma = KarmaDeeds.Of(player);
             int next = a.Level >= Avatar.MaxLevel ? a.Experience : 100 << (a.Level - 1);
             var rows = new (string name, string value, float bar, string tip)[]
             {
@@ -240,7 +240,7 @@ namespace Bretaheim.WorldGen
                 ("Hit points", $"{Mathf.CeilToInt(player.GetHealth() / Ultima.Scale)}/{a.MaxHitPoints}", player.GetHealth() / Mathf.Max(1, a.MaxHitPoints * Ultima.Scale), "30 a level"),
                 ("Level", a.Level.ToString(), a.Level / (float)Avatar.MaxLevel, "Lord British's apparition raises it when thou sleepest, once thy deeds have earned it"),
                 ("Experience", a.Experience.ToString(), next > 0 ? Mathf.Clamp01(a.Experience / (float)next) : 1, a.Level >= Avatar.MaxLevel ? "" : $"Level {a.Level + 1} at {next}"),
-                ("Karma", karma.ToString(), karma / 99f, "Thy virtue"),
+                ("Karma", karma.ToString(), karma / 99f, KarmaDeeds.WearsAnkh(player) ? $"Thy virtue (the Ankh: +{Karma.AnkhBonus})" : "Thy virtue"),
             };
             // Valheim makes a row per skill learnt, and in Britannia none is learnt: a new character has none (an empty screen)
             while (elements.Count < rows.Length)

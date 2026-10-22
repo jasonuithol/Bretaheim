@@ -9,7 +9,7 @@ namespace Bretaheim.WorldGen
 {
     /// <summary>
     /// A new Avatar arrives in Britannia fresh from baseball practice when the Codex called (the
-    /// user's lore): wearing Cloth Armour and holding a Club; with what INIT.GAM gives the
+    /// user's lore): wearing Cloth Armour and the Ankh and holding a Club; with what INIT.GAM gives the
     /// original's party besides: the party's mixed spells, scrolls and potions (not the spare arms
     /// and armour its companions used: there are none), its
     /// reagents, keys, gems and torches, 150 gold (Valheim coins) and its food as barley rations
@@ -20,8 +20,8 @@ namespace Bretaheim.WorldGen
     public static class StartingGold
     {
         public const int Amount = 150;
-        /// <summary>What the Avatar wears and holds on arriving: Cloth Armour (9) and a Club (18).</summary>
-        static readonly int[] StartingArms = { 9, 18 };
+        /// <summary>What the Avatar wears and holds on arriving: Cloth Armour (9), a Club (18) and the Ankh (47, as INIT.GAM's Avatar wears it).</summary>
+        static readonly int[] StartingArms = { 9, 18, 47 };
 
         public static void Install(Harmony harmony)
         {

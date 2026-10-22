@@ -423,11 +423,13 @@ namespace Bretaheim.WorldGen
         /// <summary>Karma (0..99, Data.Karma), 50 for a new Avatar.</summary>
         public int Karma
         {
-            get => Me != null ? Data.Karma.Get(Me.m_customData) : Data.Karma.Start;
+            get => Me != null ? KarmaDeeds.Of(Me) : Data.Karma.Start;
             set
             {
                 if (Me == null) return;
+                // the conversation changes what counts (with the Ankh's 10): the karma kept moves by as much
                 int before = Data.Karma.Get(Me.m_customData);
+                value = before + value - KarmaDeeds.Of(Me);
                 Data.Karma.Set(Me.m_customData, value);
                 if (value != before) Plugin.Log.LogInfo($"Karma {before} -> {Data.Karma.Clamp(value)} (conversation)");
             }

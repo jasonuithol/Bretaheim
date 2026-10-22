@@ -17,7 +17,8 @@ namespace Bretaheim.WorldGen
     /// Ring of Regeneration — each 8 s turn a 1-in-8 roll heals 1 hit point; either ring vanishes
     /// on a 1-in-16 roll as a fight begins ("A ring has vanished!"); Ring of Protection and the
     /// Spiked Collar — their defence (2) only, counted with the armour; the Amulet of Turning and
-    /// the Ankh — nothing (the original's turning roll is thrown away). Regalia reach every player
+    /// the Amulet of Turning — nothing (the original's turning roll is thrown away); the Ankh — 10
+    /// karma while worn (ours, <see cref="KarmaDeeds.Of"/>). Regalia reach every player
     /// within one tile (32 m) of the wearer: the Crown of Lord British — a blue barrier through
     /// which no magic attack passes (the original's Crown icon stops spell-casting monsters'
     /// missiles and special actions); the Amulet of Lord British — +50 armour and a silver Rested.

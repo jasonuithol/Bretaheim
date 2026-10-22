@@ -72,14 +72,15 @@ namespace Bretaheim.WorldGen
         /// <summary>Lord British raises the player (resurrection_scene): the numbers at once, then his scene.</summary>
         public static void Raise(Player me)
         {
-            int karma = Karma.Get(me.m_customData);
+            // the karma that counts (the Ankh's 10 with it) spares experience and picks his words; the floor of 75 is on the karma kept
+            int karma = KarmaDeeds.Of(me), kept = Karma.Get(me.m_customData);
             var a = Avatar.Load(me.m_customData);
             int exp = a.Experience, level = a.Level;
             Resurrection.Raise(a, karma);
             a.Save(me.m_customData);
             me.SetMaxHealth(a.MaxHitPoints * Ultima.Scale, true);
             me.SetHealth(a.MaxHitPoints * Ultima.Scale);
-            KarmaDeeds.Change(me, Resurrection.KarmaAfter(karma) - karma, "raised by Lord British");
+            KarmaDeeds.Change(me, Resurrection.KarmaAfter(kept) - kept, "raised by Lord British");
             // spells end (Valheim took the status effects at death; invisibility is also in the ZDO)
             SpellStatus.Take(me, SpellStatus.Invisible);
             var barley = ObjectDB.instance?.GetItemPrefab(Rations.Item);
