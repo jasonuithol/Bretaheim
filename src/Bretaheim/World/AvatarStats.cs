@@ -227,7 +227,7 @@ namespace Bretaheim.WorldGen
         {
             if (!Active || player != Me) return;
             var elements = Traverse.Create(__instance).Field("m_elements").GetValue<List<GameObject>>();
-            if (elements == null || elements.Count == 0) return;
+            if (elements == null) return;
             var a = Mine;
             int karma = Karma.Get(player.m_customData);
             int next = a.Level >= Avatar.MaxLevel ? a.Experience : 100 << (a.Level - 1);
@@ -242,6 +242,14 @@ namespace Bretaheim.WorldGen
                 ("Experience", a.Experience.ToString(), next > 0 ? Mathf.Clamp01(a.Experience / (float)next) : 1, a.Level >= Avatar.MaxLevel ? "" : $"Level {a.Level + 1} at {next}"),
                 ("Karma", karma.ToString(), karma / 99f, "Thy virtue"),
             };
+            // Valheim makes a row per skill learnt, and in Britannia none is learnt: a new character has none (an empty screen)
+            while (elements.Count < rows.Length)
+            {
+                var made = UnityEngine.Object.Instantiate(__instance.m_elementPrefab, Vector3.zero, Quaternion.identity, __instance.m_listRoot);
+                ((RectTransform)made.transform).anchoredPosition = new Vector2(0f, -elements.Count * __instance.m_spacing);
+                elements.Add(made);
+            }
+            __instance.m_listRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(__instance.m_listRoot.rect.height, rows.Length * __instance.m_spacing));
             for (int i = 0; i < elements.Count; i++)
             {
                 var row = elements[i];

@@ -162,7 +162,7 @@ namespace Bretaheim.WorldGen
             if (byCategory != null) foreach (var list in byCategory) list.RemoveAll(Gone);
         }
 
-        /// <summary>A planted carrot is ginseng and a turnip garlic, a wild thistle blood moss and a mushroom spider silk: their harvest is the reagent.</summary>
+        /// <summary>A planted carrot is ginseng and a turnip garlic, a wild thistle blood moss and a mushroom spider silk: their harvest is the reagent (and the wild ones look it, <see cref="WildLook"/>).</summary>
         static void PickableAwake_Postfix(Pickable __instance)
         {
             if (!Active || __instance.m_itemPrefab == null) return;
@@ -171,6 +171,39 @@ namespace Bretaheim.WorldGen
             var def = UltimaItems.Map?.Reagent(reagent);
             var prefab = def != null ? ObjectDB.instance?.GetItemPrefab(def.Prefab) : null;
             if (prefab != null) __instance.m_itemPrefab = prefab;
+            if (WildReagents.ContainsKey(item) && Recolour.Draws) WildLook(__instance, reagent);
+        }
+
+        const int SpiderSilk = 3, BloodMoss = 4;
+        static readonly Color BloodGlow = new Color(0.32f, 0.01f, 0.01f);
+
+        /// <summary>
+        /// The wild reagents' looks: a mushroom is bones lying there (Spider Silk's own look, the
+        /// bone fragments; its glow gone), a thistle's green glow (its light and motes) dark red.
+        /// </summary>
+        static void WildLook(Pickable p, int reagent)
+        {
+            if (reagent == SpiderSilk)
+            {
+                var visual = p.transform.Find("visual") ?? p.transform;
+                foreach (var r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+                foreach (var l in p.GetComponentsInChildren<Light>(true)) l.enabled = false;
+                Furnishings.Visual("BoneFragments", 1f, visual);
+            }
+            else if (reagent == BloodMoss)
+            {
+                foreach (var l in p.GetComponentsInChildren<Light>(true)) l.color = BloodGlow;
+                foreach (var ps in p.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    var main = ps.main;
+                    main.startColor = BloodGlow;
+                    var r = ps.GetComponent<ParticleSystemRenderer>();
+                    if (r == null) continue;
+                    var m = r.material;
+                    foreach (var c in new[] { "_Color", "_TintColor", "_EmissionColor" })
+                        if (m.HasProperty(c)) m.SetColor(c, BloodGlow);
+                }
+            }
         }
 
         // ── crafting, brewing, cooking ──────────────────────────────────────────────────────

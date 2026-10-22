@@ -8,7 +8,9 @@
 - A grave's risen dead is a Draugr (with the skeleton's numbers), not a skeleton.
 - No dotted area circles round the settlements' crafting stations and other pieces.
 - Iolo's hut has no workbench any more.
-- Wild thistles give Blood Moss and mushrooms Spider Silk.
+- Wild thistles give Blood Moss and mushrooms Spider Silk; a wild mushroom looks like bones lying there, and
+  a thistle's green glow is dark red.
+- A new character's Tab screen shows the Ultima stats (it was empty until a Valheim skill was learnt).
 - Monsters show their Ultima names (Giant Spider, Giant Rat …), not their Valheim bodies' names, and are
   coloured as the original draws them (red trolls, brown orcs, white skeletons, grey spiders …), bodies too.
 - Guards you refused to go quietly with no longer take you to Yew after a minute's fight: they fight
