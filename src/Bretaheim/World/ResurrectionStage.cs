@@ -30,6 +30,10 @@ namespace Bretaheim.WorldGen
         static readonly Color Apparition = new Color(0.35f, 0.9f, 0.95f);
         /// <summary>How big and how high the guardian Valkyries hover (Valheim's is made to carry a player).</summary>
         const float ValkyrieScale = 0.3f, FallenScale = 0.3f, ValkyrieHover = 1.6f;
+        /// <summary>The guardians' wings beat at a tenth of Valheim's pace (the user's).</summary>
+        const float GuardianTempo = 0.1f;
+        /// <summary>Lord British's apparition is twice a man's height (the user's).</summary>
+        const float LordBritishScale = 2f;
 
         public static bool Playing { get; private set; }
 
@@ -127,8 +131,9 @@ namespace Bretaheim.WorldGen
                 Effect(Sparkle, lbAt);
                 yield return new WaitForSeconds(0.6f);
                 var lb = Figure(lbAt, Face(lbAt, stage), new[] { "HelmetDverger", "ArmorMageChest", "ArmorMageLegs", "CapeLinen" });
+                if (lb != null) lb.transform.localScale *= LordBritishScale;
                 if (lb != null) { built.Add(lb); Pose(lb, "challenge"); }
-                built.Add(Glow(lbAt + Vector3.up * 2.2f + Vector3.back, Apparition, 3f, 8f));
+                built.Add(Glow(lbAt + Vector3.up * 2.2f * LordBritishScale + Vector3.back * LordBritishScale, Apparition, 3f, 9f));
                 yield return null;
                 yield return null;
                 if (lb != null && Recolour.Draws) Recolour.Model(lb, Apparition);
@@ -137,7 +142,7 @@ namespace Bretaheim.WorldGen
 
                 string words = karmaDat != null ? ResurrectionScene.KarmaText(ovl, karmaDat, karma) : "";
                 Say(me, "");
-                if (lb != null && Chat.instance != null) Chat.instance.SetNpcText(lb, Vector3.up * 2.4f, 40f, 60f, "Lord British", "\"" + words.Replace('\n', ' ') + "\"", true);
+                if (lb != null && Chat.instance != null) Chat.instance.SetNpcText(lb, Vector3.up * 2.4f * LordBritishScale, 40f, 60f, "Lord British", "\"" + words.Replace('\n', ' ') + "\"", true);
                 else Say(me, "\"" + words + "\"");
                 me.Message(MessageHud.MessageType.TopLeft, "Space or E: go on");
                 float until = Time.time + 60f;
@@ -305,6 +310,8 @@ namespace Bretaheim.WorldGen
                     if (c != null && (c is Rigidbody || c is Collider || (c is MonoBehaviour && !(c is LODGroup))))
                         Object.DestroyImmediate(c);
             go.transform.localScale *= scale;
+            // their wings beat slowly, as in a dream
+            foreach (var anim in go.GetComponentsInChildren<Animator>(true)) anim.speed = GuardianTempo;
             go.transform.SetParent(null, true);
             go.SetActive(true);
             Object.Destroy(holder);
