@@ -13,15 +13,16 @@ namespace Bretaheim.WorldGen
     /// unconscious!", and the player awakens in the jail of Yew at 8 o'clock. No: "Then defend
     /// thyself, rogue!", and the guards fight them (they may be fought back). In Blackthorn's
     /// palace there is no question: his guards take the player to him (BlackthornCapture). Leaving the
-    /// settlement, or dying, ends it. Kept on the player's ZDO (the settlement's number), so every
+    /// settlement ends being wanted; the guards fight a rogue until they are ForgetTiles of the
+    /// settlement's tiles past its edge, or dead. Kept on the player's ZDO (the settlement's number), so every
     /// peer's guards know.
     /// </summary>
     public static class Crime
     {
         /// <summary>How close a guard comes to make the arrest.</summary>
         public const float Reach = 2.5f;
-        /// <summary>How long the guards fight a player who would not come quietly before one appears beside them and takes them anyway.</summary>
-        public const float FightFor = 60f;
+        /// <summary>How far (in the settlement's tiles, past its edge) a player who would not come quietly must go before its guards forget them.</summary>
+        public const int ForgetTiles = 100;
         const string WantedKey = "u5_wanted", HostileKey = "u5_hostile", JailRpc = "U5_Jail";
         /// <summary>The jail of Yew (guard_arrest: location 4, x 25, y 4, level 0).</summary>
         public const int JailLocation = 4, JailX = 25, JailY = 4;
@@ -103,25 +104,6 @@ namespace Bretaheim.WorldGen
             Plugin.Instance.StartCoroutine(Jail(me));
         }
 
-        /// <summary>
-        /// A minute of fighting and the rogue still stands: a guard appears beside them (as the
-        /// ballistas' crews do), strikes them unconscious, and they wake in the jail of Yew.
-        /// </summary>
-        static IEnumerator Overpowered(Player me, Settlements.Built town)
-        {
-            Clear(me);
-            var ovl = Plugin.U5.Ovl;
-            var at = me.transform.position - me.transform.forward * 1.2f;
-            var face = Quaternion.LookRotation(Vector3.ProjectOnPlane(me.transform.position - at, Vector3.up)).eulerAngles.y;
-            var captor = TownsfolkSpawner.SpawnCrew(town, at, face, null);
-            Plugin.Log.LogInfo($"{town.Location.Name}: a guard appears and takes {me.GetPlayerName()} after a minute's fight");
-            me.Message(MessageHud.MessageType.Center, ovl.CStr(SArrest).Trim());
-            yield return new WaitForSeconds(1.5f);
-            me.Message(MessageHud.MessageType.Center, ovl.CStr(SStruck).Trim());
-            yield return Jail(me);
-            if (captor != null && captor.GetComponent<ZNetView>()?.GetZDO() != null && captor.IsOwned) ZNetScene.instance.Destroy(captor.gameObject);
-        }
-
         /// <summary>Struck unconscious; awakening in Yew's jail at 8 o'clock.</summary>
         static IEnumerator Jail(Player me)
         {
@@ -161,8 +143,7 @@ namespace Bretaheim.WorldGen
         /// <summary>The local player's side: the guard's reach brings the question; leaving the settlement or dying ends it all.</summary>
         public class Watch : MonoBehaviour
         {
-            float checkAt, hostileSince = -1f;
-            bool taking;
+            float checkAt;
 
             void Update()
             {
@@ -171,19 +152,12 @@ namespace Bretaheim.WorldGen
                 var me = Player.m_localPlayer;
                 if (me == null || Britannia.Active == null) return;
                 int wanted = WantedBy(me), hostile = HostileTo(me);
-                if (hostile == 0) hostileSince = -1f;
-                else if (hostileSince < 0) hostileSince = Time.time;
                 if (wanted == 0 && hostile == 0) return;
                 var town = Settlements.Get(wanted != 0 ? wanted : hostile);
-                if (me.IsDead() || town == null || OutOf(town, me.transform.position))
+                // the wanted leave the settlement and are free; the guards fight those who refused until they are far away (or dead)
+                if (me.IsDead() || town == null || OutOf(town, me.transform.position, wanted != 0 ? 10f : ForgetTiles * town.Site.Tile))
                 {
                     Clear(me);
-                    return;
-                }
-                if (hostile != 0 && Time.time - hostileSince >= FightFor && !taking)
-                {
-                    taking = true;
-                    StartCoroutine(Take(me, town));
                     return;
                 }
                 if (wanted == 0 || TalkPanel.IsOpen) return;
@@ -199,15 +173,8 @@ namespace Bretaheim.WorldGen
                 }
             }
 
-            IEnumerator Take(Player me, Settlements.Built town)
-            {
-                if (town.Location.Number == BlackthornCapture.Palace && BlackthornCapture.Begin(me)) { taking = false; yield break; }
-                yield return Overpowered(me, town);
-                taking = false;
-            }
-
-            static bool OutOf(Settlements.Built town, Vector3 p)
-                => Mathf.Max(Mathf.Abs(p.x - town.Origin.x), Mathf.Abs(p.z - town.Origin.z)) > town.Site.Half + town.Site.Blend + 10f;
+            static bool OutOf(Settlements.Built town, Vector3 p, float beyond)
+                => Mathf.Max(Mathf.Abs(p.x - town.Origin.x), Mathf.Abs(p.z - town.Origin.z)) > town.Site.Half + town.Site.Blend + beyond;
         }
     }
 }

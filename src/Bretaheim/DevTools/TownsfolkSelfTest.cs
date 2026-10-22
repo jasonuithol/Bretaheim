@@ -378,15 +378,6 @@ namespace Bretaheim.DevTools
                     if (body.GetHealth() < hp1) { Plugin.Log.LogInfo($"townsfolk self-test rogue upstairs: a blow landed at {i + 1}s from {d.y:0.0} m up"); break; }
                 }
             }
-            // a minute's fight: a guard appears beside them and takes them to Yew
-            var take = HarmonyLib.AccessTools.Method(typeof(Crime), "Overpowered");
-            var before = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Length;
-            Plugin.Instance.StartCoroutine((IEnumerator)take.Invoke(null, new object[] { body, castle }));
-            yield return new WaitForSeconds(0.5f);
-            var captor = FindObjectsByType<TownNpc>(FindObjectsSortMode.None).Where(n => n.IsReinforcement && n.IsGuard && n.Duty == Duty.Arrest).OrderBy(n => Vector3.Distance(n.transform.position, body.transform.position)).FirstOrDefault();
-            Plugin.Log.LogInfo($"townsfolk self-test overpowered: hostile {Crime.HostileTo(body)}, a guard appeared {(captor != null ? $"{Vector3.Distance(captor.transform.position, body.transform.position):0.0} m from them" : "no")}");
-            yield return new WaitForSeconds(9f);
-            Plugin.Log.LogInfo($"townsfolk self-test overpowered: the guard gone {captor == null}, they are at {body.transform.position - castle.Origin}");
             zdo.Set("u5_hostile", 0);
             ZNetScene.instance.Destroy(body.gameObject);
             // attacking townsfolk: a villager cries for the guards and runs; either way the guards come to arrest
