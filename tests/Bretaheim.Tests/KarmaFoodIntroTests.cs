@@ -138,6 +138,20 @@ namespace Bretaheim.Tests
         }
 
         [Fact]
+        public void IolosLutePlaysGreensleevesThroughInWholeBars()
+        {
+            // a beat's pickup and sixteen bars of three
+            Assert.Equal(49 * Lute.Beat, Lute.Length, 0.001f);
+            var samples = Lute.Play();
+            Assert.True(samples.Length >= (Lute.Length + 2f) * Lute.Rate);
+            Assert.InRange(samples.Max(Math.Abs), 0.79f, 0.8001f);
+            // heard all through: no second without a string sounding
+            for (int s = 0; s < (int)Lute.Length; s++)
+                Assert.True(samples.Skip(s * Lute.Rate).Take(Lute.Rate).Max(Math.Abs) > 0.05f, $"silent at {s} s");
+            Assert.Equal(samples, Lute.Play());
+        }
+
+        [Fact]
         public void AParagraphIsReadInPagesBetweenSentences()
         {
             var text = "One two three. \"Four five six!\" Seven eight nine ten. Eleven.\nA new line here.";
@@ -158,25 +172,6 @@ namespace Bretaheim.Tests
                 Assert.Equal(Story.Words(screen.Text), pages.Sum(Story.Words));
                 Assert.All(pages, page => Assert.True(Story.Words(page) <= 70, page));
             }
-        }
-
-        [U5Fact]
-        public void EachIntroductionScreenHasItsPictureAlone()
-        {
-            var screens = Story.Load(Env.U5Dir, Env.Data.Ovl);
-            Assert.All(screens, s =>
-            {
-                Assert.InRange(s.ArtW, 100, Screen.W);
-                Assert.InRange(s.ArtH, 90, Screen.H);
-                Assert.True(s.ArtX + s.ArtW <= Screen.W && s.ArtY + s.ArtH <= Screen.H);
-                // nothing drawn outside it: no words, no headings
-                for (int y = 0; y < Screen.H; y++)
-                for (int x = 0; x < Screen.W; x++)
-                    if (x < s.ArtX || x >= s.ArtX + s.ArtW || y < s.ArtY || y >= s.ArtY + s.ArtH) Assert.Equal(0, s.Art.Pixels[y * Screen.W + x]);
-            });
-            // the battle's pictures span the screen's width; the Codex appears in the circle over the bed
-            Assert.Equal(Screen.W, screens[9].ArtW);
-            Assert.True(screens[1].Art.Pixels.Count(p => p != 0) > screens[1].ArtW * screens[1].ArtH / 2);
         }
     }
 }

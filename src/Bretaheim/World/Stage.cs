@@ -191,6 +191,11 @@ namespace Bretaheim.WorldGen
             holder.SetActive(false);
             var go = Object.Instantiate(prefab, at, facing, holder.transform);
             go.name = "u5_stage_" + prefab.name;
+            // an item is a prop, not loot: none of the glints that rise from things dropped on the ground
+            if (prefab.GetComponent<ItemDrop>() != null)
+                foreach (var ps in go.GetComponentsInChildren<ParticleSystem>(true))
+                    if (ps.gameObject != go) ps.gameObject.SetActive(false);
+                    else ps.GetComponent<ParticleSystemRenderer>().enabled = false;
             for (int pass = 0; pass < 4; pass++)
                 foreach (var c in go.GetComponentsInChildren<Component>(true))
                     if (c != null && (c is Rigidbody || c is Collider || (c is MonoBehaviour && !(c is LODGroup))))

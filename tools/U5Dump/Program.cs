@@ -19,6 +19,17 @@ if (missing.Count > 0)
     return 1;
 }
 var data = U5Data.Load(dir);
+if (argv.Count > 0 && argv[0] == "lute")
+{
+    // lute <out.wav>: Iolo's lute in the introduction, to listen to
+    var samples = Lute.Play();
+    using var wav = new BinaryWriter(File.Create(argv.Count > 1 ? argv[1] : "lute.wav"));
+    wav.Write(System.Text.Encoding.ASCII.GetBytes("RIFF")); wav.Write(36 + samples.Length * 2); wav.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt "));
+    wav.Write(16); wav.Write((short)1); wav.Write((short)1); wav.Write(Lute.Rate); wav.Write(Lute.Rate * 2); wav.Write((short)2); wav.Write((short)16);
+    wav.Write(System.Text.Encoding.ASCII.GetBytes("data")); wav.Write(samples.Length * 2);
+    foreach (float v in samples) wav.Write((short)(v * 32767));
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "intro")
 {
     // intro <outdir>: the 21 story screens and the gypsy's screens as PPMs, their words printed
@@ -29,8 +40,7 @@ if (argv.Count > 0 && argv[0] == "intro")
     {
         screens[s].Picture.WritePpm(Path.Combine(outDir, $"story{s:00}.ppm"));
         screens[s].After?.WritePpm(Path.Combine(outDir, $"story{s:00}b.ppm"));
-        screens[s].Art.WritePpm(Path.Combine(outDir, $"story{s:00}art.ppm"));
-        Console.WriteLine($"[{s}] art {screens[s].ArtX},{screens[s].ArtY} {screens[s].ArtW}x{screens[s].ArtH}: {screens[s].Text}\n");
+        Console.WriteLine($"[{s}] {screens[s].Text}\n");
     }
     var art = new VirtueCasting.Art(dir, data.Ovl);
     art.Opening(out string open).WritePpm(Path.Combine(outDir, "gypsy0.ppm"));

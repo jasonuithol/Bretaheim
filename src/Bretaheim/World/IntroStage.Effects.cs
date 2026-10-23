@@ -5,27 +5,21 @@ using System.Linq;
 using HarmonyLib;
 using Bretaheim.Data;
 using UnityEngine;
-using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 namespace Bretaheim.WorldGen
 {
     public static partial class IntroStage
     {
-        /// <summary>The story's pictures (crops of its screens), made once: as they are, and as visions (dark parts and edges see-through).</summary>
-        static readonly Dictionary<int, Texture2D> arts = new Dictionary<int, Texture2D>();
         static Texture2D soft, codexSign;
-
-        /// <summary>Which picture a paragraph of Iolo's tale shows in the hearth's smoke (his own screens are all his portrait).</summary>
-        static readonly Dictionary<int, int> TaleArt = new Dictionary<int, int> { { 16, 0 }, { 17, 2 }, { 18, 11 }, { 19, 10 }, { 20, 9 } };
+        static AudioClip luteClip;
 
         /// <summary>
         /// What the Introduction tells that the View's tiles do not show: the clouds over the moon,
         /// the Codex forming in the circle, the amulet falling, the bedside light, the Ankh in its
         /// glass case, the amulet and Ankh glowing within the stones, the lightning strike, the
         /// Shadowlords out of swirling darkness, Shamino's sword, the arrow pulled out and hurled,
-        /// the amulet's flare, the hut's warm windows, Iolo's mugs, and the story's own pictures:
-        /// paintings on the bedroom wall, visions in the dark of the woods, pictures in the hearth's smoke.
+        /// the amulet's flare, the hut's warm windows, Iolo's mugs, the lute he plays till the knock.
         /// </summary>
         partial class Director
         {
@@ -34,14 +28,11 @@ namespace Bretaheim.WorldGen
             GameObject heldAnkh, heldAmulet, caseAnkh, caseGlass, bedAmulet, groundAnkh, groundAmulet, stuck, droppedSword, candle;
             int caseStep;
             ParticleSystem shimmer;
+            AudioSource lute;
             Vector3 glowAt;
             Vector3? hearthAt;
             readonly List<(Light light, float strength, float seed)> flickers = new List<(Light, float, float)>();
             readonly List<(Light light, Vector3 over, float seed)> beams = new List<(Light, Vector3, float)>();
-            Renderer painting;
-            Renderer vision, visionOld;
-            RawImage seen, seenOld;
-            float visionSince;
 
             // ── when ──────────────────────────────────────────────────────────────────────────
 
@@ -96,9 +87,6 @@ namespace Bretaheim.WorldGen
                 {
                     Plugin.Instance.StartCoroutine(Clouds());
                     GlassCase(Cell(15, 1));
-                    // pictures on the wall: the one told now, and an old friend
-                    painting = Painting(WallAt(5, 6), 0, 1.15f);
-                    Painting(WallAt(10, 11), 9, 1.0f);
                     var bed = BedAt();
                     var top = Top("table", bed) ?? Top("chest", bed) ?? bed + new Vector3(1.2f, -0.5f, 0f);
                     var prefab = ZNetScene.instance.GetPrefab("Candle_resin");
@@ -118,6 +106,7 @@ namespace Bretaheim.WorldGen
                 }
                 if (n == 3)
                 {
+                    Plugin.Instance.StartCoroutine(PlaysLute(Cell(10, 2) + Vector3.up * 1.2f));
                     if (hearthAt != null) Flicker(Stage.Glow(hearthAt.Value + Vector3.up * 1f, new Color(1f, 0.55f, 0.25f), 2f, 9f, root.transform), 2f);
                     // the hut's dim light through its windows and door, the hearth's smoke
                     Flicker(Stage.Glow(Cell(8, 3) + Vector3.up * 1.6f, new Color(1f, 0.6f, 0.3f), 1.4f, 9f, root.transform), 1.4f);
@@ -139,16 +128,14 @@ namespace Bretaheim.WorldGen
                 windowLight = null;
                 heldAnkh = heldAmulet = caseAnkh = caseGlass = bedAmulet = groundAnkh = groundAmulet = stuck = droppedSword = candle = null;
                 caseStep = 0;
+                lute = null;
                 shimmer = null;
                 hearthAt = null;
                 flickers.Clear();
                 beams.Clear();
-                painting = vision = visionOld = null;
-                foreach (var r in new[] { seen, seenOld }) if (r != null) Object.Destroy(r.gameObject);
-                seen = seenOld = null;
             }
 
-            /// <summary>Every frame: lights flicker, the visions find their place and fade.</summary>
+            /// <summary>Every frame: lights flicker, moonbeams wander.</summary>
             void TickEffects()
             {
                 foreach (var (light, strength, seed) in flickers)
@@ -161,22 +148,6 @@ namespace Bretaheim.WorldGen
                     beam.transform.rotation = Quaternion.LookRotation(to - beam.transform.position);
                     beam.intensity = 2.2f * Mathf.Clamp01(Mathf.PerlinNoise(Now * 0.25f + seed, 7f) * 2f - 0.4f);
                 }
-                float f = Mathf.Clamp01((Now - visionSince) / 2f);
-                if (seen != null) seen.color = new Color(1f, 1f, 1f, 0.2f * f);
-                if (seenOld != null)
-                {
-                    seenOld.color = new Color(1f, 1f, 1f, 0.2f * (1f - f));
-                    if (f >= 1f) { Object.Destroy(seenOld.gameObject); seenOld = null; }
-                }
-                if (vision == null) return;
-                float most = scene == 3 ? 0.7f : 0.4f;
-                Alpha(vision, most * f);
-                if (visionOld != null)
-                {
-                    Alpha(visionOld, most * (1f - f));
-                    if (f >= 1f) { Object.Destroy(visionOld.gameObject); visionOld = null; }
-                }
-                foreach (var r in new[] { vision, visionOld }) if (r != null) PlaceVision(r);
             }
 
             // ── the Summoning ─────────────────────────────────────────────────────────────────
@@ -567,6 +538,51 @@ namespace Bretaheim.WorldGen
 
             // ── the Welcoming ─────────────────────────────────────────────────────────────────
 
+            /// <summary>Iolo at his lute within, heard through the walls as the friends come up to the door.</summary>
+            IEnumerator PlaysLute(Vector3 at)
+            {
+                if (luteClip == null)
+                {
+                    var samples = Bretaheim.Data.Lute.Play();
+                    luteClip = AudioClip.Create("u5_iolos_lute", samples.Length, 1, Bretaheim.Data.Lute.Rate, false);
+                    luteClip.SetData(samples, 0);
+                }
+                var go = new GameObject("u5_intro_lute");
+                go.transform.SetParent(root.transform, false);
+                go.transform.position = at;
+                lute = go.AddComponent<AudioSource>();
+                lute.clip = luteClip;
+                lute.loop = true;
+                lute.spatialBlend = 1f;
+                lute.rolloffMode = AudioRolloffMode.Linear;
+                lute.minDistance = 6f;
+                lute.maxDistance = 45f;
+                lute.outputAudioMixerGroup = AudioMan.instance?.m_ambientMixer;
+                lute.volume = 0f;
+                lute.Play();
+                // (fading in, as if heard from the start of the tune)
+                float t0 = Now;
+                while (lute != null && lute.volume < 0.7f)
+                {
+                    lute.volume = Mathf.Clamp01((Now - t0) / 2f) * 0.7f;
+                    yield return null;
+                }
+            }
+
+            /// <summary>At the knock Iolo stops playing: the lute dies away in a moment.</summary>
+            IEnumerator LuteStops()
+            {
+                var source = lute;
+                lute = null;
+                float t0 = Now, from = source != null ? source.volume : 0f;
+                while (source != null && source.volume > 0f)
+                {
+                    source.volume = Mathf.Lerp(from, 0f, (Now - t0) / 0.6f);
+                    yield return null;
+                }
+                if (source != null) source.Stop();
+            }
+
             /// <summary>Iolo fills two mugs, steaming, on the table by the hearth.</summary>
             void Mugs()
             {
@@ -584,134 +600,6 @@ namespace Bretaheim.WorldGen
                     }
                     Particles("u5_intro_steam", at + Vector3.up * 0.22f, new Color(0.9f, 0.9f, 0.9f, 0.22f), 0.09f, 1.6f, 6f, 0.04f, 0.4f, 0.35f);
                 }
-            }
-
-            // ── the pictures ──────────────────────────────────────────────────────────────────
-
-            /// <summary>The paragraph now told shown as the story's own picture: the painting in the bedroom, else a vision.</summary>
-            void Illustrate(int p)
-            {
-                if (root == null || screens == null) return;
-                if (scene == 0)
-                {
-                    var tex = Art(p, false);
-                    if (painting != null && tex != null)
-                    {
-                        painting.material.mainTexture = tex;
-                        var s = painting.transform.localScale;
-                        painting.transform.localScale = new Vector3(s.x, s.x * tex.height / tex.width, 1f);
-                    }
-                    return;
-                }
-                int art = TaleArt.TryGetValue(p, out int other) ? other : p;
-                var look = Art(art, true);
-                if (look == null) return;
-                visionSince = Now;
-                if (scene == 3)
-                {
-                    if (visionOld != null) Object.Destroy(visionOld.gameObject);
-                    visionOld = vision;
-                    vision = Quad("u5_intro_vision", look, new Color(1f, 1f, 1f, 0f), 1f);
-                    PlaceVision(vision);
-                    return;
-                }
-                // out of doors: a memory over the dark of the view, as a film's double exposure
-                if (ui == null) return;
-                if (seenOld != null) Object.Destroy(seenOld.gameObject);
-                seenOld = seen;
-                var go = new GameObject("vision", typeof(RectTransform));
-                go.transform.SetParent(ui.transform, false);
-                go.transform.SetSiblingIndex(0);
-                seen = go.AddComponent<RawImage>();
-                seen.texture = look;
-                seen.raycastTarget = false;
-                seen.color = new Color(1f, 1f, 1f, 0f);
-                var rt = seen.rectTransform;
-                rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 1f);
-                rt.anchoredPosition = new Vector2(0f, -30f);
-                // (up at the top, out of the figures' way: no taller than a quarter of the screen)
-                float h = Mathf.Min(ui.GetComponent<RectTransform>().rect.height * 0.27f, 260f), w = h * look.width / look.height;
-                rt.sizeDelta = new Vector2(w, h);
-            }
-
-            /// <summary>A vision's place in the hut: above the hearth, in its smoke, facing the camera.</summary>
-            void PlaceVision(Renderer r)
-            {
-                var tex = r.sharedMaterial.mainTexture;
-                float aspect = tex != null ? (float)tex.height / tex.width : 0.7f;
-                var at = (hearthAt ?? Cell(10, 1)) + Vector3.up * (2.1f + 0.15f * Mathf.Sin(Now * 0.6f));
-                r.transform.position = at;
-                r.transform.rotation = Quaternion.LookRotation(at - camAt);
-                r.transform.localScale = new Vector3(2.2f, 2.2f * aspect, 1f);
-            }
-
-            /// <summary>A framed picture of the story on the wall at <paramref name="at"/> (its face), facing into the room.</summary>
-            Renderer Painting(Vector3 at, int p, float width)
-            {
-                var tex = Art(p, false);
-                if (tex == null) return null;
-                float h = width * tex.height / tex.width;
-                var inward = Inward();
-                Block("u5_intro_frame", at - inward * 0.03f, new Vector3(width + 0.14f, h + 0.14f, 0.05f), Lit(new Color(0.2f, 0.12f, 0.06f)));
-                var q = Quad("u5_intro_painting", tex, new Color(0.55f, 0.53f, 0.5f, 1f), 1f);
-                q.transform.position = at + inward * 0.01f;
-                q.transform.rotation = Quaternion.LookRotation(-inward);
-                q.transform.localScale = new Vector3(width, h, 1f);
-                return q;
-            }
-
-            /// <summary>The middle of the bedroom's north wall between two columns, on its inner face, at a picture's height.</summary>
-            Vector3 WallAt(int c0, int c1)
-            {
-                var at = (Cell(c0, 0) + Cell(c1, 0)) / 2f;
-                float into = Inward().z;
-                float face = at.z + into * 0.5f;
-                foreach (int c in new[] { c0, c1 })
-                    if (byCell.TryGetValue(MapCell(c, 0), out var list))
-                        foreach (var go in list)
-                        {
-                            var b = Bounds(go);
-                            if (b != null && b.Value.size.y > 1f) face = into > 0 ? Mathf.Max(face, b.Value.max.z) : Mathf.Min(face, b.Value.min.z);
-                        }
-                return new Vector3(at.x, Origin.y + 1.9f, face + into * 0.03f);
-            }
-
-            /// <summary>From the strip's first row into the room (the way its north wall faces).</summary>
-            Vector3 Inward() => new Vector3(0f, 0f, Mathf.Sign(Cell(0, 2).z - Cell(0, 0).z));
-
-            /// <summary>A story screen's picture: as drawn (pixels kept), or as a vision (soft, its dark parts and edges see-through).</summary>
-            Texture2D Art(int p, bool asVision)
-            {
-                if (screens == null || p < 0 || p >= screens.Count || screens[p].ArtW == 0) return null;
-                int key = p * 2 + (asVision ? 1 : 0);
-                if (arts.TryGetValue(key, out var made) && made != null) return made;
-                var page = screens[p];
-                int w = page.ArtW, h = page.ArtH;
-                var rgba = page.Art.Rgba();
-                var px = new Color32[w * h];
-                for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                {
-                    int i = ((page.ArtY + h - 1 - y) * Bretaheim.Data.Screen.W + page.ArtX + x) * 4;
-                    byte r = rgba[i], g = rgba[i + 1], b = rgba[i + 2], a = 255;
-                    if (asVision)
-                    {
-                        float ex = x / (w - 1f) * 2f - 1f, ey = y / (h - 1f) * 2f - 1f;
-                        float edge = Mathf.Clamp01((1f - Mathf.Sqrt(ex * ex + ey * ey) * 0.95f) * 2.4f);
-                        float lum = (0.3f * r + 0.59f * g + 0.11f * b) / 255f;
-                        a = (byte)(255 * edge * Mathf.SmoothStep(0.04f, 0.45f, lum));
-                        // a memory in moonlight: half its colours, half a cold blue
-                        r = (byte)Mathf.Lerp(r, lum * 150f, 0.55f);
-                        g = (byte)Mathf.Lerp(g, lum * 190f, 0.55f);
-                        b = (byte)Mathf.Lerp(b, lum * 255f, 0.55f);
-                    }
-                    px[y * w + x] = new Color32(r, g, b, a);
-                }
-                var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = asVision ? FilterMode.Bilinear : FilterMode.Point, name = $"u5_story_art{key}" };
-                tex.SetPixels32(px);
-                tex.Apply(false);
-                arts[key] = tex;
-                return tex;
             }
 
             // ── the things ────────────────────────────────────────────────────────────────────
@@ -817,7 +705,18 @@ namespace Bretaheim.WorldGen
                     b.transform.localPosition = at;
                     b.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
                 }
-                Stage.Glow(go.transform.position, new Color(0.6f, 0.2f, 1f), 2.5f, 4f, go.transform);
+                // wrapped in a smouldering red, that it be seen against the night, and a streak behind it in flight
+                var red = new Color(1f, 0.12f, 0.05f);
+                var aura = Particles("u5_intro_arrow_aura", go.transform.position, new Color(1f, 0.15f, 0.05f, 0.7f), 0.22f, 0.45f, 90f, 0.3f, 0f, 0.15f, 0.05f, go.transform);
+                aura.GetComponent<ParticleSystemRenderer>().sharedMaterial = Additive(Soft());
+                var streak = go.AddComponent<TrailRenderer>();
+                streak.time = 0.35f;
+                streak.widthCurve = AnimationCurve.Linear(0f, 0.14f, 1f, 0f);
+                streak.sharedMaterial = Additive(null);
+                streak.startColor = new Color(red.r, red.g, red.b, 0.9f);
+                streak.endColor = new Color(red.r, red.g, red.b, 0f);
+                streak.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                Stage.Glow(go.transform.position, red, 3f, 4f, go.transform);
                 return go;
             }
 
@@ -930,6 +829,15 @@ namespace Bretaheim.WorldGen
             static Material Unlit(Color colour, Texture texture = null)
             {
                 var m = new Material(Shader.Find("Sprites/Default")) { color = colour };
+                if (texture != null) m.mainTexture = texture;
+                return m;
+            }
+
+            /// <summary>Light added to what is behind (glows), else drawn as it is.</summary>
+            static Material Additive(Texture texture)
+            {
+                var shader = Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Particles/Additive") ?? Shader.Find("Sprites/Default");
+                var m = new Material(shader);
                 if (texture != null) m.mainTexture = texture;
                 return m;
             }

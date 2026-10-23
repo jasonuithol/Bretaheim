@@ -212,7 +212,7 @@ namespace Bretaheim.WorldGen
                 }
             }
 
-            /// <summary>The shots of Iolo's tale: the hearth and its visions, the table, the friend abed, by turns.</summary>
+            /// <summary>The shots of Iolo's tale: the hearth, the table, the friend abed, by turns.</summary>
             void TaleShot(int p)
             {
                 var hearth = hearthAt ?? Cell(10, 1);
@@ -220,7 +220,7 @@ namespace Bretaheim.WorldGen
                 switch (p % 3)
                 {
                     case 0:
-                        Shoot(Fixed(hearth + new Vector3(1.4f, 1.8f, -3.6f), hearth + Vector3.up * 1.7f), 0.35f, CloseFov);
+                        Shoot(Fixed(hearth + new Vector3(1.4f, 1.6f, -3.6f), hearth + Vector3.up * 1.1f), 0.35f, CloseFov);
                         break;
                     case 1:
                         Shoot(Fixed(table + new Vector3(-2.2f, 1.6f, -2.6f), table), 0.35f, CloseFov);

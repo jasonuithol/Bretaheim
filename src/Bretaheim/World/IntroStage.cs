@@ -116,7 +116,6 @@ namespace Bretaheim.WorldGen
             readonly Player me;
             readonly TheView view;
             readonly List<string> story;
-            readonly List<StoryScreen> screens;
             readonly SettlementPlanner planner;
             public readonly Vector3 Origin;
             readonly Vector3 home;
@@ -156,8 +155,7 @@ namespace Bretaheim.WorldGen
                 this.me = me;
                 var misc = ScenePlayer.Read("MISCMAPS.DAT") ?? throw new Exception("MISCMAPS.DAT not found");
                 view = new TheView(misc, Plugin.U5.Ovl);
-                screens = Story.Available(Plugin.U5.Directory) ? Story.Load(Plugin.U5.Directory, Plugin.U5.Ovl) : null;
-                story = screens?.Select(s => s.Text).ToList();
+                story = Story.Available(Plugin.U5.Directory) ? Story.Load(Plugin.U5.Directory, Plugin.U5.Ovl).Select(s => s.Text).ToList() : null;
                 planner = Settlements.Planner();
                 home = me.transform.position;
                 homeFacing = me.transform.rotation;
@@ -356,7 +354,6 @@ namespace Bretaheim.WorldGen
                 }
                 shown = p;
                 shownAt = Now;
-                Illustrate(p);
                 pages = Story.Pages(story[p]);
                 ShowPage(0);
             }
@@ -1048,6 +1045,7 @@ namespace Bretaheim.WorldGen
             {
                 var fx = ZNetScene.instance.GetPrefab("wood_door")?.GetComponent<Door>();
                 if (fx != null) fx.m_openEffects.Create(door + Vector3.up, Quaternion.identity);
+                Plugin.Instance.StartCoroutine(LuteStops());
             }
 
             // ── the words ─────────────────────────────────────────────────────────────────────
