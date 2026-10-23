@@ -37,6 +37,7 @@ namespace Bretaheim.WorldGen
             Vector3 glowAt;
             Vector3? hearthAt;
             readonly List<(Light light, float strength, float seed)> flickers = new List<(Light, float, float)>();
+            readonly List<(Light light, Vector3 over, float seed)> beams = new List<(Light, Vector3, float)>();
             Renderer painting;
             Renderer vision, visionOld;
             RawImage seen, seenOld;
@@ -105,8 +106,19 @@ namespace Bretaheim.WorldGen
                     candle.transform.SetParent(root.transform, true);
                     candle.transform.position = top;
                 }
+                if (n == 1)
+                {
+                    // moonbeams piercing the cloud cover, wandering over the woods
+                    for (int i = 0; i < 3; i++)
+                    {
+                        var beam = Stage.Spot(Cell(4 + i * 5, 1) + Vector3.up * 30f, Cell(4 + i * 5, 1), new Color(0.6f, 0.7f, 1f), 2.2f, 45f, 14f, root.transform).GetComponent<Light>();
+                        beam.name = "u5_intro_moonbeam";
+                        beams.Add((beam, Cell(4 + i * 5, 1), i * 2.1f));
+                    }
+                }
                 if (n == 3)
                 {
+                    if (hearthAt != null) Flicker(Stage.Glow(hearthAt.Value + Vector3.up * 1f, new Color(1f, 0.55f, 0.25f), 2f, 9f, root.transform), 2f);
                     // the hut's dim light through its windows and door, the hearth's smoke
                     Flicker(Stage.Glow(Cell(8, 3) + Vector3.up * 1.6f, new Color(1f, 0.6f, 0.3f), 1.4f, 9f, root.transform), 1.4f);
                     Flicker(Stage.Glow(Cell(5, 3) + Vector3.up * 1.4f, new Color(1f, 0.55f, 0.25f), 0.9f, 6f, root.transform), 0.9f);
@@ -130,6 +142,7 @@ namespace Bretaheim.WorldGen
                 shimmer = null;
                 hearthAt = null;
                 flickers.Clear();
+                beams.Clear();
                 painting = vision = visionOld = null;
                 foreach (var r in new[] { seen, seenOld }) if (r != null) Object.Destroy(r.gameObject);
                 seen = seenOld = null;
@@ -140,11 +153,19 @@ namespace Bretaheim.WorldGen
             {
                 foreach (var (light, strength, seed) in flickers)
                     if (light != null) light.intensity = strength * (0.8f + 0.4f * Mathf.PerlinNoise(Now * 2.5f + seed, seed));
+                foreach (var (beam, over, seed) in beams)
+                {
+                    if (beam == null) continue;
+                    // (drifting, and now and then lost behind a cloud)
+                    var to = over + new Vector3(Mathf.Sin(Now * 0.11f + seed) * 9f, 0f, Mathf.Cos(Now * 0.07f + seed) * 5f);
+                    beam.transform.rotation = Quaternion.LookRotation(to - beam.transform.position);
+                    beam.intensity = 2.2f * Mathf.Clamp01(Mathf.PerlinNoise(Now * 0.25f + seed, 7f) * 2f - 0.4f);
+                }
                 float f = Mathf.Clamp01((Now - visionSince) / 2f);
-                if (seen != null) seen.color = new Color(1f, 1f, 1f, 0.28f * f);
+                if (seen != null) seen.color = new Color(1f, 1f, 1f, 0.2f * f);
                 if (seenOld != null)
                 {
-                    seenOld.color = new Color(1f, 1f, 1f, 0.28f * (1f - f));
+                    seenOld.color = new Color(1f, 1f, 1f, 0.2f * (1f - f));
                     if (f >= 1f) { Object.Destroy(seenOld.gameObject); seenOld = null; }
                 }
                 if (vision == null) return;
@@ -570,7 +591,7 @@ namespace Bretaheim.WorldGen
             /// <summary>The paragraph now told shown as the story's own picture: the painting in the bedroom, else a vision.</summary>
             void Illustrate(int p)
             {
-                if (root == null || pages == null) return;
+                if (root == null || screens == null) return;
                 if (scene == 0)
                 {
                     var tex = Art(p, false);
@@ -661,10 +682,10 @@ namespace Bretaheim.WorldGen
             /// <summary>A story screen's picture: as drawn (pixels kept), or as a vision (soft, its dark parts and edges see-through).</summary>
             Texture2D Art(int p, bool asVision)
             {
-                if (pages == null || p < 0 || p >= pages.Count || pages[p].ArtW == 0) return null;
+                if (screens == null || p < 0 || p >= screens.Count || screens[p].ArtW == 0) return null;
                 int key = p * 2 + (asVision ? 1 : 0);
                 if (arts.TryGetValue(key, out var made) && made != null) return made;
-                var page = pages[p];
+                var page = screens[p];
                 int w = page.ArtW, h = page.ArtH;
                 var rgba = page.Art.Rgba();
                 var px = new Color32[w * h];
@@ -679,6 +700,10 @@ namespace Bretaheim.WorldGen
                         float edge = Mathf.Clamp01((1f - Mathf.Sqrt(ex * ex + ey * ey) * 0.95f) * 2.4f);
                         float lum = (0.3f * r + 0.59f * g + 0.11f * b) / 255f;
                         a = (byte)(255 * edge * Mathf.SmoothStep(0.04f, 0.45f, lum));
+                        // a memory in moonlight: half its colours, half a cold blue
+                        r = (byte)Mathf.Lerp(r, lum * 150f, 0.55f);
+                        g = (byte)Mathf.Lerp(g, lum * 190f, 0.55f);
+                        b = (byte)Mathf.Lerp(b, lum * 255f, 0.55f);
                     }
                     px[y * w + x] = new Color32(r, g, b, a);
                 }

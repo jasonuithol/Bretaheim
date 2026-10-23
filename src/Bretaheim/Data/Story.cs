@@ -36,6 +36,55 @@ namespace Bretaheim.Data
             return true;
         }
 
+        /// <summary>
+        /// A paragraph in pages to read one at a time under a scene: its own lines kept apart, a
+        /// long one broken between sentences (never inside a quotation's sentence), each page at
+        /// most about <paramref name="most"/> words unless one sentence is longer.
+        /// </summary>
+        public static List<string> Pages(string text, int most = 45)
+        {
+            var pages = new List<string>();
+            foreach (var line in text.Split('\n'))
+            {
+                var sentences = new List<string>();
+                var current = new StringBuilder();
+                for (int i = 0; i < line.Length; i++)
+                {
+                    current.Append(line[i]);
+                    // a sentence ends at . ! ? (and any closing quote after it) before a space
+                    if ((line[i] == '.' || line[i] == '!' || line[i] == '?'))
+                    {
+                        while (i + 1 < line.Length && (line[i + 1] == '"' || line[i + 1] == '\'')) current.Append(line[++i]);
+                        if (i + 1 >= line.Length || line[i + 1] == ' ')
+                        {
+                            sentences.Add(current.ToString().Trim());
+                            current.Clear();
+                        }
+                    }
+                }
+                if (current.ToString().Trim().Length > 0) sentences.Add(current.ToString().Trim());
+                var page = new StringBuilder();
+                int words = 0;
+                foreach (var sentence in sentences)
+                {
+                    int n = Words(sentence);
+                    if (words > 0 && words + n > most)
+                    {
+                        pages.Add(page.ToString());
+                        page.Clear();
+                        words = 0;
+                    }
+                    if (page.Length > 0) page.Append(' ');
+                    page.Append(sentence);
+                    words += n;
+                }
+                if (page.Length > 0) pages.Add(page.ToString());
+            }
+            return pages;
+        }
+
+        public static int Words(string text) => text.Split(new[] { ' ', '\n' }, System.StringSplitOptions.RemoveEmptyEntries).Length;
+
         public static List<StoryScreen> Load(string dir, DataOvl ovl)
         {
             byte[] Read(string name) => File.ReadAllBytes(U5Data.FindFile(dir, name));

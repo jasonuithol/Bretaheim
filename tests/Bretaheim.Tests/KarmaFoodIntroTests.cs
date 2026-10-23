@@ -137,6 +137,29 @@ namespace Bretaheim.Tests
             Assert.Contains(screens[2].Picture.Pixels, p => p == 15);
         }
 
+        [Fact]
+        public void AParagraphIsReadInPagesBetweenSentences()
+        {
+            var text = "One two three. \"Four five six!\" Seven eight nine ten. Eleven.\nA new line here.";
+            Assert.Equal(new[] { "One two three. \"Four five six!\"", "Seven eight nine ten. Eleven.", "A new line here." }, Story.Pages(text, 6));
+            // a sentence longer than a page is a page of its own; nothing lost or added
+            var pages = Story.Pages(text, 2);
+            Assert.Equal(Story.Words(text), pages.Sum(Story.Words));
+            Assert.Contains("Seven eight nine ten.", pages);
+            Assert.Single(Story.Pages("Mr. Smith"));
+        }
+
+        [U5Fact]
+        public void TheIntroductionsLongParagraphsTurnInPages()
+        {
+            foreach (var screen in Story.Load(Env.U5Dir, Env.Data.Ovl))
+            {
+                var pages = Story.Pages(screen.Text);
+                Assert.Equal(Story.Words(screen.Text), pages.Sum(Story.Words));
+                Assert.All(pages, page => Assert.True(Story.Words(page) <= 70, page));
+            }
+        }
+
         [U5Fact]
         public void EachIntroductionScreenHasItsPictureAlone()
         {

@@ -90,7 +90,7 @@ namespace Bretaheim.Data
         /// A scene on a 32×32 settlement-sized map (the strip at <see cref="StageX"/>, <see cref="StageY"/>)
         /// for building it in the world: the bedroom alone in nothing; out of doors, forest to the
         /// north (none on the strip's own edge, nor south of it, where the onlooker stands) and
-        /// grass south; Iolo's hut closed by a cobble wall to the north and one to the south with
+        /// grass six rows south (where the friends come to Iolo's door from); Iolo's hut closed by a cobble wall to the north and one to the south with
         /// its door under the doorway the script walks through (8, 4).
         /// </summary>
         public byte[] Stage(int scene)
@@ -105,7 +105,7 @@ namespace Bretaheim.Data
                 {
                     int north = StageY - y, south = y - (StageY + Rows - 1);
                     if (north >= 2 && north <= 7) t = rng.NextDouble() < 0.18 + 0.08 * north ? Tree : (byte)5;
-                    else if (north == 1 || (south >= 1 && south <= 3)) t = 5;
+                    else if (north == 1 || (south >= 1 && south <= 6)) t = 5;
                     else if (north <= 0 && south <= 0 && (x < StageX || x >= StageX + Columns)) t = rng.NextDouble() < 0.5 ? Tree : (byte)5;
                 }
                 raw[y * StageSize + x] = t;

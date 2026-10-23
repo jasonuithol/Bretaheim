@@ -34,8 +34,10 @@ namespace Bretaheim.WorldGen
         const float Height = 3000f, Below = 40f;
         /// <summary>Our seconds for one of the original's: its figures stride a 2 m tile in 7 ticks.</summary>
         const float Tempo = 2.2f;
-        /// <summary>Words read a second; a paragraph stays at least <see cref="MinRead"/> seconds.</summary>
-        const float ReadRate = 3.2f, MinRead = 6f;
+        /// <summary>Words read a second; a page stays at least <see cref="MinRead"/> seconds.</summary>
+        const float ReadRate = 4f, MinRead = 4f;
+        /// <summary>The script's own pauses go quicker than its walking (<see cref="Tempo"/>): it waits on the words anyway.</summary>
+        const float WaitTempo = 1.3f;
         /// <summary>Where in the View's script each paragraph of the Introduction begins to be told (offset → story screen).</summary>
         static readonly Dictionary<int, int> Cues = new Dictionary<int, int>
         {
@@ -114,7 +116,7 @@ namespace Bretaheim.WorldGen
             readonly Player me;
             readonly TheView view;
             readonly List<string> story;
-            readonly List<StoryScreen> pages;
+            readonly List<StoryScreen> screens;
             readonly SettlementPlanner planner;
             public readonly Vector3 Origin;
             readonly Vector3 home;
@@ -123,6 +125,7 @@ namespace Bretaheim.WorldGen
             /// <summary>The scene to begin with (the ones before are passed over).</summary>
             public int From;
             bool hudWas;
+            float started;
 
             GameObject root, slab;
             public GameObject Root => root;
@@ -141,8 +144,9 @@ namespace Bretaheim.WorldGen
             GameObject ui;
             Image fader;
             Text title, words, hint;
-            float titleUntil, shownAt, readFor;
-            int shown = -1;
+            float titleUntil, shownAt, readFor, pageAt;
+            int shown = -1, page;
+            List<string> pages;
             bool next;
 
             Vector3 camAt, camLook;
@@ -152,8 +156,8 @@ namespace Bretaheim.WorldGen
                 this.me = me;
                 var misc = ScenePlayer.Read("MISCMAPS.DAT") ?? throw new Exception("MISCMAPS.DAT not found");
                 view = new TheView(misc, Plugin.U5.Ovl);
-                pages = Story.Available(Plugin.U5.Directory) ? Story.Load(Plugin.U5.Directory, Plugin.U5.Ovl) : null;
-                story = pages?.Select(s => s.Text).ToList();
+                screens = Story.Available(Plugin.U5.Directory) ? Story.Load(Plugin.U5.Directory, Plugin.U5.Ovl) : null;
+                story = screens?.Select(s => s.Text).ToList();
                 planner = Settlements.Planner();
                 home = me.transform.position;
                 homeFacing = me.transform.rotation;
@@ -163,6 +167,7 @@ namespace Bretaheim.WorldGen
             public IEnumerator Run()
             {
                 Stage.SafeSpot = home;
+                started = Now;
                 Stage.Darkness(true);
                 BuildUi();
                 SetFade(1f);
@@ -185,6 +190,7 @@ namespace Bretaheim.WorldGen
                     if (ev.Kind == ViewEventKind.Scene) passing = ev.Scene < From;
                     if (passing) continue;
                     if (Cues.TryGetValue(ev.At, out int p) && ev.Kind != ViewEventKind.Scene) yield return Say(p);
+                    Frame(ev);
                     // what the Introduction tells that the View does not show (Effects)
                     bool instead = false;
                     var before = Before(ev, () => instead = true);
@@ -200,7 +206,7 @@ namespace Bretaheim.WorldGen
                             yield return Fade(0f, 1.5f);
                             break;
                         case ViewEventKind.Wait:
-                            yield return Wait(Frames(ev.Frames));
+                            yield return Wait(ev.Frames * TheView.Tick * WaitTempo);
                             break;
                         case ViewEventKind.Place:
                             yield return Place(ev);
@@ -280,20 +286,8 @@ namespace Bretaheim.WorldGen
                     nextFlash = Now + UnityEngine.Random.Range(4f, 10f);
                     Plugin.Instance.StartCoroutine(Flash(Origin + new Vector3(UnityEngine.Random.Range(-30f, 30f), 0f, UnityEngine.Random.Range(5f, 30f)), UnityEngine.Random.Range(0.4f, 0.8f)));
                 }
-                // the camera: above and south of the figures (the original looks down on its strip)
-                var focus = Focus();
-                var offset = scene == 0 ? new Vector3(0f, 8.5f, -9f) : tale ? new Vector3(0f, 5.5f, -7f) : new Vector3(0f, 8f, -11f);
-                float k = 1f - Mathf.Exp(-dt * (tale ? 0.3f : 1.2f));
-                camLook = Vector3.Lerp(camLook, focus, k);
-                // a soft light from above the onlooker on whatever they look at
-                if (lamp != null)
-                {
-                    lamp.transform.position = camLook + new Vector3(0f, 9f, -5f);
-                    lamp.transform.rotation = Quaternion.LookRotation(camLook - lamp.transform.position);
-                }
-                camAt = Vector3.Lerp(camAt, focus + offset, k);
-                Stage.CameraAt = camAt;
-                Stage.LookAt = camLook + Vector3.down * 1.2f;
+                // the camera (Camera: the shot of the moment, else above and south of the figures)
+                MoveCamera(dt);
                 TickEffects();
                 // the words
                 if (title != null && titleUntil > 0)
@@ -306,6 +300,7 @@ namespace Bretaheim.WorldGen
                 }
                 if (ZInput.GetKeyDown(KeyCode.Escape)) Skipped = true;
                 if (ZInput.GetKeyDown(KeyCode.Space) || ZInput.GetKeyDown(KeyCode.E) || ZInput.GetButtonDown("JoyUse")) next = true;
+                TurnPages();
             }
 
             /// <summary>What the camera looks at: the Avatar, else everyone on the stage, else the strip's middle; Iolo's table for his tale.</summary>
@@ -338,37 +333,61 @@ namespace Bretaheim.WorldGen
             }
 
             /// <summary>
-            /// The next paragraph of the Introduction (−1: none): when the last has been on long
-            /// enough to read (or Space was pressed), the figures still moving meanwhile.
+            /// The next paragraph of the Introduction (−1: none), once the last has been read: its
+            /// pages turn by themselves as long as each takes to read (Space turns one sooner), the
+            /// figures moving meanwhile; a scene waits only for its paragraph's last page.
             /// </summary>
             IEnumerator Say(int p)
             {
-                next = false;
-                while (shown >= 0 && Now < shownAt + readFor && !next && Here && !Skipped)
+                float held = Now;
+                while (shown >= 0 && !Read() && Here && !Skipped)
                 {
                     Tick();
                     yield return null;
                 }
+                if (Speed != 1f && shown >= 0) Plugin.Log.LogInfo($"Intro timing: paragraph {shown} was up {Now - shownAt:0.0} s ({pages?.Count ?? 0} pages), the scene held {Now - held:0.0} s for it; at {Now - started:0.0} s");
                 next = false;
                 if (p < 0 || story == null || p >= story.Count)
                 {
                     if (words != null) words.transform.parent.gameObject.SetActive(false);
                     shown = -1;
+                    pages = null;
                     yield break;
                 }
                 shown = p;
                 shownAt = Now;
                 Illustrate(p);
-                string text = story[p];
-                readFor = Mathf.Max(MinRead, text.Split(new[] { ' ', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length / ReadRate);
-                if (words != null)
+                pages = Story.Pages(story[p]);
+                ShowPage(0);
+            }
+
+            /// <summary>The paragraph's last page has been read (or Space pressed on it).</summary>
+            bool Read() => pages == null || (page >= pages.Count - 1 && (next || Now >= pageAt + readFor));
+
+            /// <summary>Every frame: the page turned once read.</summary>
+            void TurnPages()
+            {
+                if (pages == null || page >= pages.Count - 1) return;
+                if (next || Now >= pageAt + readFor)
                 {
-                    words.transform.parent.gameObject.SetActive(true);
-                    words.text = text;
-                    float h = LayoutUtility.GetPreferredHeight(words.rectTransform);
-                    words.rectTransform.sizeDelta = new Vector2(words.rectTransform.sizeDelta.x, h);
-                    ((RectTransform)words.transform.parent).sizeDelta = new Vector2(((RectTransform)words.transform.parent).sizeDelta.x, h + 22);
+                    next = false;
+                    ShowPage(page + 1);
                 }
+            }
+
+            void ShowPage(int i)
+            {
+                page = i;
+                pageAt = Now;
+                string text = pages[i];
+                readFor = Mathf.Max(MinRead, Story.Words(text) / ReadRate);
+                if (tale) TaleShot(shown * 3 + i);
+                if (words == null) return;
+                words.transform.parent.gameObject.SetActive(true);
+                words.text = text;
+                float h = LayoutUtility.GetPreferredHeight(words.rectTransform);
+                words.rectTransform.sizeDelta = new Vector2(words.rectTransform.sizeDelta.x, h);
+                ((RectTransform)words.transform.parent).sizeDelta = new Vector2(((RectTransform)words.transform.parent).sizeDelta.x, h + 22);
             }
 
             // ── the set ───────────────────────────────────────────────────────────────────────
@@ -403,8 +422,12 @@ namespace Bretaheim.WorldGen
                 Light(n);
                 SetDressing(n);
                 Plugin.Log.LogInfo($"Intro stage: \"{view.Caption[n]}\" built of {built} of {plan.Pieces.Count} pieces");
-                camLook = Focus();
-                camAt = camLook + new Vector3(0f, 8f, -11f);
+                // the scene's first shot, the camera easing in to it from a little further off
+                fill = null;
+                Opening(n);
+                cutting = true;
+                MoveCamera(0f);
+                camAt += (camAt - camLook).normalized * 2.5f + Vector3.up * 0.5f;
             }
 
             /// <summary>One piece of the plan, its look only; a bed's or a chair's place to lie or sit kept.</summary>
@@ -585,7 +608,8 @@ namespace Bretaheim.WorldGen
                 moon.color = new Color(0.55f, 0.65f, 1f);
                 moon.intensity = n == 0 ? 0.15f : n == 2 ? 0.3f : n == 3 ? 0.45f : 0.75f;
                 moon.shadows = n == 1 ? LightShadows.Soft : LightShadows.None;
-                lamp = Stage.Spot(Origin + Vector3.up * 9f, Origin, new Color(0.75f, 0.8f, 1f), n == 3 ? 0.9f : 1.3f, 32f, 100f, root.transform).GetComponent<Light>();
+                // (a point light, not a spot: no edge to its pool)
+                lamp = Stage.Glow(Origin + Vector3.up * 7f, n == 3 ? new Color(1f, 0.82f, 0.62f) : new Color(0.72f, 0.78f, 1f), n == 0 ? 0.7f : n == 3 ? 0.6f : 1.1f, 24f, root.transform).GetComponent<Light>();
                 if (n == 0)
                 {
                     // moonlight through the west window onto the bed
@@ -1095,6 +1119,7 @@ namespace Bretaheim.WorldGen
                 if (ui != null) Object.Destroy(ui);
                 Stage.Darkness(false);
                 Stage.Held = false;
+                Stage.Fov = 0f;
                 Stage.SafeSpot = null;
                 if (Hud.instance != null) Hud.instance.m_userHidden = hudWas;
                 if (me != null && !me.IsDead() && me == Player.m_localPlayer) me.TeleportTo(home, homeFacing, false);
