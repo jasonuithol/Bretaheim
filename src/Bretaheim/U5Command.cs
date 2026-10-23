@@ -26,7 +26,7 @@ namespace Bretaheim
 
         static void InitTerminal_Postfix()
         {
-            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter [type [body]] (devcommands) brings a random encounter, or one creature of that type before you (in that Valheim body); u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 pouch [give reagent|spell <i> <n> | ready <spell>] the reagents and spells held, u5 type <text> answers the open text box (tests); u5 intro [2d | scene] replays the introduction (in the world, from scene 0..3, or the original's screens); u5 karma [n]; u5 exp [n] (setting needs devcommands); u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance; u5 quest: the state of the quest; u5 resurrect [2d], u5 blackthorn and u5 endgame [box] (devcommands) play Blackthorn's interrogation and Lord British's rescue; u5 under [<x> <y> | surface <x> <y> | falls | whirlpool | doom | ararat | <dungeon>] where you are, or (devcommands) to the Underworld; u5 vessel frigate|skiff|pirates|horse (devcommands) brings one",
+            new Terminal.ConsoleCommand("u5", "Ultima V data: u5 dump <locations|map|npcs|talk|items|monsters|spells|...> [args]; u5 encounter [type [body]] (devcommands) brings a random encounter, or one creature of that type before you (in that Valheim body); u5 play <notes> plays the harpsichord you stand at; u5 press next|skip|<letter>|<button> presses on the Ultima screens and the talk panel; u5 key cast|mix|close and u5 mix <spell> [n] do the magic keys, u5 pouch [give reagent|spell <i> <n> | ready <spell>] the reagents and spells held, u5 type <text> answers the open text box (tests); u5 intro [fast] [2d | scene] replays the introduction (in the world, from scene 0..3, or the original's screens; fast: four times as fast); u5 karma [n]; u5 exp [n] (setting needs devcommands); u5 unmake (devcommands) to meet Hildir again; u5 time | moons | dusk | dawn | midnight: Britannia's clock, moons and moongates; u5 dungeon <name> (devcommands) takes you to a dungeon entrance; u5 quest: the state of the quest; u5 resurrect [2d], u5 blackthorn and u5 endgame [box] (devcommands) play Blackthorn's interrogation and Lord British's rescue; u5 under [<x> <y> | surface <x> <y> | falls | whirlpool | doom | ararat | <dungeon>] where you are, or (devcommands) to the Underworld; u5 vessel frigate|skiff|pirates|horse (devcommands) brings one",
                 delegate (Terminal.ConsoleEventArgs args) { Run(args.Context, args.Args.Skip(1).ToArray()); });
         }
 
@@ -159,7 +159,13 @@ namespace Bretaheim
                 var me = Player.m_localPlayer;
                 if (me == null || WorldGen.Britannia.Active == null) { Print($"u5 {args[0]}: only in Britannia"); return; }
                 if (args[0] == "intro" && args.Length > 2 && args[1] == "hide") Print(WorldGen.IntroStage.Toggle(args[2]));
-                else if (args[0] == "intro") Plugin.Instance.StartCoroutine(WorldGen.Intro.Play(args.Length > 1 && args[1] == "2d", args.Length > 1 && int.TryParse(args[1], out int from) ? from : 0));
+                else if (args[0] == "intro")
+                {
+                    // (u5 intro fast [scene]: four times as fast, for looking it over)
+                    bool fast = args.Length > 1 && args[1] == "fast";
+                    if (fast) { WorldGen.IntroStage.Speed = 4f; args = args.Where((_, i) => i != 1).ToArray(); }
+                    Plugin.Instance.StartCoroutine(WorldGen.Intro.Play(args.Length > 1 && args[1] == "2d", args.Length > 1 && int.TryParse(args[1], out int from) ? from : 0));
+                }
                 else if (args[0] == "karma" && args.Length > 1 && Terminal.m_cheat && int.TryParse(args[1], out int k)) { Karma.Set(me.m_customData, k); Print($"karma {Karma.Get(me.m_customData)}"); }
                 else if (args[0] == "karma") Print($"karma {WorldGen.KarmaDeeds.Of(me)}{(WorldGen.KarmaDeeds.WearsAnkh(me) ? $" ({Karma.Get(me.m_customData)} and the Ankh's {Karma.AnkhBonus})" : "")}");
                 else if (args[0] == "exp")

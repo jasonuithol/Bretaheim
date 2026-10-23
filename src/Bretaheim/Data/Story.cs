@@ -11,6 +11,9 @@ namespace Bretaheim.Data
         /// <summary>The same screen once its extra picture has appeared (hook 2: the dissolve), or null.</summary>
         public Screen After;
         public string Text;
+        /// <summary>The screen's pictures alone (no headings, no words; the second picture too), and the rectangle they fill.</summary>
+        public Screen Art;
+        public int ArtX, ArtY, ArtW, ArtH;
     }
 
     /// <summary>
@@ -53,9 +56,19 @@ namespace Bretaheim.Data
                     else if (s == 7) { screen.Draw(text[0], 0xe8, 0x1a); screen.Draw(text[2], 200, 0x36); }
                     else if (s == 14) { screen.Draw(text[0], 0xb8, 0); screen.Draw(text[3], 0xf8, 0); }
                 }
+                var art = new Screen();
+                int ax0 = Screen.W, ay0 = Screen.H, ax1 = 0, ay1 = 0;
+                void Picture(U5Image img, int x, int y)
+                {
+                    if (img == null) return;
+                    screen.Draw(img, x, y);
+                    art.Draw(img, x, y);
+                    ax0 = System.Math.Min(ax0, x & ~7); ay0 = System.Math.Min(ay0, y);
+                    ax1 = System.Math.Max(ax1, (x & ~7) + img.Width); ay1 = System.Math.Max(ay1, y + img.Height);
+                }
                 int px = ovl.U8(Dg.StoryPicX + s), py = ovl.U8(Dg.StoryPicY + s);
-                screen.Draw(story[ovl.U8(Dg.StoryImageIndex + s)], px, py);
-                if (hook > 3) screen.Draw(story[hook * 2 - 5], px, py + TextBelow);
+                Picture(story[ovl.U8(Dg.StoryImageIndex + s)], px, py);
+                if (hook > 3) Picture(story[hook * 2 - 5], px, py + TextBelow);
                 var layout = new TextLayout
                 {
                     Left0 = ovl.U8(Dg.StoryLeftX + s * 2), Left1 = ovl.U8(Dg.StoryLeftX + s * 2 + 1),
@@ -67,7 +80,7 @@ namespace Bretaheim.Data
                 if (hook == 3)
                 {
                     // the blue door
-                    screen.Draw(story[3], 0x60, 0x27);
+                    Picture(story[3], 0x60, 0x27);
                     var first = Encoding.ASCII.GetBytes(ovl.CStr(Dg.StrMoongateEnter));
                     screen.Text(first, font, layout);
                     layout.Y = 0xb4;
@@ -82,13 +95,16 @@ namespace Bretaheim.Data
                     screen.Text(para, font, layout);
                     words.Append(Screen.Plain(para));
                 }
-                var shown = new StoryScreen { Picture = screen, Text = words.ToString().Trim() };
+                var shown = new StoryScreen { Picture = screen, Text = words.ToString().Trim(), Art = art };
                 if (hook == 2)
                 {
                     shown.After = new Screen();
                     System.Array.Copy(screen.Pixels, shown.After.Pixels, screen.Pixels.Length);
                     shown.After.Draw(story[2], 0x28, 0x56);
+                    art.Draw(story[2], 0x28, 0x56);
                 }
+                ax1 = System.Math.Min(ax1, Screen.W); ay1 = System.Math.Min(ay1, Screen.H);
+                if (ax1 > ax0 && ay1 > ay0) { shown.ArtX = ax0; shown.ArtY = ay0; shown.ArtW = ax1 - ax0; shown.ArtH = ay1 - ay0; }
                 r.Add(shown);
             }
             return r;

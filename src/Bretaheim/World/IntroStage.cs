@@ -25,9 +25,11 @@ namespace Bretaheim.WorldGen
     /// below the stage; Space goes on from a paragraph, Escape skips the rest. Nothing is
     /// networked and everything is cleaned up, also when it ends early.
     /// </summary>
-    public static class IntroStage
+    public static partial class IntroStage
     {
         public static bool Playing { get; private set; }
+        /// <summary>How many times faster than life the next playing goes (u5 intro fast: for looking it over).</summary>
+        public static float Speed = 1f;
         /// <summary>Above the player's spot, out of every other system's way (as the raising's stage).</summary>
         const float Height = 3000f, Below = 40f;
         /// <summary>Our seconds for one of the original's: its figures stride a 2 m tile in 7 ticks.</summary>
@@ -88,6 +90,7 @@ namespace Bretaheim.WorldGen
             {
                 d.Clean();
                 Playing = false;
+                Speed = 1f;
                 Plugin.Log.LogInfo($"Intro stage over ({(d.Skipped ? "skipped" : "to the end")})");
             }
             done?.Invoke(true);
@@ -106,11 +109,12 @@ namespace Bretaheim.WorldGen
         }
 
         /// <summary>The scene being played: its set, figures, words and camera.</summary>
-        class Director
+        partial class Director
         {
             readonly Player me;
             readonly TheView view;
             readonly List<string> story;
+            readonly List<StoryScreen> pages;
             readonly SettlementPlanner planner;
             public readonly Vector3 Origin;
             readonly Vector3 home;
@@ -148,7 +152,8 @@ namespace Bretaheim.WorldGen
                 this.me = me;
                 var misc = ScenePlayer.Read("MISCMAPS.DAT") ?? throw new Exception("MISCMAPS.DAT not found");
                 view = new TheView(misc, Plugin.U5.Ovl);
-                story = Story.Available(Plugin.U5.Directory) ? Story.Load(Plugin.U5.Directory, Plugin.U5.Ovl).Select(s => s.Text).ToList() : null;
+                pages = Story.Available(Plugin.U5.Directory) ? Story.Load(Plugin.U5.Directory, Plugin.U5.Ovl) : null;
+                story = pages?.Select(s => s.Text).ToList();
                 planner = Settlements.Planner();
                 home = me.transform.position;
                 homeFacing = me.transform.rotation;
@@ -163,7 +168,7 @@ namespace Bretaheim.WorldGen
                 SetFade(1f);
                 // out of sight below the stage (a player just arrived may not teleport for 2 s)
                 slab = Stage.Floor(Origin + Vector3.down * Below);
-                for (float t = 0f; !me.TeleportTo(Origin + Vector3.down * (Below - 0.1f), Quaternion.identity, false) && t < 5f; t += Time.deltaTime)
+                for (float t = 0f; !me.TeleportTo(Origin + Vector3.down * (Below - 0.1f), Quaternion.identity, false) && t < 5f; t += Dt)
                 {
                     yield return null;
                     if (!Here) yield break;
@@ -172,12 +177,19 @@ namespace Bretaheim.WorldGen
 
                 if (Hud.instance != null) { hudWas = Hud.instance.m_userHidden; Hud.instance.m_userHidden = true; }
                 bool passing = From > 0;
+                // (begun later: the Avatar has the Ankh and the amulet already)
+                ankhHeld = amuletHeld = From > 0;
                 foreach (var ev in view.Run())
                 {
                     if (!Here || Skipped) yield break;
                     if (ev.Kind == ViewEventKind.Scene) passing = ev.Scene < From;
                     if (passing) continue;
                     if (Cues.TryGetValue(ev.At, out int p) && ev.Kind != ViewEventKind.Scene) yield return Say(p);
+                    // what the Introduction tells that the View does not show (Effects)
+                    bool instead = false;
+                    var before = Before(ev, () => instead = true);
+                    if (before != null) yield return before;
+                    if (instead) continue;
                     switch (ev.Kind)
                     {
                         case ViewEventKind.Scene:
@@ -217,6 +229,8 @@ namespace Bretaheim.WorldGen
                             yield return Bolt(ev.Slot, Frames(ev.Frames));
                             break;
                     }
+                    var after = After(ev);
+                    if (after != null) yield return after;
                 }
                 // Iolo's tale, by the hearth
                 tale = true;
@@ -225,6 +239,9 @@ namespace Bretaheim.WorldGen
                 yield return Say(-1);
                 if (Here && !Skipped) yield return Fade(1f, 2f);
             }
+
+            static float Now => Time.time * Speed;
+            static float Dt => Time.deltaTime * Speed;
 
             bool Here => me != null && me == Player.m_localPlayer && !me.IsDead();
 
@@ -235,7 +252,7 @@ namespace Bretaheim.WorldGen
             /// <summary>One frame of the scene: the figures walk, the camera follows, the keys are read.</summary>
             void Tick()
             {
-                float dt = Time.deltaTime;
+                float dt = Dt;
                 foreach (var a in slots)
                 {
                     if (a?.Go == null || a.Still) continue;
@@ -258,9 +275,9 @@ namespace Bretaheim.WorldGen
                     }
                 }
                 // the storm
-                if (Time.time > nextFlash)
+                if (Now > nextFlash)
                 {
-                    nextFlash = Time.time + UnityEngine.Random.Range(4f, 10f);
+                    nextFlash = Now + UnityEngine.Random.Range(4f, 10f);
                     Plugin.Instance.StartCoroutine(Flash(Origin + new Vector3(UnityEngine.Random.Range(-30f, 30f), 0f, UnityEngine.Random.Range(5f, 30f)), UnityEngine.Random.Range(0.4f, 0.8f)));
                 }
                 // the camera: above and south of the figures (the original looks down on its strip)
@@ -277,10 +294,11 @@ namespace Bretaheim.WorldGen
                 camAt = Vector3.Lerp(camAt, focus + offset, k);
                 Stage.CameraAt = camAt;
                 Stage.LookAt = camLook + Vector3.down * 1.2f;
+                TickEffects();
                 // the words
                 if (title != null && titleUntil > 0)
                 {
-                    float left = titleUntil - Time.time;
+                    float left = titleUntil - Now;
                     var c = title.color;
                     c.a = Mathf.Clamp01(left / 1.5f);
                     title.color = c;
@@ -311,12 +329,12 @@ namespace Bretaheim.WorldGen
 
             IEnumerator Wait(float seconds)
             {
-                float until = Time.time + seconds;
+                float until = Now + seconds;
                 do
                 {
                     Tick();
                     yield return null;
-                } while (Time.time < until && Here && !Skipped);
+                } while (Now < until && Here && !Skipped);
             }
 
             /// <summary>
@@ -326,7 +344,7 @@ namespace Bretaheim.WorldGen
             IEnumerator Say(int p)
             {
                 next = false;
-                while (shown >= 0 && Time.time < shownAt + readFor && !next && Here && !Skipped)
+                while (shown >= 0 && Now < shownAt + readFor && !next && Here && !Skipped)
                 {
                     Tick();
                     yield return null;
@@ -339,7 +357,8 @@ namespace Bretaheim.WorldGen
                     yield break;
                 }
                 shown = p;
-                shownAt = Time.time;
+                shownAt = Now;
+                Illustrate(p);
                 string text = story[p];
                 readFor = Mathf.Max(MinRead, text.Split(new[] { ' ', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length / ReadRate);
                 if (words != null)
@@ -382,6 +401,7 @@ namespace Bretaheim.WorldGen
                 // the hut is seen into, but for the Avatar's knock at its door
                 foreach (var go in front) go.SetActive(false);
                 Light(n);
+                SetDressing(n);
                 Plugin.Log.LogInfo($"Intro stage: \"{view.Caption[n]}\" built of {built} of {plan.Pieces.Count} pieces");
                 camLook = Focus();
                 camAt = camLook + new Vector3(0f, 8f, -11f);
@@ -415,6 +435,7 @@ namespace Bretaheim.WorldGen
                 }
                 // fires burn (but the Summoning's hearth: a cold night, all asleep)
                 if (scene != 0 && (name == "fire_pit" || name == "hearth" || name == "piece_walltorch")) DungeonLooks.Burn(go);
+                Remember(name, go);
                 return go;
             }
 
@@ -569,9 +590,9 @@ namespace Bretaheim.WorldGen
                 {
                     // moonlight through the west window onto the bed
                     var window = Cell(2, 2);
-                    Stage.Spot(window + new Vector3(-3f, 4f, 0f), Cell(3, 3), new Color(0.6f, 0.7f, 1f), 3.5f, 16f, 70f, root.transform);
+                    windowLight = Stage.Spot(window + new Vector3(-3f, 4f, 0f), Cell(3, 3), new Color(0.6f, 0.7f, 1f), 3.5f, 16f, 70f, root.transform).GetComponent<Light>();
                 }
-                nextFlash = n == 2 ? Time.time + 2f : float.MaxValue;
+                nextFlash = n == 2 ? Now + 2f : float.MaxValue;
             }
 
             IEnumerator Flash(Vector3 at, float strength)
@@ -600,6 +621,7 @@ namespace Bretaheim.WorldGen
                 if (root != null) Object.Destroy(root);
                 root = null;
                 byCell.Clear(); seats.Clear(); front.Clear();
+                ClearEffects();
                 nextFlash = float.MaxValue;
             }
 
@@ -609,7 +631,10 @@ namespace Bretaheim.WorldGen
                 if (!byCell.TryGetValue(MapCell(x, y), out var list)) return;
                 foreach (var go in list)
                     if (go != null && go.name.IndexOf("door", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        if (go.activeSelf != (tile == TheView.Door)) DoorSound(go.transform.position, tile != TheView.Door);
                         go.SetActive(tile == TheView.Door);
+                    }
             }
 
             // ── the figures ───────────────────────────────────────────────────────────────────
@@ -720,6 +745,12 @@ namespace Bretaheim.WorldGen
                         a.Go = Circle(at + Vector3.up * 2.4f);
                         a.Still = true;
                         break;
+                    case "ankh" when caseAnkh != null:
+                        a.Go = new GameObject("u5_intro_nobody");
+                        a.Go.transform.SetParent(root.transform, false);
+                        a.Still = true;
+                        Plugin.Instance.StartCoroutine(OpenCase());
+                        break;
                     case "ankh":
                         // the Ankh lifted from its case: a sparkle and its gleam
                         Stage.Effect("vfx_odin_despawn", at + Vector3.up * 0.8f, root.transform);
@@ -732,7 +763,8 @@ namespace Bretaheim.WorldGen
                 }
                 if (a.Go == null) a.Go = new GameObject("u5_intro_nobody");
                 if (a.Anim == null) a.Anim = a.Go.GetComponentInChildren<Animator>();
-                if (who.StartsWith("avatar")) Stage.Likeness(a.Go, me);
+                if (who.StartsWith("avatar")) { Stage.Likeness(a.Go, me); Carry(a); }
+                if (who == "shadowlord") Smoke(at, 2.5f);
                 return a;
             }
 
@@ -763,6 +795,7 @@ namespace Bretaheim.WorldGen
             {
                 var a = slots[slot];
                 if (a?.Go == null) return;
+                if (a.Path.Count == 0) a.Anim?.SetTrigger("emote_stop");
                 a.Path.Enqueue(Cell(x, y));
             }
 
@@ -794,6 +827,8 @@ namespace Bretaheim.WorldGen
                 gate.transform.rotation = Quaternion.LookRotation(Vector3.forward);
                 gate.transform.localScale = Vector3.one * 0.22f;
                 Blue(gate);
+                // only the shimmering circle, not the portal's stones
+                foreach (var r in gate.GetComponentsInChildren<MeshRenderer>(true)) r.enabled = false;
                 return gate;
             }
 
@@ -808,8 +843,22 @@ namespace Bretaheim.WorldGen
                     main.startColor = new Color(blue.r, blue.g, blue.b, a);
                     var col = ps.colorOverLifetime;
                     if (col.enabled) col.enabled = false;
+                    // (the gradient-mapped flames and runes take their colours from custom data)
+                    var custom = ps.customData;
+                    if (custom.enabled)
+                        foreach (var stream in new[] { ParticleSystemCustomData.Custom1, ParticleSystemCustomData.Custom2 })
+                            if (custom.GetMode(stream) == ParticleSystemCustomDataMode.Color) custom.SetColor(stream, Rehue(custom.GetColor(stream)));
+                    if (ps.trails.enabled)
+                    {
+                        var trails = ps.trails;
+                        trails.colorOverLifetime = Rehue(trails.colorOverLifetime);
+                        trails.colorOverTrail = Rehue(trails.colorOverTrail);
+                    }
                 }
                 foreach (var l in gate.GetComponentsInChildren<Light>(true)) l.color = blue;
+                // (the runes keep a red of their own: not shown)
+                foreach (var ps in gate.GetComponentsInChildren<ParticleSystemRenderer>(true))
+                    if (ps.name.IndexOf("Runes", StringComparison.OrdinalIgnoreCase) >= 0) ps.enabled = false;
                 foreach (var r in gate.GetComponentsInChildren<Renderer>(true))
                     foreach (var m in r.materials)
                     {
@@ -826,6 +875,29 @@ namespace Bretaheim.WorldGen
                             foreach (var prop in new[] { "_Color", "_TintColor" })
                                 if (m.HasProperty(prop)) { var c = m.GetColor(prop); m.SetColor(prop, new Color(blue.r, blue.g, blue.b, c.a)); }
                     }
+            }
+
+            /// <summary>Colours turned blue, each as bright as it was.</summary>
+            static ParticleSystem.MinMaxGradient Rehue(ParticleSystem.MinMaxGradient g)
+            {
+                Color C(Color c) { float v = Mathf.Max(c.r, Mathf.Max(c.g, c.b)); return new Color(v * 0.32f, v * 0.58f, v, c.a); }
+                Gradient G(Gradient x)
+                {
+                    if (x == null) return null;
+                    var y = new Gradient { mode = x.mode };
+                    y.SetKeys(x.colorKeys.Select(k => new GradientColorKey(C(k.color), k.time)).ToArray(), x.alphaKeys);
+                    return y;
+                }
+                switch (g.mode)
+                {
+                    case ParticleSystemGradientMode.Color: return new ParticleSystem.MinMaxGradient(C(g.color));
+                    case ParticleSystemGradientMode.TwoColors: return new ParticleSystem.MinMaxGradient(C(g.colorMin), C(g.colorMax));
+                    case ParticleSystemGradientMode.TwoGradients: return new ParticleSystem.MinMaxGradient(G(g.gradientMin), G(g.gradientMax));
+                    default:
+                        var r = new ParticleSystem.MinMaxGradient(G(g.gradient));
+                        r.mode = g.mode;
+                        return r;
+                }
             }
 
             static Texture2D blueRamp;
@@ -849,13 +921,14 @@ namespace Bretaheim.WorldGen
             {
                 var a = slots[slot];
                 if (a?.Go == null) { yield return Wait(seconds); yield break; }
-                Stage.Effect("vfx_odin_despawn", a.Pos + Vector3.up, root.transform);
+                if (a.Who == "shadowlord") Smoke(a.Pos, seconds + 1f);
+                else Stage.Effect("vfx_odin_despawn", a.Pos + Vector3.up, root.transform);
                 var full = a.Go.transform.localScale;
                 if (appearing) a.Go.transform.localScale = full * 0.01f;
-                float start = Time.time;
-                while (Time.time < start + seconds && Here && !Skipped)
+                float start = Now;
+                while (Now < start + seconds && Here && !Skipped)
                 {
-                    float f = Mathf.Clamp01((Time.time - start) / seconds);
+                    float f = Mathf.Clamp01((Now - start) / seconds);
                     if (a.Go != null) a.Go.transform.localScale = full * Mathf.Max(0.01f, appearing ? f : 1f - f);
                     Tick();
                     yield return null;
@@ -875,6 +948,9 @@ namespace Bretaheim.WorldGen
                     gate.transform.SetParent(root.transform, true);
                     gate.transform.rotation = Quaternion.LookRotation(Vector3.back);
                     Blue(gate);
+                    // the shimmering blue door alone: the portal's stones (and their red runes) not shown
+                    foreach (var r in gate.GetComponentsInChildren<MeshRenderer>(true))
+                        if (r.sharedMaterial != null && r.sharedMaterial.name.StartsWith("Portal_Metal")) r.enabled = false;
                     gates.Add(gate);
                     Stage.Effect("vfx_odin_despawn", at + Vector3.up, root.transform);
                 }
@@ -883,11 +959,11 @@ namespace Bretaheim.WorldGen
                     gate = gates.OrderBy(g => g == null ? float.MaxValue : (g.transform.position - at).sqrMagnitude).FirstOrDefault();
                     if (gate == null) { yield return Wait(seconds); yield break; }
                 }
-                float start = Time.time;
+                float start = Now;
                 seconds = Mathf.Max(seconds, 2.5f);
-                while (Time.time < start + seconds && Here && !Skipped)
+                while (Now < start + seconds && Here && !Skipped)
                 {
-                    float f = Mathf.Clamp01((Time.time - start) / seconds);
+                    float f = Mathf.Clamp01((Now - start) / seconds);
                     float h = opens ? f : 1f - f;
                     if (gate != null) gate.transform.position = at + Vector3.down * 6f * (1f - h);
                     Tick();
@@ -897,35 +973,48 @@ namespace Bretaheim.WorldGen
                 if (!opens && gate != null) { gates.Remove(gate); Object.Destroy(gate); }
             }
 
-            /// <summary>The foremost Shadowlord's black arrow flies at <paramref name="slot"/>.</summary>
+            /// <summary>
+            /// The foremost Shadowlord traces a pattern in the air: the black arrow solidifies before
+            /// it out of the dark, hangs a moment, and flies at <paramref name="slot"/>'s chest, where it stays.
+            /// </summary>
             IEnumerator Bolt(int slot, float seconds)
             {
                 var target = slots[slot];
                 var from = slots.Where(a => a?.Go != null && a.Who == "shadowlord").OrderBy(a => target?.Go == null ? 0 : (a.Pos - target.Pos).sqrMagnitude).FirstOrDefault();
                 if (target?.Go == null || from == null) { yield return Wait(seconds); yield break; }
                 from.Go.transform.rotation = Stage.Face(from.Pos, target.Pos);
-                var start = from.Pos + Vector3.up * 1.6f;
-                var end = target.Pos + Vector3.up * 1.2f;
-                var arrow = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Object.Destroy(arrow.GetComponent<Collider>());
-                arrow.name = "u5_intro_arrow";
-                arrow.transform.SetParent(root.transform, true);
-                arrow.transform.localScale = new Vector3(0.06f, 0.06f, 0.9f);
-                var mat = new Material(Shader.Find("Sprites/Default")) { color = Color.black };
-                arrow.GetComponent<Renderer>().sharedMaterial = mat;
-                Stage.Glow(start, new Color(0.6f, 0.2f, 1f), 3f, 5f, arrow.transform);
-                // it hangs before the Shadowlord a moment, then flies
+                var towards = (target.Pos - from.Pos).normalized;
+                var start = from.Pos + Vector3.up * 1.5f + towards * 0.9f;
+                var end = target.Pos + Vector3.up * 1.25f;
+                var arrow = Arrow();
                 arrow.transform.position = start;
                 arrow.transform.rotation = Quaternion.LookRotation(end - start);
-                yield return Wait(0.8f);
-                float t0 = Time.time, flight = 0.35f;
-                while (Time.time < t0 + flight && Here && !Skipped)
+                // out of a swirl of darkness, growing
+                var swirl = Particles("u5_intro_arrow_dark", start, new Color(0.04f, 0.02f, 0.07f, 0.9f), 0.35f, 0.9f, 50f, 0.35f, 4f, 0f);
+                float t0 = Now, form = 1.6f;
+                while (Now < t0 + form && Here && !Skipped)
                 {
-                    arrow.transform.position = Vector3.Lerp(start, end, (Time.time - t0) / flight);
+                    float f = (Now - t0) / form;
+                    arrow.transform.localScale = Vector3.one * Mathf.SmoothStep(0.05f, 1f, f);
+                    arrow.transform.position = start + Vector3.up * 0.05f * Mathf.Sin(Now * 6f);
                     Tick();
                     yield return null;
                 }
-                Object.Destroy(arrow);
+                StopParticles(swirl);
+                arrow.transform.localScale = Vector3.one;
+                yield return Wait(0.6f);
+                // with a flick of its hand
+                Stage.Pose(from.Go, "point");
+                t0 = Now;
+                float flight = 0.3f;
+                while (Now < t0 + flight && Here && !Skipped)
+                {
+                    arrow.transform.position = Vector3.Lerp(start, end, (Now - t0) / flight);
+                    Tick();
+                    yield return null;
+                }
+                arrow.transform.position = end;
+                stuck = arrow;
                 Stage.Effect("vfx_HitSparks", end, root.transform);
                 Stage.Thunder(end, 0.6f);
                 yield return Wait(seconds);
@@ -979,7 +1068,7 @@ namespace Bretaheim.WorldGen
                 if (title == null) return;
                 title.text = text;
                 title.color = new Color(title.color.r, title.color.g, title.color.b, 1f);
-                titleUntil = Time.time + 6f;
+                titleUntil = Now + 6f;
             }
 
             void SetFade(float a)
@@ -989,10 +1078,10 @@ namespace Bretaheim.WorldGen
 
             IEnumerator Fade(float to, float seconds)
             {
-                float from = fader != null ? fader.color.a : 0f, start = Time.time;
-                while (Time.time < start + seconds && Here && !Skipped)
+                float from = fader != null ? fader.color.a : 0f, start = Now;
+                while (Now < start + seconds && Here && !Skipped)
                 {
-                    SetFade(Mathf.Lerp(from, to, (Time.time - start) / seconds));
+                    SetFade(Mathf.Lerp(from, to, (Now - start) / seconds));
                     Tick();
                     yield return null;
                 }

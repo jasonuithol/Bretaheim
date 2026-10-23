@@ -29,7 +29,8 @@ if (argv.Count > 0 && argv[0] == "intro")
     {
         screens[s].Picture.WritePpm(Path.Combine(outDir, $"story{s:00}.ppm"));
         screens[s].After?.WritePpm(Path.Combine(outDir, $"story{s:00}b.ppm"));
-        Console.WriteLine($"[{s}] {screens[s].Text}\n");
+        screens[s].Art.WritePpm(Path.Combine(outDir, $"story{s:00}art.ppm"));
+        Console.WriteLine($"[{s}] art {screens[s].ArtX},{screens[s].ArtY} {screens[s].ArtW}x{screens[s].ArtH}: {screens[s].Text}\n");
     }
     var art = new VirtueCasting.Art(dir, data.Ovl);
     art.Opening(out string open).WritePpm(Path.Combine(outDir, "gypsy0.ppm"));
@@ -77,7 +78,7 @@ if (argv.Count > 0 && argv[0] == "view")
         frames += ev.Frames;
         string what = ev.Kind == ViewEventKind.Scene ? $"\"{view.Caption[ev.Scene]}\"" : ev.Kind == ViewEventKind.Wait ? $"{ev.Frames}" : $"slot {ev.Slot} tile 0x{ev.Tile + (ev.Slot >= 0 ? 0x100 : 0):x} at {ev.X},{ev.Y}" + (ev.Kind == ViewEventKind.Move ? $" from {ev.FromX},{ev.FromY}" : "");
         if (ev.Kind != ViewEventKind.Wait) view.Render(data.Tiles, ibm).WritePpm(Path.Combine(outDir, $"{shot++:000}.ppm"));
-        Console.WriteLine($"{frames * TheView.Tick,6:0.0}s {(ev.Kind == ViewEventKind.Wait ? "" : $"[{shot - 1:000}] ")}{ev.Kind} {what}");
+        Console.WriteLine($"{frames * TheView.Tick,6:0.0}s {(ev.Kind == ViewEventKind.Wait ? "" : $"[{shot - 1:000}] ")}{ev.Kind} {what} @0x{ev.At:x3}");
     }
     return 0;
 }
