@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2 (alpha)
+- The introduction is played in the world: "Return to the View", the original title's demo, its four
+  scenes (The Summoning, The Journey, The Arrival, The Welcoming) built from its own tile maps and
+  acted by Valheim figures, the Avatar in thy likeness, with the Introduction's words as subtitles at
+  their moments and Iolo's tale by the hearth. Space goes on, Escape skips; `u5 intro` replays it,
+  `u5 intro 0-3` from a scene, `u5 intro 2d` shows the original's pictures instead.
+- Quitting during the introduction or Lord British's scene no longer saves thee in the sky (to fall
+  to thy death when next thou camest in).
+
 ## 0.3.1 (alpha)
 - Hildir waits in Iolo's hut on a dedicated server too (she never appeared there).
 - Guards draw a new spear once their throw is over (they filled their packs trying mid-throw and

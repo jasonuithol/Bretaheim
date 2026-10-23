@@ -1,7 +1,7 @@
 {
     "namespace": "tarbaby",
     "name": "Bretaheim",
-    "version_number": "0.3.1",
+    "version_number": "0.3.2",
     "website_url": "https://github.com/jasonuithol/Bretaheim",
     "description": "ALPHA. Ultima V: Warriors of Destiny rebuilt inside Valheim, read at runtime from your own copy of Ultima V (not included).",
     "dependencies": [
