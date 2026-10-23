@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.3 (alpha)
+- The introduction shows more of what its words tell: clouds over the moon, the Codex forming in
+  the circle, the amulet falling onto the bed, the Ankh in its glass case, the amulet and Ankh
+  glowing within the stones, a lightning strike, the Shadowlords out of swirling darkness, the black
+  arrow formed in the air (glowing red), pulled out and hurled, the amulet's flare, the hut's warm
+  light, Iolo's steaming mugs, and his lute heard through the door until the knock. The moongate is
+  wholly blue.
+- Each scene has its own shots, close on the moments that matter; softer light over the action,
+  moonbeams in the woods, the hearth's glow.
+- Long paragraphs read in pages that turn by themselves (Space turns one); the whole is two minutes
+  shorter.
+- Props in scenes no longer sparkle like loot on the ground.
+
 ## 0.3.2 (alpha)
 - The introduction is played in the world: "Return to the View", the original title's demo, its four
   scenes (The Summoning, The Journey, The Arrival, The Welcoming) built from its own tile maps and
