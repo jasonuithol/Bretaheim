@@ -46,6 +46,41 @@ if (argv.Count > 0 && argv[0] == "intro")
     Console.WriteLine($"[end] {end}\nSTR {Math.Max(20, casting.Strength)} DEX {casting.Dexterity} INT {casting.Intelligence} MP {casting.Intelligence}");
     return 0;
 }
+if (argv.Count > 0 && argv[0] == "view")
+{
+    // view <outdir>: "Return to the View" played once, a PPM after every event but waits, the events printed
+    string outDir = argv.Count > 1 ? argv[1] : "view";
+    Directory.CreateDirectory(outDir);
+    byte[] Read(string f) => File.ReadAllBytes(U5Data.FindFile(dir, f));
+    var ibm = new FixedFont(Read("IBM.CH"));
+    var view = new TheView(Read("MISCMAPS.DAT"), data.Ovl);
+    if (argv.Count > 2 && argv[2] == "plan")
+    {
+        // view <outdir> plan: what each scene is built of on the stage (IntroStage)
+        string maps = AppContext.BaseDirectory;
+        var tiles = Bretaheim.WorldGen.Core.TownTiles.Parse(File.ReadAllText(Path.Combine(maps, "town_tiles.json")));
+        var geo = Bretaheim.WorldGen.Core.PieceGeometry.Parse(File.ReadAllText(Path.Combine(maps, "piece_geometry.json")));
+        var planner = new Bretaheim.WorldGen.Core.SettlementPlanner(data, tiles, geo);
+        for (int sc = 0; sc < 4; sc++)
+        {
+            var raw = view.Stage(sc);
+            for (int y = TheView.StageY - 8; y < TheView.StageY + 8; y++)
+                Console.WriteLine(string.Join("", Enumerable.Range(0, 32).Select(x => raw[y * 32 + x] == TheView.Nothing ? " ." : $"{raw[y * 32 + x]:x2}"[0..2])));
+            var plan = planner.PlanMap(raw, "dwelling", Bretaheim.WorldGen.Core.VBiome.Meadows, false);
+            Console.WriteLine($"scene {sc} \"{view.Caption[sc]}\": {plan.Pieces.Count} pieces: " + string.Join(", ", plan.Pieces.GroupBy(p => p.Prefab).OrderByDescending(g => g.Count()).Select(g => $"{g.Key}×{g.Count()}")));
+        }
+        return 0;
+    }
+    int shot = 0, frames = 0;
+    foreach (var ev in view.Run())
+    {
+        frames += ev.Frames;
+        string what = ev.Kind == ViewEventKind.Scene ? $"\"{view.Caption[ev.Scene]}\"" : ev.Kind == ViewEventKind.Wait ? $"{ev.Frames}" : $"slot {ev.Slot} tile 0x{ev.Tile + (ev.Slot >= 0 ? 0x100 : 0):x} at {ev.X},{ev.Y}" + (ev.Kind == ViewEventKind.Move ? $" from {ev.FromX},{ev.FromY}" : "");
+        if (ev.Kind != ViewEventKind.Wait) view.Render(data.Tiles, ibm).WritePpm(Path.Combine(outDir, $"{shot++:000}.ppm"));
+        Console.WriteLine($"{frames * TheView.Tick,6:0.0}s {(ev.Kind == ViewEventKind.Wait ? "" : $"[{shot - 1:000}] ")}{ev.Kind} {what}");
+    }
+    return 0;
+}
 if (argv.Count > 0 && argv[0] == "scene")
 {
     // scene blackthorn|endgame|resurrection <outdir> [answers…]: the cut-scene played with these answers (typed

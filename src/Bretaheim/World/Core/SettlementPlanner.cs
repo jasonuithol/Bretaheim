@@ -223,6 +223,29 @@ namespace Bretaheim.WorldGen.Core
             return plan;
         }
 
+        /// <summary>
+        /// One ground-floor map that is no settlement of the game's (the View's scenes, staged by
+        /// IntroStage): its ground, walls, furniture and, if wanted, roofs; no signs, people or inn.
+        /// </summary>
+        public SettlementPlan PlanMap(byte[] raw, string kind, VBiome biome, bool roofs)
+        {
+            planning = -1;
+            var plan = new SettlementPlan { Location = new Data.Location { Number = -1, Name = kind }, Kind = kind };
+            if (!tiles.Settlements.TryGetValue(kind, out var materials)) materials = ("stone", "shingle");
+            var style = tiles.Styles[materials.walls];
+            var lv = Analyse(raw, 0, null, null);
+            var levels = new List<Level> { lv };
+            var ctx = new Ctx(plan, geo);
+            Ground(ctx, lv);
+            Walls(ctx, lv, null, style, tiles.Cobble);
+            Furniture(ctx, lv, levels, biome, Cottages(lv));
+            if (roofs) Roofs(ctx, levels, tiles.Roofs[materials.roof], tiles.Roofs[tiles.CottageRoof]);
+            plan.Walk[0] = NpcWalk(lv, out var squeeze);
+            plan.Squeeze[0] = squeeze;
+            plan.Cells[0] = Cells(lv);
+            return plan;
+        }
+
         /// <summary>The analysed floors of a location, ground floor first.</summary>
         List<Level> Levels(Data.Location loc)
         {

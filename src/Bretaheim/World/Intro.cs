@@ -19,8 +19,8 @@ namespace Bretaheim.WorldGen
         const string SeenPrefix = "u5_intro_";
         static List<StoryScreen> screens;
 
-        /// <summary>The introduction is on the screen.</summary>
-        public static bool Showing => playing;
+        /// <summary>The introduction is on the screen (or played in the world).</summary>
+        public static bool Showing => playing || IntroStage.Playing;
         static bool playing;
 
         static bool Active => Britannia.Active != null;
@@ -28,6 +28,7 @@ namespace Bretaheim.WorldGen
         public static void Install(Harmony harmony)
         {
             UltimaScreenPanel.Install(harmony);
+            IntroStage.Install(harmony);
             var show = AccessTools.Method(typeof(Game), "ShowIntro");
             if (show != null) harmony.Patch(show, prefix: new HarmonyMethod(typeof(Intro), nameof(ShowIntro_Prefix)));
             var play = AccessTools.Method(typeof(CinematicsManager), nameof(CinematicsManager.Play), new[] { typeof(CinematicsManager.Settings), typeof(CinematicsManager.VideoCompleteAction) });
@@ -69,12 +70,26 @@ namespace Bretaheim.WorldGen
             Plugin.Instance.StartCoroutine(Play());
         }
 
-        /// <summary>Plays the introduction (also for `u5 intro`).</summary>
-        public static IEnumerator Play()
+        /// <summary>
+        /// Plays the introduction (also for `u5 intro`): in the world (IntroStage, the View acted
+        /// with the story's words), or the original's 21 screens when asked or when it cannot be staged.
+        /// </summary>
+        public static IEnumerator Play(bool screensOnly = false, int fromScene = 0)
         {
-            if (playing) yield break;
+            if (playing || IntroStage.Playing) yield break;
             // (the world appears behind it first)
             yield return new WaitForSeconds(0.5f);
+            if (!screensOnly && Player.m_localPlayer != null)
+            {
+                bool staged = false;
+                yield return IntroStage.Play(Player.m_localPlayer, ok => staged = ok, fromScene);
+                if (staged)
+                {
+                    MarkSeen();
+                    Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "Iolo's hut");
+                    yield break;
+                }
+            }
             if (screens == null)
             {
                 try

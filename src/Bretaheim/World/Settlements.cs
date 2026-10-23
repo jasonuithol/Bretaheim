@@ -166,6 +166,15 @@ namespace Bretaheim.WorldGen
             return plan.HasBasement ? Mathf.Max(ground, plan.BasementDepth + 1) : ground;
         }
 
+        /// <summary>A planner for maps that are no settlement (IntroStage's scenes).</summary>
+        public static SettlementPlanner Planner()
+        {
+            string dir = Path.Combine(Plugin.PluginDirectory, "mappings");
+            tiles = tiles ?? TownTiles.Parse(File.ReadAllText(Path.Combine(dir, "town_tiles.json")));
+            geo = geo ?? PieceGeometry.Parse(File.ReadAllText(Path.Combine(dir, "piece_geometry.json")));
+            return new SettlementPlanner(Plugin.U5, tiles, geo);
+        }
+
         public static bool IsBuilt(int location) => All.Any(b => b.Location.Number == location);
         public static Built Get(int location) => All.FirstOrDefault(b => b.Location.Number == location);
         public static bool ShellPieces(int location, Vector2s zone, out List<Placement> pieces) => shells.TryGetValue((location, zone), out pieces);

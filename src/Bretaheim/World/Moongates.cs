@@ -286,7 +286,7 @@ namespace Bretaheim.WorldGen
         /// target), stripped to its look (no piece, no collider, no network object), plus a
         /// cold blue light.
         /// </summary>
-        static GameObject Build(Vector3 at)
+        internal static GameObject Build(Vector3 at)
         {
             var prefab = ZNetScene.instance.GetPrefab("portal_stone") ?? ZNetScene.instance.GetPrefab("portal_wood");
             if (prefab == null) return null;

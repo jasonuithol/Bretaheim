@@ -219,5 +219,38 @@ namespace Bretaheim.Tests
             Assert.Contains("Well armed art thou to fight Death's embrace", high);
             Assert.Contains("Vertigo...", high);
         }
+
+        [U5Fact]
+        public void TheViewPlaysItsFourScenesOnce()
+        {
+            var view = new TheView(Read("MISCMAPS.DAT"), Env.Data.Ovl);
+            Assert.Equal(new[] { "The Summoning", "The Journey", "The Arrival", "The Welcoming" }, view.Caption);
+            var events = view.Run().ToList();
+            Assert.Equal(new[] { 0, 1, 2, 3 }, events.Where(e => e.Kind == ViewEventKind.Scene).Select(e => e.Scene));
+            // the Avatar wakes beside the bed, the gate opens at the stones, the Shadowlords' bolt strikes Shamino
+            Assert.Contains(events, e => e.Kind == ViewEventKind.Place && e.Tile == 0x50 && e.X == 3 && e.Y == 2);
+            Assert.Contains(events, e => e.Kind == ViewEventKind.GateOpens && e.X == 13 && e.Y == 1);
+            Assert.Single(events, e => e.Kind == ViewEventKind.Bolt && e.Slot == 1);
+            Assert.Equal(3, events.Count(e => e.Kind == ViewEventKind.DissolveIn && e.Tile == 0xfc));
+            // walks stay on the strip
+            Assert.All(events.Where(e => e.Kind == ViewEventKind.Move), e => Assert.InRange(e.X, 0, TheView.Columns - 1));
+            Assert.Equal(0x48c, events.Last().At);
+        }
+
+        [U5Fact]
+        public void TheViewsScenesAreStagedOnASettlementMap()
+        {
+            var view = new TheView(Read("MISCMAPS.DAT"), Env.Data.Ovl);
+            var bedroom = view.Stage(0);
+            Assert.Equal(TheView.Nothing, bedroom[0]);
+            Assert.Equal(view.SceneTile(0, 2, 13), bedroom[(TheView.StageY + 2) * TheView.StageSize + TheView.StageX + 13]);
+            var hut = view.Stage(3);
+            Assert.Equal(TheView.Door, hut[(TheView.StageY + TheView.Rows) * TheView.StageSize + TheView.StageX + 8]);
+            Assert.Equal(TheView.Cobble, hut[(TheView.StageY - 1) * TheView.StageSize + TheView.StageX + 9]);
+            // no trees between the onlooker and the strip
+            var woods = view.Stage(1);
+            for (int y = TheView.StageY + TheView.Rows; y < TheView.StageSize; y++)
+                for (int x = 0; x < TheView.StageSize; x++) Assert.NotEqual(TheView.Tree, woods[y * TheView.StageSize + x]);
+        }
     }
 }
